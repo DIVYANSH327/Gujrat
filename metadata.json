@@ -1,0 +1,10 @@
+{
+  "name": "Gujarat Police AI CCTV Command Center",
+  "description": "Gujarat Police AI CCTV Intelligence Command Center & Multi-Camera Edge Analytics Platform",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
