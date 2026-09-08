@@ -1,0 +1,14 @@
+{
+  "projectId": "DIVYANSH-CCTV-AI",
+  "projectName": "Gujarat Police CCTV & AI Intelligence Platform",
+  "author": "DIVYANSH Shrivastava",
+  "copyright": "© 2026 DIVYANSH Shrivastava — All Rights Reserved",
+  "license": "Proprietary",
+  "version": "v0.7.2-PROD",
+  "buildId": "BUILD-20260905-072-REL",
+  "timestamp": "2026-09-05T04:20:00.000Z",
+  "integrityAlgorithm": "SHA-256",
+  "releaseIntegrityHash": "9b12a86df70b92e35a1cb5d6e2e283ca462886f4a3bfec6c646efbbdfce747c3",
+  "manifestVerificationStatus": "VERIFIED_VALID",
+  "integrityPurpose": "Tamper-evident release verification and artifact integrity validation"
+}

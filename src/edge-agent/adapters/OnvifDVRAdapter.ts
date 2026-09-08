@@ -128,7 +128,7 @@ export class OnvifDVRAdapter implements IDVRAdapter, IOnvifDiscovery {
       manufacturer: 'ONVIF-Compliant Vendor (Normalized)',
       model: 'ONVIF-Profile-S-T',
       firmwareVersion: 'v2.4.0-onvif-ready',
-      serialNumber: `ONVIF-SN-${this.config.deviceIp.replace(/\./g, '')}`,
+      serialNumber: `ONVIF-SN-${(this.config.deviceIp || '0000').replace(/\./g, '')}`,
       hardwareId: 'ONVIF-HW-GENERIC',
       integrationBoundary: this.adapterClassification,
       configuredIp: this.config.deviceIp

@@ -16,7 +16,9 @@ import {
   Shield,
   Eye,
   Radio,
-  FileText
+  FileText,
+  Workflow,
+  Sliders
 } from 'lucide-react';
 import { ViewMode } from '../types';
 
@@ -156,13 +158,29 @@ export function Dashboard({ onViewChange }: DashboardProps) {
 
         <div className="flex items-center gap-2">
           {onViewChange && (
-            <button
-              onClick={() => onViewChange('challenge')}
-              className="flex items-center gap-2 px-3.5 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded text-xs font-mono font-bold uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)] cursor-pointer"
-            >
-              <Eye size={15} />
-              <span>LAUNCH GOD'S EYE</span>
-            </button>
+            <>
+              <button
+                onClick={() => onViewChange('system_brain')}
+                className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 rounded text-xs font-mono font-bold uppercase tracking-wider transition-all cursor-pointer"
+              >
+                <Workflow size={14} className="text-cyan-400" />
+                <span>SYSTEM BRAIN</span>
+              </button>
+              <button
+                onClick={() => onViewChange('scale_lab')}
+                className="flex items-center gap-1.5 px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 rounded text-xs font-mono font-bold uppercase tracking-wider transition-all cursor-pointer"
+              >
+                <Sliders size={14} className="text-amber-400" />
+                <span>SCALE LAB</span>
+              </button>
+              <button
+                onClick={() => onViewChange('challenge')}
+                className="flex items-center gap-2 px-3.5 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded text-xs font-mono font-bold uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)] cursor-pointer"
+              >
+                <Eye size={15} />
+                <span>LAUNCH GOD'S EYE</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -187,21 +205,45 @@ export function Dashboard({ onViewChange }: DashboardProps) {
           </div>
         </div>
 
-        {/* Cameras Status */}
-        <div className="bg-[#090d16] border border-cyan-950/70 rounded-lg p-3.5 flex items-center justify-between shadow-sm">
+        {/* Real CCTV Ingest Status */}
+        <div 
+          onClick={() => onViewChange && onViewChange('cameras')}
+          className="bg-[#090d16] border border-cyan-950/70 hover:border-cyan-500/40 rounded-lg p-3.5 flex items-center justify-between shadow-sm cursor-pointer transition-all group"
+        >
           <div>
             <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold flex items-center gap-1.5">
-              <Video size={13} className="text-cyan-400" /> CCTV FEEDS
+              <Video size={13} className="text-cyan-400" /> REAL CCTV SOURCES
             </div>
             <div className="text-2xl font-black font-mono text-zinc-100 mt-1">
-              50 <span className="text-xs font-normal text-zinc-400">MONITORED</span>
+              0 <span className="text-xs font-normal text-zinc-500">CONNECTED</span>
             </div>
             <div className="text-[10px] font-mono text-zinc-400 mt-0.5">
-              <span className="text-emerald-400 font-bold">48</span> ONLINE • <span className="text-amber-400 font-bold">1</span> DEGRADED • <span className="text-zinc-500 font-bold">1</span> MOCK
+              <span className="text-cyan-400 font-bold">DVR / NVR / VMS / ONVIF</span> READY
             </div>
           </div>
-          <div className="p-2.5 bg-cyan-950/30 rounded border border-cyan-800/30 text-cyan-400">
+          <div className="p-2.5 bg-cyan-950/30 rounded border border-cyan-800/30 text-cyan-400 group-hover:border-cyan-500/50">
             <CameraIcon size={20} />
+          </div>
+        </div>
+
+        {/* YouTube Demo Feeds */}
+        <div 
+          onClick={() => onViewChange && onViewChange('youtube_demo')}
+          className="bg-[#090d16] border border-amber-950/50 hover:border-amber-500/40 rounded-lg p-3.5 flex items-center justify-between shadow-sm cursor-pointer transition-all group"
+        >
+          <div>
+            <div className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-bold flex items-center gap-1.5">
+              <Video size={13} className="text-amber-400" /> YOUTUBE DEMO SOURCES
+            </div>
+            <div className="text-2xl font-black font-mono text-amber-300 mt-1">
+              4 <span className="text-xs font-normal text-amber-400">SOURCES</span>
+            </div>
+            <div className="text-[10px] font-mono text-zinc-400 mt-0.5">
+              <span className="text-amber-400 font-bold">DEMO VIDEO ONLY</span>
+            </div>
+          </div>
+          <div className="p-2.5 bg-amber-950/30 rounded border border-amber-800/30 text-amber-400 group-hover:border-amber-500/50">
+            <Video size={20} />
           </div>
         </div>
 
@@ -442,8 +484,8 @@ export function Dashboard({ onViewChange }: DashboardProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-cyan-950/30 text-[11px]">
-                {recentEvents.map(evt => (
-                  <tr key={evt.id} className="hover:bg-cyan-950/20 transition-colors">
+                {recentEvents.map((evt, idx) => (
+                  <tr key={evt.id ? `${evt.id}-${idx}` : `evt-${idx}`} className="hover:bg-cyan-950/20 transition-colors">
                     <td className="py-2.5 text-zinc-400">{evt.time}</td>
                     <td className="py-2.5 text-zinc-200 font-semibold">{evt.camera}</td>
                     <td className="py-2.5 text-cyan-300 font-bold">{evt.eventType}</td>

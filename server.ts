@@ -1,6 +1,12 @@
+/**
+ * Copyright (c) 2026 DIVYANSH Shrivastava.
+ * All rights reserved.
+ */
+
 import express from "express";
 import path from "path";
 import crypto from "crypto";
+import { GoogleGenAI, Type } from "@google/genai";
 import { createServer as createViteServer } from "vite";
 import { 
   SecurityEventPayload, 
@@ -30,7 +36,11 @@ import {
 } from "./src/types.js";
 
 import { PersonTrackingService } from "./src/services/GodsEyeService.js";
+import { godsEyeObservationService } from "./src/services/GodsEyeObservationService.js";
+import { evidenceStorage } from "./src/services/EvidenceStorageProvider.js";
 import { EdgeDiscoveryService } from "./src/edge-agent/DiscoveryService.js";
+import { DEFAULT_DEMO_VIDEO_SOURCES, isValidYouTubeVideoId } from "./src/services/DemoVideoService.js";
+import { DemoVideoSource } from "./src/video/types.js";
 
 // Mock Data Generators
 const generateCameras = (): Camera[] => {
@@ -213,9 +223,15 @@ class AuditService implements IAuditService {
 const auditService = new AuditService();
 
 class WatchlistService implements IWatchlistService {
-  async checkWatchlist(vehicleNumber: string): Promise<WatchlistEntry | null> {
-    const norm = normalizePlate(vehicleNumber);
-    const entry = watchlist.find(w => w.vehicleNumber && normalizePlate(w.vehicleNumber) === norm && w.status === 'active');
+  async checkWatchlist(targetIdOrPlate: string): Promise<WatchlistEntry | null> {
+    const norm = normalizePlate(targetIdOrPlate);
+    const entry = watchlist.find(w => {
+      if (w.status !== 'active') return false;
+      if (w.vehicleNumber && normalizePlate(w.vehicleNumber) === norm) return true;
+      if (w.personId && w.personId.toUpperCase() === targetIdOrPlate.toUpperCase()) return true;
+      if (w.id && w.id.toUpperCase() === targetIdOrPlate.toUpperCase()) return true;
+      return false;
+    });
     return entry || null;
   }
 }
@@ -233,7 +249,7 @@ class VehicleTrackingService implements IVehicleTrackingService, IVehicleInvesti
 
   async correlateVehicleEvents(vehicleNumber: string): Promise<VehicleJourney> {
     const targetPlate = normalizePlate(vehicleNumber);
-    const allEvents = this.repo.getAllEvents().filter(e => e.eventType === 'ANPR');
+    const allEvents = this.repo.getAllEvents().filter(e => e.eventType === 'ANPR' || e.eventType === 'VEHICLE_SIGHTING');
     
     const matchedEvents = allEvents
       .filter(e => normalizePlate(e.metadata?.plate || '') === targetPlate)
@@ -299,44 +315,64 @@ const vehicleTrackingService = new VehicleTrackingService(centralRepo, synthetic
 const personTrackingService = new PersonTrackingService(() => centralRepo.getAllEvents(), syntheticCameras);
 
 async function processWatchlistAndRules(event: SecurityEventPayload, reqId: string) {
-  // 1. Dynamic Watchlist Evaluation
-  if (event.eventType === 'ANPR' && event.metadata?.plate) {
-    const normalized = normalizePlate(event.metadata.plate);
-    const match = await watchlistService.checkWatchlist(normalized);
+  // 1. Dynamic Watchlist Evaluation (Vehicle Plate or Synthetic Person Track)
+  const plate = event.metadata?.plate;
+  const personTrackId = event.metadata?.personTrackId;
+  const targetId = event.metadata?.targetId;
+
+  let match: WatchlistEntry | null = null;
+  let matchType = 'VEHICLE';
+
+  if (plate) {
+    const normalized = normalizePlate(plate);
+    match = await watchlistService.checkWatchlist(normalized);
+  }
+  if (!match && personTrackId) {
+    match = await watchlistService.checkWatchlist(personTrackId);
+    if (match) matchType = 'PERSON';
+  }
+  if (!match && targetId) {
+    match = await watchlistService.checkWatchlist(targetId);
+    if (match) matchType = 'TARGET';
+  }
     
-    if (match) {
-      const alertId = `ALT-WL-${event.eventId}`;
-      const evidenceRef = event.metadata?.evidenceId || `EVD-${event.eventId}`;
-      if (!alerts.some(a => a.id === alertId || a.evidenceReference === evidenceRef || (a.cameraId === event.cameraId && a.vehicleNumber === event.metadata?.plate && a.type === 'watchlist'))) {
-        const cam = syntheticCameras.find(c => c.id === event.cameraId);
-        const newAlert: Alert = {
-          id: alertId,
-          type: 'watchlist',
-          severity: match.priority,
-          cameraName: cam?.name || `CCTV Node ${event.cameraId}`,
-          cameraId: event.cameraId,
-          location: cam?.location || 'Traffic Corridor',
-          timestamp: event.timestamp || new Date().toISOString(),
-          description: `Designated vehicle detected: ${event.metadata.plate} at ${cam?.name || event.cameraId}. Reason: ${match.reason}`,
-          isRead: false,
-          snapshotUrl: event.snapshotReference || `https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800&auto=format&fit=crop&q=60`,
-          siteId: cam?.siteId || event.siteId || 'SITE-1',
-          vehicleNumber: event.metadata.plate,
-          confidence: event.confidence || 0.96,
-          status: 'new',
-          evidenceReference: evidenceRef
-        };
-        alerts.unshift(newAlert);
-        if (alerts.length > 100) alerts.pop();
-        await auditService.log('SYSTEM_RULES_ENGINE', 'ALERT_GENERATED', `TARGET:${match.vehicleNumber} [${match.id}]`, 'CRITICAL_DISPATCH', reqId);
-      }
+  if (match) {
+    const alertId = `ALT-WL-${event.eventId}`;
+    const evidenceRef = event.metadata?.evidenceId || `EVD-WATCHLIST-${event.eventId.slice(-8)}`;
+    if (!alerts.some(a => a.id === alertId || a.evidenceReference === evidenceRef || (a.cameraId === event.cameraId && a.vehicleNumber === event.metadata?.plate && a.type === 'watchlist'))) {
+      const cam = syntheticCameras.find(c => c.id === event.cameraId);
+      const targetIdentifier = plate || personTrackId || targetId || match.vehicleNumber || match.personId || 'Target';
+      const newAlert: Alert = {
+        id: alertId,
+        type: 'watchlist',
+        severity: match.priority || 'high',
+        cameraName: cam?.name || `CCTV Node ${event.cameraId}`,
+        cameraId: event.cameraId,
+        location: cam?.location || 'Traffic Corridor',
+        timestamp: event.timestamp || new Date().toISOString(),
+        description: `Synthetic Watchlist Match: ${targetIdentifier} detected at ${cam?.name || event.cameraId}. Reason: ${match.reason}`,
+        isRead: false,
+        snapshotUrl: event.snapshotReference || `https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800&auto=format&fit=crop&q=60`,
+        siteId: cam?.siteId || event.siteId || 'SITE-1',
+        vehicleNumber: event.metadata?.plate,
+        targetId: match.id,
+        personTrackId: personTrackId,
+        syntheticMatch: true,
+        label: 'SIMULATED DEMO EVIDENCE',
+        confidence: event.confidence || 0.96,
+        status: 'new',
+        evidenceReference: evidenceRef
+      };
+      alerts.unshift(newAlert);
+      if (alerts.length > 100) alerts.pop();
+      await auditService.log('SYSTEM_RULES_ENGINE', 'SYNTHETIC_WATCHLIST_MATCH', `TARGET:${targetIdentifier} [${match.id}]`, 'HIGH_PRIORITY_ALARM', reqId);
     }
   }
 
   // 2. Dynamic Rule: Helmet violation detection (NO_HELMET)
   if (event.metadata?.helmetStatus === 'NO_HELMET') {
     const helmetAlertId = `ALT-RULE-HELMET-${event.eventId}`;
-    const evidenceRef = event.metadata?.evidenceId || `EVD-${event.eventId}`;
+    const evidenceRef = event.metadata?.evidenceId || `EVD-HELMET-${event.eventId.slice(-8)}`;
     if (!alerts.some(a => a.id === helmetAlertId || a.evidenceReference === evidenceRef || (a.cameraId === event.cameraId && a.vehicleNumber === event.metadata?.plate && a.type === 'rule' && a.id.includes('HELMET')))) {
       const cam = syntheticCameras.find(c => c.id === event.cameraId);
       const confPercent = Math.round((event.metadata?.helmetConfidence || 0.94) * 100);
@@ -526,6 +562,66 @@ function seedSyntheticIntelligenceData() {
     };
     centralRepo.createEvent(ev);
   });
+
+  // --- SCENARIO D: Wanted Vehicle Corridor GJ05AB1234 (V1.1 Demonstration) ---
+  const scenarioDNodes = [
+    { camId: 'CAM-007', offset: 20000, speed: 48, conf: 0.98, loc: 'Airport Circle North Gate', dept: 'TRAFFIC' },
+    { camId: 'CAM-014', offset: 160000, speed: 52, conf: 0.96, loc: 'Hansol Junction Crossroad', dept: 'TRAFFIC', isTrigger: true },
+    { camId: 'CAM-023', offset: 335000, speed: 55, conf: 0.94, loc: 'DGP Office Perimeter Road', dept: 'HIGHWAY' },
+    { camId: 'CAM-031', offset: 500000, speed: 58, conf: 0.92, loc: 'Sabarmati Riverfront Flyover', dept: 'CITY_POLICE' }
+  ];
+
+  scenarioDNodes.forEach((n, idx) => {
+    const cam = syntheticCameras.find(c => c.id === n.camId);
+    const eventId = `EVT-TRK-SCENARIOD-${idx + 1}`;
+    const ts = new Date(baseTime + n.offset).toISOString();
+    const ev: SecurityEventPayload = {
+      eventId,
+      edgeNodeId: cam?.edgeNodeId || 'EDGE-00042',
+      siteId: cam?.siteId || 'SITE-STATEWIDE',
+      cameraId: n.camId,
+      timestamp: ts,
+      eventType: 'ANPR',
+      priority: n.isTrigger ? 'critical' : 'high',
+      confidence: n.conf,
+      snapshotReference: `https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800&auto=format&fit=crop&q=60`,
+      metadata: {
+        plate: 'GJ05AB1234',
+        vehicleClass: 'Sedan',
+        speed: n.speed,
+        location: n.loc,
+        departmentType: n.dept,
+        direction: 'Southwest Corridor',
+        correlationId: 'CORR-SCENARIO-WANTED-GJ05AB1234',
+        isWatchlistMatch: true,
+        evidenceId: `EVD-GJ05AB1234-${idx + 1}`
+      }
+    };
+    centralRepo.createEvent(ev);
+
+    if (n.isTrigger) {
+      const wlAlert: Alert = {
+        id: `ALT-WL-GJ05AB1234`,
+        severity: 'critical',
+        type: 'watchlist',
+        cameraName: cam?.name || 'Hansol Junction Crossroad (CAM-014)',
+        cameraId: 'CAM-014',
+        location: n.loc,
+        timestamp: ts,
+        description: `WANTED VEHICLE DETECTED: Target plate GJ05AB1234 sighted at ${n.loc} (CAM-014). Watchlist match with SHA-256 evidence dispatch.`,
+        isRead: false,
+        snapshotUrl: ev.snapshotReference!,
+        siteId: cam?.siteId || 'SITE-3',
+        vehicleNumber: 'GJ05AB1234',
+        confidence: 0.98,
+        status: 'new',
+        evidenceReference: `EVD-GJ05AB1234-2`
+      };
+      if (!alerts.some(a => a.id === wlAlert.id)) {
+        alerts.unshift(wlAlert);
+      }
+    }
+  });
 }
 
 async function startServer() {
@@ -535,7 +631,7 @@ async function startServer() {
   // Initialize seed intelligence data
   seedSyntheticIntelligenceData();
 
-  app.use(express.json());
+  app.use(express.json({ limit: '15mb' }));
 
   // Intercept all /api/edge requests to check if offline
   app.use('/api/edge', (req, res, next) => {
@@ -821,15 +917,148 @@ async function startServer() {
     res.json(evidence);
   });
 
-  // Vehicle Investigation & Chronological Trajectory
+  // Vehicle Investigation & Chronological Trajectory (Enhanced with God's Eye V2 Intelligence)
   app.get('/api/central/investigation/vehicle/:plate', async (req, res) => {
     const reqId = (req.headers['x-request-id'] as string) || `REQ-${Date.now()}`;
     const targetPlate = normalizePlate(req.params.plate);
     await auditService.log('OPERATOR', 'VEHICLE_INVESTIGATION_SEARCH', targetPlate, 'QUERY_EXECUTED', reqId);
     
     const journey = await vehicleTrackingService.correlateVehicleEvents(targetPlate);
-    res.json(journey);
+    const observations = godsEyeObservationService.getObservationsForPlate(targetPlate);
+    const trajectory = await godsEyeObservationService.generateCompactTrajectory(targetPlate);
+    const evidenceChain = await godsEyeObservationService.getForensicEvidenceChain(targetPlate);
+    
+    // Find cross-camera correlations if observations exist
+    let correlations: any[] = [];
+    if (observations.length > 0) {
+      correlations = godsEyeObservationService.correlateVehicleAcrossCameras(observations[0]);
+    }
+
+    res.json({
+      ...journey,
+      v2Observations: observations,
+      compactTrajectory: trajectory,
+      evidenceChain,
+      correlations,
+      lastSeenObservation: observations.length > 0 ? observations[observations.length - 1] : null
+    });
   });
+
+  // God's Eye V2: Forensic Evidence Chain for Vehicle
+  app.get('/api/central/investigation/vehicle/:plate/evidence', async (req, res) => {
+    const targetPlate = normalizePlate(req.params.plate);
+    const chain = await godsEyeObservationService.getForensicEvidenceChain(targetPlate);
+    res.json(chain);
+  });
+
+  // God's Eye V2: Compact Trajectory Points and Bandwidth Footprint
+  app.get('/api/central/investigation/vehicle/:plate/trajectory', async (req, res) => {
+    const targetPlate = normalizePlate(req.params.plate);
+    const trajectory = await godsEyeObservationService.generateCompactTrajectory(targetPlate);
+    res.json(trajectory);
+  });
+
+  // God's Eye V2: Last-Seen Summary Card
+  app.get('/api/central/investigation/vehicle/:plate/last-seen', async (req, res) => {
+    const targetPlate = normalizePlate(req.params.plate);
+    const observations = godsEyeObservationService.getObservationsForPlate(targetPlate);
+    if (observations.length === 0) {
+      return res.status(404).json({ error: 'No observations found for plate', plate: targetPlate });
+    }
+    const lastSeen = observations[observations.length - 1];
+    const firstSeen = observations[0];
+    res.json({
+      plate: targetPlate,
+      lastSeenObservation: lastSeen,
+      firstSeenObservation: firstSeen,
+      totalObservations: observations.length,
+      camerasVisited: new Set(observations.map(o => o.cameraId)).size
+    });
+  });
+
+  // God's Eye V2: Chronological Photo Evidence Timeline
+  app.get('/api/central/investigation/vehicle/:plate/timeline', async (req, res) => {
+    const targetPlate = normalizePlate(req.params.plate);
+    const observations = godsEyeObservationService.getObservationsForPlate(targetPlate);
+    const evidenceList = await evidenceStorage.listEvidence({ plateNormalized: targetPlate });
+    
+    res.json({
+      plate: targetPlate,
+      firstSeen: observations.length > 0 ? observations[0].timestamp : null,
+      lastSeen: observations.length > 0 ? observations[observations.length - 1].timestamp : null,
+      timeline: observations.map((o, idx) => ({
+        sequence: idx + 1,
+        isFirstSeen: idx === 0,
+        isLastSeen: idx === observations.length - 1,
+        observationId: o.observationId,
+        cameraId: o.cameraId,
+        cameraName: o.cameraName,
+        timestamp: o.timestamp,
+        speedEstimate: o.speedEstimate,
+        direction: o.direction,
+        vehicleClass: o.vehicleClass,
+        plateStatus: o.plateStatus,
+        plateConfidence: o.plateConfidence,
+        imageReference: o.imageReference,
+        thumbnailReference: o.thumbnailReference,
+        evidenceHash: o.evidenceHash,
+        evidenceReference: o.evidenceReference,
+        isBestFrame: o.isBestFrame,
+        bestFrameScore: o.bestFrameScore
+      })),
+      forensicRecords: evidenceList
+    });
+  });
+
+  // God's Eye V2: Cross-Camera Correlation Analysis
+  app.get('/api/central/investigation/vehicle/:plate/correlations', async (req, res) => {
+    const targetPlate = normalizePlate(req.params.plate);
+    const observations = godsEyeObservationService.getObservationsForPlate(targetPlate);
+    if (observations.length === 0) {
+      return res.json([]);
+    }
+    const correlations = godsEyeObservationService.correlateVehicleAcrossCameras(observations[0]);
+    res.json(correlations);
+  });
+
+  // God's Eye V2: Live Vehicle Observations Stream & Query
+  app.get('/api/central/vehicle-observations', (req, res) => {
+    const vehicleClass = req.query.vehicleClass as any;
+    const plateStatus = req.query.plateStatus as any;
+    const cameraId = req.query.cameraId as string;
+    const watchlistOnly = req.query.watchlistOnly === 'true';
+    const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
+
+    const observations = godsEyeObservationService.getLiveObservations({
+      vehicleClass,
+      plateStatus,
+      cameraId,
+      watchlistOnly,
+      limit
+    });
+    res.json(observations);
+  });
+
+  // God's Eye V2: Ingest Vehicle Observation from Edge Camera Node
+  app.post('/api/central/vehicle-observations', async (req, res) => {
+    const obs = await godsEyeObservationService.recordObservation(req.body);
+    res.status(201).json(obs);
+  });
+
+  // God's Eye V2: Dispatch Camera-to-Camera Search Task
+  app.post('/api/central/camera-search-task', async (req, res) => {
+    const sourceObs = req.body;
+    const task = await godsEyeObservationService.createSearchTaskForDownstreamCameras(sourceObs);
+    res.status(201).json(task);
+  });
+
+  // God's Eye V2: Simulate Mobile Patrol Observation
+  app.post('/api/central/mobile-patrol/simulate', async (req, res) => {
+    const carId = req.body?.carId || 'MOBILE-CAR-001';
+    const obs = await godsEyeObservationService.simulateMobilePatrolObservation(carId, req.body?.location);
+    res.status(201).json(obs);
+  });
+
 
   // Investigation Evidence Dossier Export
   app.get('/api/central/investigation/export/:plate', async (req, res) => {
@@ -837,7 +1066,7 @@ async function startServer() {
     const targetPlate = normalizePlate(req.params.plate);
     await auditService.log('OPERATOR', 'EXPORT_DOSSIER', targetPlate, 'DOSSIER_COMPILED', reqId);
     
-    const allEvents = centralRepo.getAllEvents().filter(e => e.eventType === 'ANPR');
+    const allEvents = centralRepo.getAllEvents().filter(e => e.eventType === 'ANPR' || e.eventType === 'VEHICLE_SIGHTING');
     const targetEvents = allEvents.filter(e => normalizePlate(e.metadata?.plate || '') === targetPlate);
     
     const canonicalDossier = JSON.stringify({
@@ -857,17 +1086,39 @@ async function startServer() {
       correlationId: reqId,
       cryptographicHash: dossierSha256,
       integrityLabel: 'Evidence Integrity Hash — DEMO',
-      integrityNotice: 'Calculated via SHA-256 over canonical dossier payload. Production system calculates hash over raw tamper-sealed video bitstreams.',
+      integrityNotice: 'Calculated via SHA-256 integrity digest over canonical dossier payload for BSA 2023 electronic-record workflow.',
       totalVerifiedSightings: targetEvents.length,
-      sightings: targetEvents.map(e => ({
-        eventId: e.eventId,
-        timestamp: e.timestamp,
-        cameraId: e.cameraId,
-        siteId: e.siteId,
-        edgeNode: e.edgeNodeId,
-        confidence: e.confidence,
-        evidenceDigest: `SHA256:${crypto.createHash('sha256').update(e.eventId + (e.timestamp || '')).digest('hex')}`
-      }))
+      departmentRetentionPolicy: {
+        trafficRawDays: 15,
+        highwayRawDays: 30,
+        cityPoliceRawDays: 30,
+        forensicEvidenceYears: 7,
+        standardNotice: 'Raw video retention adheres to departmental quotas. Incident evidence snapshots and SHA-256 cryptographic hashes are archived for statutory judicial custody.'
+      },
+      sightings: targetEvents.map(e => {
+        const cam = syntheticCameras.find(c => c.id === e.cameraId);
+        const deptType = e.metadata?.departmentType || (e.cameraId.includes('023') ? 'HIGHWAY' : (e.cameraId.includes('007') || e.cameraId.includes('014')) ? 'TRAFFIC' : 'CITY_POLICE');
+        const retentionDays = deptType === 'HIGHWAY' ? 30 : deptType === 'TRAFFIC' ? 15 : 30;
+        const videoAgeDays = Math.max(0, (Date.now() - new Date(e.timestamp).getTime()) / (1000 * 60 * 60 * 24));
+        const isRawVideoExpired = videoAgeDays > retentionDays;
+        return {
+          eventId: e.eventId,
+          timestamp: e.timestamp,
+          cameraId: e.cameraId,
+          cameraName: cam?.name || e.cameraId,
+          location: e.metadata?.location || cam?.location || 'Corridor Junction',
+          district: cam?.district || 'Ahmedabad',
+          departmentType: deptType,
+          siteId: e.siteId,
+          edgeNode: e.edgeNodeId,
+          confidence: e.confidence,
+          speed: e.metadata?.speed || 50,
+          direction: e.metadata?.direction || cam?.direction || 'Southbound',
+          rawVideoRetentionDays: retentionDays,
+          isRawVideoExpired,
+          evidenceDigest: `SHA256:${crypto.createHash('sha256').update(e.eventId + (e.timestamp || '')).digest('hex')}`
+        };
+      })
     };
     res.json(dossier);
   });
@@ -1145,6 +1396,8 @@ async function startServer() {
       { name: 'ANPR', component: 'ANPR', tier: 'Edge', category: 'Edge', status: 'SIMULATED', statusIcon: '◉', description: 'Synthetic plate detections generated at edge boundaries for demo vehicles', verificationMethod: 'Software event generator with synthetic bounding boxes and confidence scores' },
       { name: 'Helmet detection', component: 'Helmet detection', tier: 'Edge', category: 'Edge', status: 'SIMULATED', statusIcon: '◉', description: 'Simulated rider helmet compliance inference (HELMET / NO_HELMET / UNKNOWN)', verificationMethod: 'IHelmetDetectionService synthetic evaluation' },
       { name: 'Evidence capture', component: 'Evidence capture', tier: 'Forensics', category: 'Forensics', status: 'SIMULATED', statusIcon: '◉', description: 'SIMULATED DEMO EVIDENCE with SHA-256 hash computed over canonical metadata', verificationMethod: 'IEvidenceCaptureService with deterministic SHA-256' },
+      { name: 'YouTube Visual Source', component: 'YouTube Visual Source', tier: 'Presentation', category: 'Presentation', status: 'SIMULATED', statusIcon: '◉', description: 'Public YouTube livestreams for UI demonstration only (Not connected to Gujarat Police CCTV or Edge Nodes)', verificationMethod: 'Isolated YouTubeDemoService registry' },
+      { name: 'AI Demonstration Agent', component: 'AI Demonstration Agent', tier: 'Inference', category: 'Inference', status: 'SIMULATED', statusIcon: '◉', description: 'Simulated AI vision agent demonstrating event creation, evidence capture, watchlist check, and God\'s Eye dispatch', verificationMethod: 'IAIVisionAgent / SimulatedAIVisionAgent test suite' },
       { name: '50-Camera Fleet', component: '50-Camera Fleet', tier: 'Edge', category: 'Edge', status: 'SIMULATED', statusIcon: '◉', description: 'Synthetic CCTV nodes modeling Ahmedabad & Gandhinagar municipal corridors', verificationMethod: 'Mock device registry with randomized stream latencies' },
       { name: 'Surveillance Video Feeds', component: 'Surveillance Video Feeds', tier: 'Edge', category: 'Edge', status: 'SIMULATED', statusIcon: '◉', description: 'Stock surveillance footage clips and snapshot previews for UI playback', verificationMethod: 'Unsplash & static CCTV video asset URLs' },
       { name: 'Statewide Scale Model', component: 'Statewide Scale Model', tier: 'Scale', category: 'Scale', status: 'SIMULATED', statusIcon: '◉', description: 'Theoretical 80,000 camera and 12,500 edge gateway scale projection', verificationMethod: 'Architectural simulation calculation model (not live hardware)' }
@@ -1308,6 +1561,379 @@ async function startServer() {
     res.json({ status: 'ok', count: generated.length });
   });
 
+  // Demo Video Sources Store (Presentation Layer)
+  const serverDemoVideoSources: DemoVideoSource[] = JSON.parse(JSON.stringify(DEFAULT_DEMO_VIDEO_SOURCES));
+
+  app.get('/api/video/demo/sources', (req, res) => {
+    res.json({
+      status: 'ok',
+      sources: serverDemoVideoSources
+    });
+  });
+
+  app.post('/api/video/demo/sources/:id', (req, res) => {
+    const { id } = req.params;
+    const { youtubeVideoId } = req.body;
+
+    if (!youtubeVideoId || !isValidYouTubeVideoId(youtubeVideoId)) {
+      return res.status(400).json({
+        status: 'ERROR',
+        message: 'Invalid YouTube video ID. Must be 11 characters alphanumeric/dash/underscore.'
+      });
+    }
+
+    const idx = serverDemoVideoSources.findIndex(s => s.id === id);
+    if (idx >= 0) {
+      serverDemoVideoSources[idx].youtubeVideoId = youtubeVideoId.trim();
+      serverDemoVideoSources[idx].status = 'AVAILABLE';
+      return res.json({ status: 'ok', source: serverDemoVideoSources[idx] });
+    }
+
+    res.status(404).json({ status: 'NOT_FOUND', message: 'Demo source not found.' });
+  });
+
+  // ==========================================
+  // REAL FRAME-BY-FRAME AI VISION (GEMINI)
+  // ==========================================
+  let geminiClient: GoogleGenAI | null = null;
+  function getGeminiClientInstance(): GoogleGenAI {
+    if (!geminiClient) {
+      const key = process.env.GEMINI_API_KEY;
+      if (!key) {
+        throw new Error('GEMINI_API_KEY environment variable is not configured');
+      }
+      geminiClient = new GoogleGenAI({
+        apiKey: key,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build'
+          }
+        }
+      });
+    }
+    return geminiClient;
+  }
+
+  // AI Vision Capability & Health Status
+  app.get('/api/ai/status', (req, res) => {
+    const isConfigured = !!process.env.GEMINI_API_KEY;
+    res.json({
+      status: 'ok',
+      configured: isConfigured,
+      model: 'gemini-3.8-flash',
+      mode: 'REAL_GEMINI_VISION',
+      supportedClasses: ['person', 'car', 'motorcycle', 'bicycle', 'bus', 'truck', 'vehicle'],
+      supportedViolations: [
+        'NO_HELMET',
+        'TRIPLE_RIDING',
+        'WRONG_WAY',
+        'RED_LIGHT_VIOLATION',
+        'STOP_LINE_VIOLATION',
+        'DANGEROUS_PARKING',
+        'PEDESTRIAN_CONFLICT',
+        'UNSAFE_RIDING'
+      ],
+      notice: 'Server-side Gemini Vision pipeline with strict structured JSON schema'
+    });
+  });
+
+  // Frame Analysis Pipeline
+  app.post('/api/ai/analyze-frame', async (req, res) => {
+    const startTime = Date.now();
+    const { frameTimestamp = 0, sourceId = 'UPLOAD-DEMO-001', helmetThreshold = 0.85 } = req.body;
+    const frameBase64 = req.body.frameBase64 || req.body.frameDataUrl;
+
+    if (!frameBase64 || typeof frameBase64 !== 'string') {
+      return res.status(400).json({
+        error: 'INVALID_REQUEST',
+        message: 'No frameBase64 payload provided for analysis.'
+      });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(503).json({
+        error: 'AI_SERVICE_UNAVAILABLE',
+        message: 'Gemini API key is not configured on the server. Frame analysis requires a valid GEMINI_API_KEY.'
+      });
+    }
+
+    // Strip data URL header if included
+    const cleanBase64 = frameBase64.replace(/^data:image\/[a-zA-Z0-9+]+;base64,/, '').trim();
+    if (cleanBase64.length === 0) {
+      return res.status(400).json({
+        error: 'INVALID_FRAME_DATA',
+        message: 'Empty image payload.'
+      });
+    }
+
+    try {
+      const ai = getGeminiClientInstance();
+
+      const prompt = `You are analyzing one frame from an authorized traffic/security video for a software demonstration.
+
+Return ONLY valid JSON matching the specified schema.
+
+Detect clearly visible:
+- people
+- cars
+- motorcycles
+- bicycles
+- buses
+- trucks
+- other vehicles
+
+For each visible object provide a normalized bounding box and confidence.
+Coordinates MUST be normalized between 0.0 and 1.0, with (0,0) at top-left:
+x = 0 to 1, y = 0 to 1, width = 0 to 1, height = 0 to 1.
+
+For people associated with motorcycles/bicycles, assess helmet status only when visually supportable:
+- HELMET
+- NO_HELMET
+- UNKNOWN
+
+If the head is small, occluded, or unclear, return UNKNOWN.
+Do not force a violation.
+
+Do not identify people's real-world identities.
+Do not infer license plates unless clearly visible.
+Do not invent objects that are not visible.
+If uncertain, return UNKNOWN.
+Do not describe the image in prose.`;
+
+      const generateConfig = {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            frameTimestamp: { type: Type.NUMBER },
+            detections: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  class: { type: Type.STRING },
+                  confidence: { type: Type.NUMBER },
+                  box: {
+                    type: Type.OBJECT,
+                    properties: {
+                      x: { type: Type.NUMBER },
+                      y: { type: Type.NUMBER },
+                      width: { type: Type.NUMBER },
+                      height: { type: Type.NUMBER }
+                    },
+                    required: ['x', 'y', 'width', 'height']
+                  },
+                  attributes: {
+                    type: Type.OBJECT,
+                    properties: {
+                      helmet: { type: Type.STRING },
+                      vehicleType: { type: Type.STRING },
+                      color: { type: Type.STRING }
+                    }
+                  },
+                  plate: { type: Type.STRING },
+                  plateConfidence: { type: Type.NUMBER }
+                },
+                required: ['class', 'confidence', 'box']
+              }
+            },
+            roadSafetyEvents: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  type: { type: Type.STRING },
+                  confidence: { type: Type.NUMBER },
+                  description: { type: Type.STRING }
+                },
+                required: ['type', 'confidence']
+              }
+            }
+          },
+          required: ['detections', 'roadSafetyEvents']
+        }
+      };
+
+      const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-3.6-flash'];
+      let response: any = null;
+      let usedModel = 'gemini-3.8-flash';
+      let isHighDemandSurge = false;
+      let lastModelError: any = null;
+
+      for (const modelCandidate of candidateModels) {
+        let attempts = 0;
+        const maxAttempts = 2;
+        while (attempts < maxAttempts) {
+          attempts++;
+          try {
+            response = await ai.models.generateContent({
+              model: modelCandidate,
+              contents: {
+                parts: [
+                  {
+                    inlineData: {
+                      mimeType: 'image/jpeg',
+                      data: cleanBase64
+                    }
+                  },
+                  { text: prompt }
+                ]
+              },
+              config: generateConfig
+            });
+            usedModel = modelCandidate;
+            break;
+          } catch (modelErr: any) {
+            lastModelError = modelErr;
+            const errMsg = String(modelErr?.message || modelErr);
+            const isTransient = errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('429');
+            if (isTransient) {
+              isHighDemandSurge = true;
+              if (attempts < maxAttempts) {
+                await new Promise(r => setTimeout(r, 450 * attempts));
+                continue;
+              }
+            }
+            // Move to next candidate model
+            break;
+          }
+        }
+        if (response) break;
+      }
+
+      if (!response) {
+        if (isHighDemandSurge) {
+          console.warn('[Gemini Vision] Transient demand spike across models; shedding frame under backpressure.');
+          return res.json({
+            status: 'HIGH_DEMAND_BACKOFF',
+            frameTimestamp: Number(frameTimestamp) || 0,
+            detections: [],
+            roadSafetyEvents: [],
+            aiModel: 'Gemini Vision (Demand Backpressure Active)',
+            analysisTimeMs: Date.now() - startTime,
+            sourceId,
+            warning: 'Model currently experiencing high demand surge. Frame dropped gracefully.'
+          });
+        }
+        throw lastModelError || new Error('Failed to analyze frame with Gemini Vision models');
+      }
+
+      let rawText = (response.text || '').trim();
+      if (rawText.startsWith('```json')) {
+        rawText = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+      } else if (rawText.startsWith('```')) {
+        rawText = rawText.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+      }
+
+      let parsedResult: any;
+      try {
+        parsedResult = JSON.parse(rawText);
+      } catch (jsonErr) {
+        console.error('Failed to parse Gemini Vision JSON:', rawText);
+        return res.status(502).json({
+          error: 'INVALID_AI_RESPONSE',
+          message: 'Gemini Vision returned non-JSON output.'
+        });
+      }
+
+      // Normalization and validation of detections
+      const rawDetections = Array.isArray(parsedResult.detections) ? parsedResult.detections : [];
+      const validatedDetections = rawDetections
+        .map((item: any, idx: number) => {
+          if (!item || typeof item !== 'object' || !item.box) return null;
+
+          const rawClass = String(item.class || 'unknown').toLowerCase().trim();
+          let normalizedClass = 'unknown';
+          if (rawClass.includes('person') || rawClass.includes('pedestrian') || rawClass.includes('human') || rawClass.includes('rider')) normalizedClass = 'person';
+          else if (rawClass.includes('motorcycle') || rawClass.includes('motorbike') || rawClass.includes('scooter') || (rawClass.includes('bike') && !rawClass.includes('bicycle'))) normalizedClass = 'motorcycle';
+          else if (rawClass.includes('bicycle') || rawClass.includes('cyclist')) normalizedClass = 'bicycle';
+          else if (rawClass.includes('car') || rawClass.includes('sedan') || rawClass.includes('suv') || rawClass.includes('auto')) normalizedClass = 'car';
+          else if (rawClass.includes('bus')) normalizedClass = 'bus';
+          else if (rawClass.includes('truck')) normalizedClass = 'truck';
+          else if (rawClass.includes('vehicle')) normalizedClass = 'vehicle';
+
+          // Validate and clamp coordinates to [0, 1]
+          const x = Math.max(0, Math.min(1, Number(item.box.x) || 0));
+          const y = Math.max(0, Math.min(1, Number(item.box.y) || 0));
+          const width = Math.max(0.01, Math.min(1 - x, Number(item.box.width) || 0.05));
+          const height = Math.max(0.01, Math.min(1 - y, Number(item.box.height) || 0.05));
+          const confidence = Math.max(0, Math.min(1, Number(item.confidence) || 0.5));
+
+          // Check helmet attribute
+          let helmet: 'HELMET' | 'NO_HELMET' | 'UNKNOWN' = 'UNKNOWN';
+          const rawHelmet = String(item.attributes?.helmet || '').toUpperCase().trim();
+          if (rawHelmet === 'HELMET' || rawHelmet === 'NO_HELMET') {
+            helmet = rawHelmet;
+          }
+
+          return {
+            id: `det-${idx}-${Date.now()}`,
+            class: normalizedClass,
+            confidence,
+            box: { x, y, width, height },
+            attributes: {
+              helmet
+            }
+          };
+        })
+        .filter(Boolean);
+
+      // Validate road safety events
+      const rawEvents = Array.isArray(parsedResult.roadSafetyEvents) ? parsedResult.roadSafetyEvents : [];
+      const allowedEvents = ['NO_HELMET', 'TRIPLE_RIDING', 'WRONG_WAY', 'RED_LIGHT_VIOLATION', 'STOP_LINE_VIOLATION', 'DANGEROUS_PARKING', 'PEDESTRIAN_CONFLICT', 'UNSAFE_RIDING'];
+
+      const validatedSafetyEvents = rawEvents
+        .map((evt: any) => {
+          if (!evt || typeof evt !== 'object' || !evt.type) return null;
+          const rawType = String(evt.type).toUpperCase().replace(/[\s-]/g, '_');
+          const type = allowedEvents.includes(rawType) ? rawType : 'UNKNOWN';
+          if (type === 'UNKNOWN') return null;
+
+          const confidence = Math.max(0, Math.min(1, Number(evt.confidence) || 0.5));
+          return {
+            type,
+            confidence,
+            description: evt.description ? String(evt.description) : undefined
+          };
+        })
+        .filter(Boolean);
+
+      // If a person with NO_HELMET was detected above the helmet confidence threshold, ensure a NO_HELMET event is created
+      const threshold = Number(helmetThreshold) || 0.85;
+      const noHelmetRiders = validatedDetections.filter(
+        (d: any) => (d.class === 'person' || d.class === 'motorcycle') && 
+                     d.attributes?.helmet === 'NO_HELMET' && 
+                     d.confidence >= threshold
+      );
+
+      if (noHelmetRiders.length > 0 && !validatedSafetyEvents.some((e: any) => e.type === 'NO_HELMET')) {
+        validatedSafetyEvents.push({
+          type: 'NO_HELMET',
+          confidence: noHelmetRiders[0].confidence,
+          description: `Rider observed without protective helmet (Confidence: ${Math.round(noHelmetRiders[0].confidence * 100)}%)`
+        });
+      }
+
+      const analysisTimeMs = Date.now() - startTime;
+
+      res.json({
+        status: 'ok',
+        frameTimestamp: Number(frameTimestamp) || 0,
+        detections: validatedDetections,
+        roadSafetyEvents: validatedSafetyEvents,
+        aiModel: `Gemini Vision (${usedModel})`,
+        analysisTimeMs,
+        sourceId
+      });
+    } catch (apiErr: any) {
+      console.error('Gemini Vision Frame Analysis API Error:', apiErr?.message || apiErr);
+      res.status(500).json({
+        error: 'AI_ANALYSIS_ERROR',
+        message: apiErr?.message || 'Error occurred during frame analysis in Gemini Vision service'
+      });
+    }
+  });
+
   // Reset Demo State
   app.post('/api/central/demo/reset', async (req, res) => {
     const reqId = req.headers['x-request-id'] as string || `REQ-${Date.now()}`;
@@ -1316,6 +1942,8 @@ async function startServer() {
     logs.length = 0;
     centralRepo.clear();
     seedSyntheticIntelligenceData();
+    serverDemoVideoSources.length = 0;
+    serverDemoVideoSources.push(...JSON.parse(JSON.stringify(DEFAULT_DEMO_VIDEO_SOURCES)));
     await auditService.log('SYSTEM', 'SYSTEM_RESET', 'STATE_CLEARED_AND_RESEEDED', 'SUCCESS', reqId);
     res.json({ status: 'ok' });
   });

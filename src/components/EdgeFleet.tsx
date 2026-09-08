@@ -23,39 +23,45 @@ export function EdgeFleet() {
       try {
         const stateRes = await fetch('/api/central/state');
         if (stateRes.ok) {
-          const stateData = await stateRes.json();
-          setIsCentralOffline(stateData.isOffline);
-          
-          const hb = stateData.heartbeats.find((h: any) => h[0] === 'EDGE-GJ-001' || h[0] === 'EDGE-00042')?.[1];
-          if (hb) {
-            setNodes(prev => prev.map(n => (n.id === 'EDGE-GJ-001' || n.id === 'EDGE-00042') ? {
-              ...n,
-              status: hb.status === 'ONLINE' ? 'online' : 'syncing',
-              dvrCount: hb.connectedDvrCount,
-              camerasConnected: hb.connectedCameraCount,
-              lastHeartbeat: hb.timestamp,
-              version: hb.agentVersion
-            } : n));
+          const ct = stateRes.headers.get('content-type');
+          if (ct && ct.includes('application/json')) {
+            const stateData = await stateRes.json();
+            setIsCentralOffline(stateData.isOffline);
             
-            if (selectedNode?.id === 'EDGE-GJ-001' || selectedNode?.id === 'EDGE-00042') {
-              setSelectedNode(prev => prev ? {
-                ...prev,
+            const hb = stateData.heartbeats.find((h: any) => h[0] === 'EDGE-GJ-001' || h[0] === 'EDGE-00042')?.[1];
+            if (hb) {
+              setNodes(prev => prev.map(n => (n.id === 'EDGE-GJ-001' || n.id === 'EDGE-00042') ? {
+                ...n,
                 status: hb.status === 'ONLINE' ? 'online' : 'syncing',
                 dvrCount: hb.connectedDvrCount,
                 camerasConnected: hb.connectedCameraCount,
                 lastHeartbeat: hb.timestamp,
                 version: hb.agentVersion
-              } : null);
+              } : n));
+              
+              if (selectedNode?.id === 'EDGE-GJ-001' || selectedNode?.id === 'EDGE-00042') {
+                setSelectedNode(prev => prev ? {
+                  ...prev,
+                  status: hb.status === 'ONLINE' ? 'online' : 'syncing',
+                  dvrCount: hb.connectedDvrCount,
+                  camerasConnected: hb.connectedCameraCount,
+                  lastHeartbeat: hb.timestamp,
+                  version: hb.agentVersion
+                } : null);
+              }
             }
           }
         }
 
         const logRes = await fetch('/api/central/logs');
         if (logRes.ok) {
-          const logsData = await logRes.json();
-          setLiveLogs(logsData);
+          const ct = logRes.headers.get('content-type');
+          if (ct && ct.includes('application/json')) {
+            const logsData = await logRes.json();
+            setLiveLogs(logsData);
+          }
         }
-      } catch (e) {
+      } catch {
         // Ignored
       }
     };
@@ -82,22 +88,32 @@ export function EdgeFleet() {
       }
     };
 
-    sysEvents.on('QUEUE_UPDATED', onQueueUpdate);
-    sysEvents.on('SYNC_STATE_CHANGED', onSyncState);
+    const unsubQueue = sysEvents.on('QUEUE_UPDATED', onQueueUpdate);
+    const unsubSync = sysEvents.on('SYNC_STATE_CHANGED', onSyncState);
     
     if (selectedNode?.id === 'EDGE-GJ-001' || selectedNode?.id === 'EDGE-00042') {
       setRuntimeDiagnostics(edgeRuntime.getDiagnostics());
     }
+
+    return () => {
+      unsubQueue();
+      unsubSync();
+    };
   }, [selectedNode]);
 
   const toggleCentralState = async () => {
     try {
       const res = await fetch('/api/central/toggle-offline', { method: 'POST' });
-      const data = await res.json();
-      setIsCentralOffline(data.isOffline);
-      if (!data.isOffline) edgeRuntime.syncManager.triggerSync();
-    } catch (e) {
-      console.error(e);
+      if (res.ok) {
+        const ct = res.headers.get('content-type');
+        if (ct && ct.includes('application/json')) {
+          const data = await res.json();
+          setIsCentralOffline(data.isOffline);
+          if (!data.isOffline) edgeRuntime.syncManager.triggerSync();
+        }
+      }
+    } catch {
+      // Ignored
     }
   };
 
@@ -230,10 +246,10 @@ export function EdgeFleet() {
         <div className="flex-1 bg-[#090d16] border border-cyan-950/70 rounded-lg flex flex-col min-w-0 shadow-md">
           <div className="p-3.5 border-b border-cyan-950/60 bg-[#06080e] flex items-center justify-between">
             <h2 className="text-xs font-bold uppercase tracking-wider text-cyan-400 font-mono flex items-center gap-2">
-              <Server size={14} /> ACTIVE EDGE NODES ({nodes.length})
+              <Server size={14} /> ACTIVE EDGE NODES ({(nodes || []).length})
             </h2>
             <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-800/30">
-              {nodes.filter(n => n.status === 'online').length} / {nodes.length} ONLINE
+              {(nodes || []).filter(n => n?.status === 'online').length} / {(nodes || []).length} ONLINE
             </span>
           </div>
           

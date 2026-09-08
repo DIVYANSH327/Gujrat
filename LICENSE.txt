@@ -1,0 +1,30 @@
+PROPRIETARY SOFTWARE LICENSE
+
+Copyright © 2026 DIVYANSH Shrivastava.
+All rights reserved.
+
+Project: Gujarat Police CCTV & AI Intelligence Platform
+Author: DIVYANSH Shrivastava
+
+This software and associated documentation files are the proprietary property of DIVYANSH Shrivastava.
+
+TERMS AND CONDITIONS:
+
+1. GRANT OF EVALUATION LICENSE:
+   The copyright owner grants permission to use, run, and evaluate the software solely for authorized evaluation, demonstration, judging, educational review, and testing purposes.
+
+2. RESTRICTIONS:
+   Unless expressly authorized in writing by the copyright owner, you may not:
+   - copy the software
+   - redistribute the software
+   - publish the source code
+   - create derivative works
+   - commercially exploit the software
+   - remove copyright, trademark, or attribution notices
+   - present the software or its architectural design as your own work
+
+3. THIRD-PARTY SOFTWARE:
+   Third-party libraries, frameworks, icons, and fonts included or referenced in this project are the property of their respective copyright holders and remain subject to their respective licenses.
+
+4. DISCLAIMER:
+   This software is provided "as is", without warranty of any kind, express or implied. Nothing in this license shall be construed as overriding applicable law.

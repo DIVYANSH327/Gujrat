@@ -104,7 +104,7 @@ export class RtspStreamAdapter implements ICameraStreamAdapter {
 
   async getStreamURL(): Promise<string> {
     // Return sanitized URL (without passwords)
-    return this.config.streamUrl.replace(/:\/\/.*@/, '://***:***@');
+    return (this.config.streamUrl || '').replace(/:\/\/.*@/, '://***:***@');
   }
 
   getStatus(): 'CONNECTED' | 'DISCONNECTED' | 'DEGRADED' | 'NO_STREAM' {

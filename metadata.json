@@ -1,6 +1,6 @@
 {
   "name": "Gujarat Police AI CCTV Command Center",
-  "description": "Gujarat Police AI CCTV Intelligence Command Center & Multi-Camera Edge Analytics Platform",
+  "description": "Gujarat Police On-Premise AI CCTV + Person + Vehicle Operational Intelligence Fabric. Real Geospatial Map, Geolocated Evidence, Multi-Camera Edge Analytics, Forensic Evidence Workflow, Person Watchlist, Human Review Gate, and BSA 2023 Electronic-Record Integrity — Authored by DIVYANSH Shrivastava",
   "requestFramePermissions": [
     "camera"
   ],

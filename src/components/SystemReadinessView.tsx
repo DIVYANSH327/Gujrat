@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { PROJECT_BRANDING } from '../branding';
 import { 
   CheckCircle2, 
   Cpu, 
@@ -90,6 +91,26 @@ export function SystemReadinessView() {
       statusColor: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30',
       description: 'Monitored streams distributed across Ahmedabad (SG Highway, Ashram Rd, Ring Rd), Surat, Vadodara, and Rajkot.',
       spec: '50 synthetic camera models with live health diagnostics (FPS, bitrate, packet loss rate).'
+    },
+    {
+      id: 'SYS-07',
+      name: 'YouTube Live Demonstration Video Matrix',
+      tier: 'Tier 4',
+      category: 'VMS Integration',
+      status: 'SIMULATED',
+      statusColor: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+      description: 'Public YouTube live video streams rendered in the command center presentation layer for visual hackathon demonstration without requiring local DVR hardware.',
+      spec: 'Isolated YouTubeDemoService registry, YouTubeDemoPlayer tactical overlays with IST clock, 11-char ID validation.'
+    },
+    {
+      id: 'SYS-08',
+      name: 'AI Agent — Visual Analysis Demo Layer',
+      tier: 'Tier 4',
+      category: 'Inference Engine',
+      status: 'SIMULATED',
+      statusColor: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/30',
+      description: 'Demonstration AI agent illustrating event processing, SHA-256 evidence generation, watchlist evaluation, and God\'s Eye dispatch for demonstration feeds.',
+      spec: 'IAIVisionAgent / SimulatedAIVisionAgent pipeline connecting synthetic events to CentralEventStore and IEvidenceCaptureService.'
     }
   ];
 
@@ -107,6 +128,10 @@ export function SystemReadinessView() {
               ARCHITECTURE & VERIFICATION
             </span>
             <span className="text-[10px] font-mono text-zinc-400">69/69 SUITE PASS</span>
+            <span className="text-zinc-600 hidden md:inline">•</span>
+            <span className="text-[10px] font-mono text-zinc-400 hidden md:inline">
+              {PROJECT_BRANDING.conceptAndEngineering}
+            </span>
           </div>
           <h1 className="text-xl font-black tracking-tight text-zinc-100 font-mono">
             SYSTEM READINESS & COMPLIANCE MATRIX
@@ -186,6 +211,81 @@ export function SystemReadinessView() {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* System Information & Authorship Card */}
+        <div className="mt-4 bg-[#090d16] border border-cyan-900/50 rounded-lg p-5 shadow-lg space-y-4">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-cyan-950/80">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <Shield className="text-cyan-400" size={18} />
+                <span className="text-sm font-mono font-bold text-zinc-100 uppercase tracking-wider">
+                  SYSTEM INFORMATION & PLATFORM AUTHORSHIP
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 bg-cyan-950/80 text-cyan-300 border border-cyan-700/50 rounded font-semibold">
+                  {PROJECT_BRANDING.id}
+                </span>
+              </div>
+              <p className="text-xs text-zinc-400 font-sans">
+                {PROJECT_BRANDING.tagline}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="px-2.5 py-1 bg-blue-950/60 border border-blue-800/40 text-blue-300 rounded text-xs font-mono font-bold">
+                {PROJECT_BRANDING.version}
+              </span>
+            </div>
+          </div>
+
+          {/* Structured Key-Value Metadata Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs font-mono">
+            <div className="bg-[#05070c] border border-zinc-800/80 rounded p-3">
+              <span className="text-[10px] text-zinc-500 uppercase block tracking-wider">PROJECT AUTHOR</span>
+              <span className="text-cyan-300 font-bold text-sm">{PROJECT_BRANDING.author}</span>
+            </div>
+
+            <div className="bg-[#05070c] border border-zinc-800/80 rounded p-3">
+              <span className="text-[10px] text-zinc-500 uppercase block tracking-wider">PROJECT OWNERSHIP</span>
+              <span className="text-zinc-200 font-semibold">{PROJECT_BRANDING.ownershipNotice}</span>
+            </div>
+
+            <div className="bg-[#05070c] border border-zinc-800/80 rounded p-3">
+              <span className="text-[10px] text-zinc-500 uppercase block tracking-wider">PROJECT STATUS</span>
+              <span className="text-amber-400 font-semibold">{PROJECT_BRANDING.projectStatus}</span>
+            </div>
+
+            <div className="bg-[#05070c] border border-zinc-800/80 rounded p-3">
+              <span className="text-[10px] text-zinc-500 uppercase block tracking-wider">BUILD ID</span>
+              <span className="text-emerald-400 font-bold">{PROJECT_BRANDING.buildId}</span>
+            </div>
+          </div>
+
+          {/* Release Integrity Hash Card */}
+          <div className="bg-[#060a12] border border-cyan-950 rounded-lg p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs font-mono">
+            <div className="space-y-0.5">
+              <div className="flex items-center gap-2">
+                <Lock size={13} className="text-cyan-400" />
+                <span className="text-[11px] font-bold text-zinc-300 uppercase tracking-wider">
+                  {PROJECT_BRANDING.integrityLabel} ({PROJECT_BRANDING.integrityAlgorithm})
+                </span>
+              </div>
+              <div className="text-[11px] text-cyan-300 font-mono select-all">
+                {PROJECT_BRANDING.releaseIntegrityHash}
+              </div>
+            </div>
+
+            <div className="text-right shrink-0">
+              <span className="text-[10px] text-zinc-500 block uppercase">STATUS</span>
+              <span className="text-[10px] font-bold text-emerald-400">VERIFIED ARTIFACT INTEGRITY</span>
+            </div>
+          </div>
+
+          {/* Footer Notice */}
+          <div className="flex flex-col sm:flex-row items-center justify-between text-[10px] font-mono text-zinc-500 pt-1 border-t border-white/5">
+            <span>{PROJECT_BRANDING.conceptAndEngineering}</span>
+            <span className="text-cyan-400/90">{PROJECT_BRANDING.copyrightNotice}</span>
+          </div>
         </div>
       </div>
     </div>

@@ -1,3 +1,8 @@
+/**
+ * Copyright (c) 2026 DIVYANSH Shrivastava.
+ * All rights reserved.
+ */
+
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';

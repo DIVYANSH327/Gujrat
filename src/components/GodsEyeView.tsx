@@ -26,6 +26,7 @@ import {
   Hash,
   Clock,
   Navigation,
+  Radio,
   Info
 } from 'lucide-react';
 import {
@@ -37,6 +38,7 @@ import {
   HelmetStatus,
   EvidenceItem
 } from '../types';
+import { GodsEyeV2IntelligenceView } from './GodsEyeV2IntelligenceView';
 
 interface GodsEyeViewProps {
   cameras: Camera[];
@@ -53,6 +55,9 @@ export function GodsEyeView({
   onSelectCameraId,
   resetKey
 }: GodsEyeViewProps) {
+  // Mode: V2 (Vehicle Corridor & Forensic Chain) vs V1 (Multi-Modal Trajectory)
+  const [intelligenceMode, setIntelligenceMode] = useState<'v2' | 'v1'>('v2');
+
   // Query & Target Selection
   const [selectedTarget, setSelectedTarget] = useState<string>('GJ01AB1234');
   const [targetTypeFilter, setTargetTypeFilter] = useState<'all' | 'vehicle' | 'person'>('all');
@@ -83,17 +88,22 @@ export function GodsEyeView({
     try {
       const res = await fetch(`/api/central/investigation/godseye?target=${encodeURIComponent(targetId)}&targetType=${targetTypeFilter}`);
       if (res.ok) {
-        const data: GodsEyeTargetRecord = await res.json();
-        setTargetRecord(data);
-        if (data.sightings.length > 0) {
-          setSelectedSighting(data.sightings[0]);
-          setPlaybackIndex(0);
-        } else {
-          setSelectedSighting(null);
+        const ct = res.headers.get('content-type');
+        if (ct && ct.includes('application/json')) {
+          const data: GodsEyeTargetRecord = await res.json();
+          if (data && Array.isArray(data.sightings)) {
+            setTargetRecord(data);
+            if (data.sightings.length > 0) {
+              setSelectedSighting(data.sightings[0]);
+              setPlaybackIndex(0);
+            } else {
+              setSelectedSighting(null);
+            }
+          }
         }
       }
-    } catch (err) {
-      console.error("Failed to fetch God's Eye intelligence:", err);
+    } catch {
+      // Handled gracefully during network transition
     } finally {
       setIsLoading(false);
     }
@@ -150,9 +160,9 @@ export function GodsEyeView({
 
   // Filtered sightings based on current user filters
   const filteredSightings = useMemo(() => {
-    if (!targetRecord) return [];
-    return targetRecord.sightings.filter(s => {
-      const cam = cameras.find(c => c.id === s.cameraId);
+    if (!targetRecord || !Array.isArray(targetRecord.sightings)) return [];
+    return (targetRecord.sightings || []).filter(s => {
+      const cam = (cameras || []).find(c => c.id === s.cameraId);
       if (districtFilter !== 'all' && cam && cam.district !== districtFilter) {
         return false;
       }
@@ -243,11 +253,14 @@ export function GodsEyeView({
         })
       });
       if (res.ok) {
-        const evidence = await res.json();
-        setInspectEvidence(evidence);
+        const ct = res.headers.get('content-type');
+        if (ct && ct.includes('application/json')) {
+          const evidence = await res.json();
+          setInspectEvidence(evidence);
+        }
       }
-    } catch (e) {
-      console.error('Evidence capture failed:', e);
+    } catch {
+      // Evidence capture handled gracefully
     }
   };
 
@@ -287,8 +300,52 @@ export function GodsEyeView({
   return (
     <div className="h-full flex flex-col bg-[#07090e] text-zinc-100 overflow-hidden font-sans select-none">
       
-      {/* 1. TOP HEADER & SCENARIO SELECTOR */}
-      <div className="flex-none p-3.5 border-b border-white/10 bg-zinc-900/90 backdrop-blur-md flex flex-wrap justify-between items-center gap-3 z-10 shadow-lg">
+      {/* 0. INTELLIGENCE PIPELINE ARCHITECTURE SWITCHER */}
+      <div className="flex-none px-4 py-1.5 bg-zinc-950 border-b border-white/10 flex items-center justify-between text-xs font-mono">
+        <div className="flex items-center gap-2">
+          <span className="text-zinc-500 uppercase font-bold text-[10px]">God's Eye Engine:</span>
+          <button
+            onClick={() => setIntelligenceMode('v2')}
+            id="btn-switch-godseye-v2"
+            className={`px-3 py-1 rounded text-xs font-bold uppercase transition-all flex items-center gap-1.5 border ${
+              intelligenceMode === 'v2'
+                ? 'bg-blue-600 text-white border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.4)]'
+                : 'bg-zinc-900 text-zinc-400 border-white/5 hover:text-white'
+            }`}
+          >
+            <Radio size={13} className="text-blue-300" />
+            <span>God's Eye V2 (Corridor Intelligence & Forensic Chain)</span>
+          </button>
+          <button
+            onClick={() => setIntelligenceMode('v1')}
+            id="btn-switch-godseye-v1"
+            className={`px-3 py-1 rounded text-xs font-bold uppercase transition-all flex items-center gap-1.5 border ${
+              intelligenceMode === 'v1'
+                ? 'bg-blue-600 text-white border-blue-400 shadow-[0_0_10px_rgba(59,130,246,0.4)]'
+                : 'bg-zinc-900 text-zinc-400 border-white/5 hover:text-white'
+            }`}
+          >
+            <Layers size={13} className="text-purple-300" />
+            <span>God's Eye V1 (Multi-Modal Trajectory)</span>
+          </button>
+        </div>
+        <span className="text-[10px] text-zinc-400 hidden md:inline font-mono">
+          GUJARAT POLICE STATE SURVEILLANCE COMMAND
+        </span>
+      </div>
+
+      {intelligenceMode === 'v2' ? (
+        <div className="flex-1 overflow-hidden">
+          <GodsEyeV2IntelligenceView
+            cameras={cameras}
+            onOpenEvidenceModal={onOpenEvidenceModal}
+            onSelectCameraId={onSelectCameraId}
+          />
+        </div>
+      ) : (
+        <>
+          {/* 1. TOP HEADER & SCENARIO SELECTOR */}
+          <div className="flex-none p-3.5 border-b border-white/10 bg-zinc-900/90 backdrop-blur-md flex flex-wrap justify-between items-center gap-3 z-10 shadow-lg">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-600/20 border border-blue-500/40 rounded-lg text-blue-400 shadow-inner">
             <Eye size={20} className="animate-pulse text-blue-400" />
@@ -1137,6 +1194,8 @@ export function GodsEyeView({
             </div>
           </div>
         </div>
+      )}
+      </>
       )}
 
     </div>

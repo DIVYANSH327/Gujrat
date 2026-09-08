@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { mockWatchlist } from '../mockData';
-import { Map as MapIcon, Activity, Camera as CameraIcon, Crosshair, User, Car, Bike, ShieldAlert, CheckCircle2, Navigation, Clock } from 'lucide-react';
+import { targetPersistenceService } from '../services/TargetPersistenceService';
+import { WatchlistTarget } from '../types';
+import { Map as MapIcon, Activity, Camera as CameraIcon, Crosshair, User, Car, Bike, ShieldAlert, CheckCircle2, Navigation, Clock, Search, FileText } from 'lucide-react';
+import { UnifiedVehicleInvestigation } from './UnifiedVehicleInvestigation';
 
 interface LiveEntity {
   id: string;
@@ -10,10 +12,28 @@ interface LiveEntity {
   label: string;
 }
 
-export function TargetTracking() {
-  const [activeTarget, setActiveTarget] = useState(mockWatchlist[0]);
+interface TargetTrackingProps {
+  initialPlate?: string;
+}
+
+export function TargetTracking({ initialPlate = 'GJ05AB1234' }: TargetTrackingProps) {
+  const [viewMode, setViewMode] = useState<'investigation' | 'trajectory'>('investigation');
+  const [selectedPlate, setSelectedPlate] = useState(initialPlate);
+  const [targets, setTargets] = useState<WatchlistTarget[]>(() => targetPersistenceService.listTargets());
+  const [activeTarget, setActiveTarget] = useState<WatchlistTarget | null>(() => {
+    const list = targetPersistenceService.listTargets();
+    return list[0] || null;
+  });
   const [traceProgress, setTraceProgress] = useState(0);
   const [liveEntities, setLiveEntities] = useState<LiveEntity[]>([]);
+
+  useEffect(() => {
+    const list = targetPersistenceService.listTargets();
+    setTargets(list);
+    if (!activeTarget || !list.some(t => t.id === activeTarget.id)) {
+      setActiveTarget(list[0] || null);
+    }
+  }, []);
 
   // Scenario A corridor tracking sequence in Gujarat
   const gujaratTrackingPath = [
@@ -58,44 +78,68 @@ export function TargetTracking() {
   }, []);
 
   return (
-    <div className="p-6 h-full flex flex-col bg-[#05070c] text-zinc-100 font-sans overflow-hidden">
-      {/* Header */}
-      <div className="mb-5 shrink-0 border-b border-cyan-950/50 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <div className="h-full flex flex-col bg-[#05070c] text-zinc-100 font-sans overflow-hidden">
+      {/* Header with Navigation Switch */}
+      <div className="px-6 py-4 shrink-0 border-b border-cyan-950/50 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[#080c16]">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-[10px] font-mono uppercase tracking-widest text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/40">
-              GUJARAT POLICE STATE CORRIDOR RE-IDENTIFICATION
+              GUJARAT POLICE STATE CORRIDOR RE-IDENTIFICATION • V1.1
             </span>
-            <span className="text-[10px] font-mono text-zinc-400">CORRIDOR HANDSHAKE: ACTIVE</span>
+            <span className="text-[10px] font-mono text-emerald-400 font-bold">STATEWIDE INVESTIGATION ACTIVE</span>
           </div>
           <h1 className="text-xl font-black tracking-tight text-zinc-100 font-mono">
-            CROSS-CAMERA GEOSPATIAL TRAJECTORY TRACE
+            {viewMode === 'investigation' ? 'UNIFIED VEHICLE INVESTIGATION & RECONSTRUCTION' : 'CROSS-CAMERA GEOSPATIAL TRAJECTORY TRACE'}
           </h1>
-          <p className="text-xs text-zinc-400">
-            Automated multi-camera entity trajectory mapping across Ahmedabad, Surat, and arterial toll plazas.
-          </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-mono text-amber-300 bg-amber-950/60 px-3 py-1.5 rounded border border-amber-500/40 flex items-center gap-1.5 font-bold">
-            <Activity size={14} className="animate-pulse text-amber-400" />
-            <span>SCENARIO A DETERMINISTIC TRACE</span>
-          </span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center bg-[#050810] border border-cyan-900/60 p-1 rounded-lg">
+            <button
+              onClick={() => setViewMode('investigation')}
+              className={`px-3 py-1.5 rounded text-xs font-mono font-bold uppercase transition-all flex items-center gap-1.5 ${
+                viewMode === 'investigation'
+                  ? 'bg-cyan-500 text-black shadow font-black'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <Search size={13} />
+              <span>INVESTIGATION (V1.1)</span>
+            </button>
+            <button
+              onClick={() => setViewMode('trajectory')}
+              className={`px-3 py-1.5 rounded text-xs font-mono font-bold uppercase transition-all flex items-center gap-1.5 ${
+                viewMode === 'trajectory'
+                  ? 'bg-cyan-500 text-black shadow font-black'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              <MapIcon size={13} />
+              <span>GEOSPATIAL MAP</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col lg:flex-row gap-5 min-h-0 overflow-hidden">
+      {viewMode === 'investigation' ? (
+        <div className="flex-1 overflow-hidden">
+          <UnifiedVehicleInvestigation 
+            initialPlate={selectedPlate || activeTarget?.associatedPlate || 'GJ05AB1234'} 
+          />
+        </div>
+      ) : (
+        <div className="p-6 flex-1 flex flex-col lg:flex-row gap-5 min-h-0 overflow-hidden">
         {/* Left: Active Track Selection */}
         <div className="w-full lg:w-[320px] bg-[#090d16] border border-cyan-950/70 rounded-lg flex flex-col shrink-0 overflow-hidden shadow-md">
           <div className="p-3.5 border-b border-cyan-950/60 bg-[#06080e] flex items-center justify-between">
             <h2 className="text-xs font-bold uppercase tracking-wider text-cyan-400 font-mono flex items-center gap-2">
               <Crosshair size={14} /> ACTIVE CORRIDOR TARGETS
             </h2>
-            <span className="text-[9px] font-mono text-zinc-500">{mockWatchlist.length} POIs</span>
+            <span className="text-[9px] font-mono text-zinc-500">{targets.length} POIs</span>
           </div>
           
           <div className="p-3 space-y-2.5 overflow-y-auto custom-scrollbar flex-1">
-            {mockWatchlist.map(target => (
+            {targets.map(target => (
               <div 
                 key={target.id} 
                 onClick={() => { setActiveTarget(target); setTraceProgress(0); }}
@@ -251,6 +295,7 @@ export function TargetTracking() {
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

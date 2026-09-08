@@ -106,7 +106,12 @@ export class EdgeDiscoveryService implements IVideoSourceDiscovery, IVideoSource
     ];
 
     // Automatically register and normalize to avoid duplicate registration
-    devices.forEach(dev => this.registerSource(dev));
+    devices.forEach(dev => {
+      this.registerSource(dev);
+      for (let i = 0; i < dev.channelsCount; i++) {
+        this.normalizeChannel(i, dev);
+      }
+    });
     return devices;
   }
 

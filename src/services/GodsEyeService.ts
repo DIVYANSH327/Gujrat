@@ -94,6 +94,7 @@ export class EvidenceCaptureService implements IEvidenceCaptureService {
       timestamp,
       targetId: params.targetId,
       captureReason: params.reason,
+      reason: params.reason,
       imageReference: `https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800&auto=format&fit=crop&q=60`,
       sha256,
       status: 'VERIFIED',
@@ -103,7 +104,8 @@ export class EvidenceCaptureService implements IEvidenceCaptureService {
       correlationId: params.correlationId,
       latitude: params.metadata?.latitude,
       longitude: params.metadata?.longitude,
-      sourceEdgeNode: params.metadata?.edgeNodeId
+      sourceEdgeNode: params.metadata?.edgeNodeId,
+      metadata: params.metadata
     };
   }
 }

@@ -395,7 +395,11 @@ export class NetworkEdgeTransport implements IEdgeTransport {
       body: JSON.stringify({ edgeNodeId: certId, deviceIdentity: 'CERT-123', capabilities: ['anpr'] })
     });
     if (!res.ok) throw new Error('Registration failed');
-    return res.json();
+    const ct = res.headers.get('content-type');
+    if (ct && ct.includes('application/json')) {
+      return await res.json();
+    }
+    return {};
   }
 
   async sendHeartbeat(payload: HeartbeatPayload) {
@@ -405,7 +409,11 @@ export class NetworkEdgeTransport implements IEdgeTransport {
       body: JSON.stringify(payload)
     });
     if (!res.ok) throw new Error('Heartbeat failed');
-    return res.json();
+    const ct = res.headers.get('content-type');
+    if (ct && ct.includes('application/json')) {
+      return await res.json();
+    }
+    return {};
   }
 
   async sendEvent(payload: SecurityEventPayload) {
@@ -476,6 +484,7 @@ export class MockCameraAdapter implements ICameraAdapter {
 
 // Re-export V0.7 Connector Adapters & Services
 export * from './adapters/OnvifDVRAdapter';
+export * from './adapters/CpPlusDVRAdapter';
 export * from './adapters/RtspStreamAdapter';
 export * from './adapters/MockVendorVMSAdapter';
 export * from './DiscoveryService';

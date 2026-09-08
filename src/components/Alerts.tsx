@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { mockAlerts } from '../mockData';
-import { CheckCircle2, ShieldAlert, AlertTriangle, FileCheck, Check, Filter } from 'lucide-react';
+import { CheckCircle2, ShieldAlert, AlertTriangle, FileCheck, Check, Filter, Volume2, VolumeX, ShieldCheck } from 'lucide-react';
 import { Alert } from '../types';
+import { audioAlertService } from '../services/AudioAlertService';
 
 export function Alerts() {
   const [alerts, setAlerts] = useState<Alert[]>(mockAlerts);
   const [filter, setFilter] = useState<'ALL' | 'CRITICAL' | 'UNACK'>('ALL');
+  const [isMuted, setIsMuted] = useState(() => audioAlertService.isMuted());
 
   const toggleAcknowledge = (id: string) => {
     setAlerts(prev => prev.map(a => a.id === id ? { ...a, isRead: !a.isRead } : a));
@@ -13,6 +15,15 @@ export function Alerts() {
 
   const markAllRead = () => {
     setAlerts(prev => prev.map(a => ({ ...a, isRead: true })));
+  };
+
+  const handleTestAudioAlert = () => {
+    audioAlertService.playTone('TEST_ALERT');
+  };
+
+  const handleToggleMute = () => {
+    const next = audioAlertService.toggleMute();
+    setIsMuted(next);
   };
 
   const filteredAlerts = alerts.filter(a => {
@@ -36,11 +47,19 @@ export function Alerts() {
             AUTOMATED SECURITY & RULE ALERTS
           </h1>
           <p className="text-xs text-zinc-400">
-            Rule engine triggers, watchlist hit notifications, and court-admissible evidence snapshots.
+            Rule engine triggers, watchlist hit notifications, candidate verification packages, and court-admissible evidence snapshots.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleTestAudioAlert}
+            title="Play Test Alert Tone (Web Audio API)"
+            className="flex items-center space-x-1.5 px-3 py-1.5 bg-[#090d16] border border-cyan-900/40 rounded hover:bg-[#131b2e] transition-colors text-xs font-mono font-bold uppercase tracking-wider text-cyan-300 cursor-pointer"
+          >
+            <Volume2 size={13} />
+            <span>TEST ALERT CHIME</span>
+          </button>
           <button 
             onClick={markAllRead}
             className="flex items-center space-x-1.5 px-3 py-1.5 bg-[#090d16] border border-cyan-900/40 rounded hover:bg-[#131b2e] transition-colors text-xs font-mono font-bold uppercase tracking-wider text-cyan-300 cursor-pointer"
@@ -88,9 +107,9 @@ export function Alerts() {
       {/* Alerts List */}
       <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
         <div className="space-y-3 max-w-4xl pb-6">
-          {filteredAlerts.map(alert => (
+          {filteredAlerts.map((alert, idx) => (
             <div 
-              key={alert.id} 
+              key={alert.id ? `${alert.id}-${idx}` : `alert-${idx}`} 
               className={`p-4 rounded-lg flex flex-col sm:flex-row gap-4 items-start transition-all relative overflow-hidden ${
                 alert.isRead 
                   ? 'bg-[#080b12] border border-cyan-950/40 opacity-70' 
