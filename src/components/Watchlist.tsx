@@ -1,619 +1,617 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { WatchlistTarget } from '../types';
-import { targetPersistenceService, compressImage } from '../services/TargetPersistenceService';
-import { FaceWatchlistView } from './FaceWatchlistView';
+import React, { useState } from 'react';
 import { 
-  Camera as CameraIcon, 
-  Target, 
-  Crosshair, 
+  Car, 
+  User, 
+  Search, 
+  Plus, 
   AlertTriangle, 
   ShieldAlert, 
-  CheckCircle2, 
-  UserCheck, 
-  Plus, 
-  Upload, 
-  RotateCcw, 
+  Clock, 
+  MapPin, 
   Trash2, 
-  Edit3, 
-  Image as ImageIcon,
-  Info,
+  Crosshair, 
+  History, 
+  CheckCircle2, 
+  Eye, 
+  X,
   ScanFace,
-  Car
+  FileText
 } from 'lucide-react';
+import { StatusBadge } from './ui/OfficerPrimitives';
 
-export function Watchlist() {
-  const [activeWatchlistTab, setActiveWatchlistTab] = useState<'FACE_BIOMETRIC' | 'VEHICLE_SYNTHETIC'>('FACE_BIOMETRIC');
-  // Rehydrate persisted synthetic targets
-  const [targets, setTargets] = useState<WatchlistTarget[]>(() => targetPersistenceService.listTargets());
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [isCapturing, setIsCapturing] = useState(false);
-  
-  // Rehydrate draft photo and draft form if user previously selected an image or navigated away
-  const [capturedImage, setCapturedImage] = useState<string | null>(() => targetPersistenceService.getDraftImage());
-  const [editingTargetId, setEditingTargetId] = useState<string | null>(null);
-  const [quotaWarning, setQuotaWarning] = useState<string | null>(null);
-  
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+interface VehicleTarget {
+  id: string;
+  plate: string;
+  reason: string;
+  riskLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM';
+  dateAdded: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  vehicleType: string;
+  color: string;
+}
 
-  const [formData, setFormData] = useState(() => {
-    const draft = targetPersistenceService.getDraftForm();
-    return draft || {
-      name: '',
-      attire: '',
-      plate: '',
-      threatLevel: 'high' as 'high' | 'medium' | 'critical'
-    };
-  });
+interface PersonTarget {
+  id: string;
+  name: string;
+  aliasCase: string;
+  riskLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM';
+  lastSeen: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  imageUrl: string;
+}
 
-  // Re-sync with persistence on mount (protects against stale tab state)
-  useEffect(() => {
-    const loaded = targetPersistenceService.listTargets();
-    setTargets(loaded);
-  }, []);
+interface WatchlistProps {
+  onNavigate?: (view: string) => void;
+}
 
-  // Persist form changes as draft
-  useEffect(() => {
-    targetPersistenceService.saveDraftForm(formData);
-  }, [formData]);
+export function Watchlist({ onNavigate }: WatchlistProps) {
+  const [activeTab, setActiveTab] = useState<'VEHICLES' | 'PERSONS'>('VEHICLES');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Persist draft image
-  useEffect(() => {
-    targetPersistenceService.saveDraftImage(capturedImage);
-  }, [capturedImage]);
-
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, []);
-
-  const startCamera = async () => {
-    setIsCapturing(true);
-    setQuotaWarning(null);
-    try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
-      setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-      }
-    } catch (err) {
-      console.warn("Camera access not available, prompting file selection", err);
-      setIsCapturing(false);
-      // Fallback to file picker if camera is blocked/unavailable
-      if (fileInputRef.current) {
-        fileInputRef.current.click();
-      }
+  // Initial Vehicles Watchlist as specified in prompt
+  const [vehicles, setVehicles] = useState<VehicleTarget[]>([
+    {
+      id: 'V-001',
+      plate: 'GJ01AB1234',
+      reason: 'Stolen Vehicle',
+      riskLevel: 'HIGH',
+      dateAdded: 'Yesterday',
+      status: 'ACTIVE',
+      vehicleType: 'Motorcycle',
+      color: 'Black'
+    },
+    {
+      id: 'V-002',
+      plate: 'GJ05XY6789',
+      reason: 'Wanted in Hit and Run Case #892',
+      riskLevel: 'CRITICAL',
+      dateAdded: '3 days ago',
+      status: 'ACTIVE',
+      vehicleType: 'Sedan',
+      color: 'Silver'
+    },
+    {
+      id: 'V-003',
+      plate: 'GJ27CD5544',
+      reason: 'Suspicious Reconnaissance - SG Highway',
+      riskLevel: 'MEDIUM',
+      dateAdded: '5 days ago',
+      status: 'ACTIVE',
+      vehicleType: 'SUV',
+      color: 'White'
     }
-  };
+  ]);
 
-  const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
+  // Initial Persons Watchlist as specified in prompt
+  const [persons, setPersons] = useState<PersonTarget[]>([
+    {
+      id: 'P-001',
+      name: 'Unknown Suspect',
+      aliasCase: 'Case #412',
+      riskLevel: 'CRITICAL',
+      lastSeen: 'Ahmedabad',
+      status: 'ACTIVE',
+      imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80'
+    },
+    {
+      id: 'P-002',
+      name: 'Synthetic Subject Bravo',
+      aliasCase: 'FIR #102/2026',
+      riskLevel: 'HIGH',
+      lastSeen: 'Surat',
+      status: 'ACTIVE',
+      imageUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&auto=format&fit=crop&q=80'
     }
-    setIsCapturing(false);
-  };
+  ]);
 
-  const captureFace = async () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const rawDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-        stopCamera();
-        
-        try {
-          const compressed = await compressImage(rawDataUrl, 320, 320, 0.75);
-          setCapturedImage(compressed);
-          targetPersistenceService.saveDraftImage(compressed);
-        } catch {
-          setCapturedImage(rawDataUrl);
-          targetPersistenceService.saveDraftImage(rawDataUrl);
-        }
-      }
-    }
-  };
+  // Add Modals
+  const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
+  const [showAddPersonModal, setShowAddPersonModal] = useState(false);
+  const [newPlate, setNewPlate] = useState('');
+  const [newReason, setNewReason] = useState('Stolen Vehicle');
+  const [newRisk, setNewRisk] = useState<'CRITICAL' | 'HIGH' | 'MEDIUM'>('HIGH');
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setQuotaWarning(null);
-    try {
-      const compressed = await compressImage(file, 320, 320, 0.75);
-      setCapturedImage(compressed);
-      targetPersistenceService.saveDraftImage(compressed);
-    } catch (err) {
-      console.error("Failed to load and compress image file", err);
-      setQuotaWarning("Failed to process selected image file.");
-    }
-  };
+  // Person Add Form
+  const [newPersonName, setNewPersonName] = useState('');
+  const [newPersonCase, setNewPersonCase] = useState('');
+  const [newPersonLocation, setNewPersonLocation] = useState('Ahmedabad');
 
-  const handleRegister = (e: React.FormEvent) => {
+  // History / Matches Modal
+  const [historyModalTarget, setHistoryModalTarget] = useState<VehicleTarget | null>(null);
+  const [matchesModalPerson, setMatchesModalPerson] = useState<PersonTarget | null>(null);
+
+  const filteredVehicles = vehicles.filter(v => 
+    v.plate.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    v.reason.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredPersons = persons.filter(p => 
+    p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.aliasCase.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    p.lastSeen.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleAddVehicle = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!capturedImage) return;
-
-    if (editingTargetId) {
-      // Update existing target
-      const updated = targetPersistenceService.updateTarget(editingTargetId, {
-        name: formData.name || 'Unknown Suspect',
-        imageUrl: capturedImage,
-        threatLevel: formData.threatLevel,
-        associatedPlate: formData.plate.toUpperCase(),
-        lastKnownAttire: formData.attire
-      });
-
-      if (updated) {
-        const freshList = targetPersistenceService.listTargets();
-        setTargets(freshList);
-      }
-      setEditingTargetId(null);
-    } else {
-      // Create new target
-      const targetId = `TGT-GJ-${Date.now().toString().slice(-4)}`;
-      const newTarget: WatchlistTarget = {
-        id: targetId,
-        targetId: targetId,
-        syntheticPersonId: `P-DEMO-${Math.floor(100 + Math.random() * 900)}`,
-        name: formData.name || 'Unknown Suspect',
-        alias: formData.name || 'Unknown Suspect',
-        imageUrl: capturedImage,
-        threatLevel: formData.threatLevel,
-        severity: formData.threatLevel,
-        associatedPlate: formData.plate ? formData.plate.toUpperCase() : undefined,
-        vehiclePlate: formData.plate ? formData.plate.toUpperCase() : undefined,
-        lastKnownAttire: formData.attire || 'Dark attire (Simulated)',
-        attire: formData.attire || 'Dark attire (Simulated)',
-        dateAdded: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        syncStatus: 'SYNCHRONIZED'
-      };
-
-      targetPersistenceService.saveTarget(newTarget);
-      
-      if (targetPersistenceService.storageQuotaExceeded) {
-        setQuotaWarning("DEMO IMAGE STORAGE LIMIT REACHED — image may be stored transiently.");
-      } else {
-        setQuotaWarning(null);
-      }
-
-      const freshList = targetPersistenceService.listTargets();
-      setTargets(freshList);
-    }
-
-    // Clear active registration fields and draft persistence
-    setCapturedImage(null);
-    targetPersistenceService.saveDraftImage(null);
-    setFormData({ name: '', attire: '', plate: '', threatLevel: 'high' });
-    targetPersistenceService.saveDraftForm({ name: '', attire: '', plate: '', threatLevel: 'high' });
+    if (!newPlate.trim()) return;
+    setVehicles([
+      {
+        id: `V-${Date.now()}`,
+        plate: newPlate.trim().toUpperCase(),
+        reason: newReason,
+        riskLevel: newRisk,
+        dateAdded: 'Today',
+        status: 'ACTIVE',
+        vehicleType: 'Vehicle',
+        color: 'Unspecified'
+      },
+      ...vehicles
+    ]);
+    setNewPlate('');
+    setShowAddVehicleModal(false);
   };
 
-  const handleStartEdit = (target: WatchlistTarget) => {
-    setEditingTargetId(target.id);
-    setCapturedImage(target.imageUrl);
-    targetPersistenceService.saveDraftImage(target.imageUrl);
-    setFormData({
-      name: target.name || target.alias || '',
-      attire: target.lastKnownAttire || target.attire || '',
-      plate: target.associatedPlate || target.vehiclePlate || '',
-      threatLevel: (target.threatLevel || target.severity || 'high') as 'high' | 'medium' | 'critical'
-    });
+  const handleAddPerson = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPersonName.trim()) return;
+    setPersons([
+      {
+        id: `P-${Date.now()}`,
+        name: newPersonName,
+        aliasCase: newPersonCase || 'General Investigation',
+        riskLevel: newRisk,
+        lastSeen: newPersonLocation,
+        status: 'ACTIVE',
+        imageUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80'
+      },
+      ...persons
+    ]);
+    setNewPersonName('');
+    setNewPersonCase('');
+    setShowAddPersonModal(false);
   };
 
-  const handleCancelEdit = () => {
-    setEditingTargetId(null);
-    setCapturedImage(null);
-    targetPersistenceService.saveDraftImage(null);
-    setFormData({ name: '', attire: '', plate: '', threatLevel: 'high' });
-    targetPersistenceService.saveDraftForm({ name: '', attire: '', plate: '', threatLevel: 'high' });
-  };
-
-  const handleDeleteTarget = (id: string) => {
-    targetPersistenceService.deleteTarget(id);
-    const freshList = targetPersistenceService.listTargets();
-    setTargets(freshList);
-    if (editingTargetId === id) {
-      handleCancelEdit();
-    }
-  };
-
-  const handleResetDemo = () => {
-    const reseeded = targetPersistenceService.resetToDemoDefaults();
-    setTargets(reseeded);
-    setCapturedImage(null);
-    setEditingTargetId(null);
-    setQuotaWarning(null);
-    setFormData({ name: '', attire: '', plate: '', threatLevel: 'high' });
+  const handleRemoveVehicle = (id: string) => {
+    setVehicles(vehicles.filter(v => v.id !== id));
   };
 
   return (
-    <div className="p-4 sm:p-6 h-full flex flex-col bg-[#05070c] text-zinc-100 font-sans overflow-hidden">
-      {/* Primary Watchlist Navigation Tabs */}
-      <div className="mb-4 flex items-center justify-between gap-2 border-b border-cyan-950/60 pb-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setActiveWatchlistTab('FACE_BIOMETRIC')}
-            id="tab-watchlist-face"
-            className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold uppercase transition-all flex items-center gap-1.5 border ${
-              activeWatchlistTab === 'FACE_BIOMETRIC'
-                ? 'bg-amber-600 text-white border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.4)]'
-                : 'bg-zinc-900 text-zinc-400 border-white/10 hover:bg-zinc-800'
-            }`}
-          >
-            <ScanFace size={15} />
-            <span>Face Biometric Watchlist (BSA 2023)</span>
-          </button>
-
-          <button
-            onClick={() => setActiveWatchlistTab('VEHICLE_SYNTHETIC')}
-            id="tab-watchlist-vehicle"
-            className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold uppercase transition-all flex items-center gap-1.5 border ${
-              activeWatchlistTab === 'VEHICLE_SYNTHETIC'
-                ? 'bg-blue-600 text-white border-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.4)]'
-                : 'bg-zinc-900 text-zinc-400 border-white/10 hover:bg-zinc-800'
-            }`}
-          >
-            <Car size={15} />
-            <span>Vehicle & Target Registry</span>
-          </button>
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto w-full space-y-6 text-slate-900 font-sans">
+      {/* 1. Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+            Watchlist
+          </h1>
+          <p className="text-sm font-medium text-slate-500 mt-0.5">
+            Active surveillance hotlists for vehicles and persons of interest
+          </p>
         </div>
 
-        {activeWatchlistTab === 'VEHICLE_SYNTHETIC' && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleResetDemo}
-              title="Restore default deterministic demo targets"
-              className="px-2.5 py-1.5 bg-[#0d121f] hover:bg-[#162035] text-zinc-400 hover:text-cyan-300 border border-cyan-900/40 rounded text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              <RotateCcw size={13} />
-              <span>RESET DEMO</span>
-            </button>
-            <span className="text-xs font-mono text-cyan-300 bg-cyan-950/80 px-2.5 py-1.5 rounded border border-cyan-700/50 flex items-center gap-1 font-bold">
-              <UserCheck size={13} />
-              <span>{targets.length} SYNCED</span>
-            </span>
-          </div>
+        {/* Tab Switcher: [ Vehicles ] [ Persons ] */}
+        <div className="flex items-center bg-slate-100 border border-slate-200 rounded-xl p-1 self-start sm:self-auto">
+          <button
+            onClick={() => setActiveTab('VEHICLES')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer min-h-[38px] ${
+              activeTab === 'VEHICLES'
+                ? 'bg-white text-blue-700 shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Car size={16} />
+            <span>Vehicles</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('PERSONS')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer min-h-[38px] ${
+              activeTab === 'PERSONS'
+                ? 'bg-white text-blue-700 shadow-2xs'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <User size={16} />
+            <span>Persons</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 2. Action & Search Bar */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="relative w-full sm:w-80">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <input
+            type="text"
+            placeholder={activeTab === 'VEHICLES' ? 'Search vehicle plate or reason...' : 'Search person name or case...'}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white"
+          />
+        </div>
+
+        {activeTab === 'VEHICLES' ? (
+          <button
+            onClick={() => setShowAddVehicleModal(true)}
+            className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors shadow-xs cursor-pointer min-h-[44px]"
+          >
+            <Plus size={16} />
+            <span>Add Vehicle</span>
+          </button>
+        ) : (
+          <button
+            onClick={() => setShowAddPersonModal(true)}
+            className="w-full sm:w-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-colors shadow-xs cursor-pointer min-h-[44px]"
+          >
+            <Plus size={16} />
+            <span>Add Person</span>
+          </button>
         )}
       </div>
 
-      {activeWatchlistTab === 'FACE_BIOMETRIC' ? (
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <FaceWatchlistView />
+      {/* 3. Cards Grid */}
+      {activeTab === 'VEHICLES' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredVehicles.map((vehicle) => (
+            <div 
+              key={vehicle.id}
+              className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:shadow-md transition-all"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-xs font-bold font-mono text-slate-500">
+                    {vehicle.id}
+                  </span>
+                  <StatusBadge 
+                    status={vehicle.riskLevel === 'CRITICAL' ? 'CRITICAL' : 'WARNING'} 
+                    label={`RISK: ${vehicle.riskLevel}`} 
+                    size="sm" 
+                  />
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between border-b border-slate-100 pb-2">
+                    <span className="font-semibold text-slate-500 uppercase text-[11px]">Vehicle:</span>
+                    <span className="font-black font-mono text-base text-slate-900">{vehicle.plate}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-2">
+                    <span className="font-semibold text-slate-500 uppercase text-[11px]">Reason:</span>
+                    <span className="font-semibold text-slate-800 text-right truncate max-w-[200px]">{vehicle.reason}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-2">
+                    <span className="font-semibold text-slate-500 uppercase text-[11px]">Date Added:</span>
+                    <span className="text-slate-600 font-medium">{vehicle.dateAdded}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-slate-500 uppercase text-[11px]">Status:</span>
+                    <span className="font-bold text-emerald-700">{vehicle.status}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Vehicle Card Action Buttons */}
+              <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
+                <button
+                  onClick={() => setHistoryModalTarget(vehicle)}
+                  className="flex-1 py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 min-h-[40px] cursor-pointer"
+                >
+                  <History size={14} />
+                  <span>View History</span>
+                </button>
+
+                <button
+                  onClick={() => onNavigate?.('missions')}
+                  className="flex-1 py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 min-h-[40px] cursor-pointer shadow-xs"
+                >
+                  <Crosshair size={14} />
+                  <span>Track</span>
+                </button>
+
+                <button
+                  onClick={() => handleRemoveVehicle(vehicle.id)}
+                  className="p-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs transition-colors flex items-center justify-center min-h-[40px] min-w-[40px] cursor-pointer"
+                  title="Remove from Watchlist"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
-        <>
-          {/* Header */}
-          <div className="mb-4 shrink-0 border-b border-cyan-950/50 pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-cyan-400 bg-cyan-950/60 px-2 py-0.5 rounded border border-cyan-800/40">
-                  GUJARAT POLICE CID / CRIME BRANCH
-                </span>
-                <span className="text-[10px] font-mono text-zinc-400">EDGE RE-IDENTIFICATION & SYNTHETIC DOSSIER REGISTRY</span>
-              </div>
-              <h1 className="text-lg font-black tracking-tight text-zinc-100 font-mono">
-                LOCAL VEHICLE & TARGET PROFILE REGISTRY
-              </h1>
-              <p className="text-xs text-zinc-400 flex items-center gap-1.5 mt-0.5">
-                <Info size={12} className="text-cyan-400" />
-                <span>Synthetic subject image & vehicle profiles — persisted across browser sessions.</span>
-              </p>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredPersons.map((person) => (
+            <div 
+              key={person.id}
+              className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex flex-col justify-between space-y-4 hover:shadow-md transition-all"
+            >
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <span className="text-xs font-bold font-mono text-slate-500">
+                    {person.id}
+                  </span>
+                  <StatusBadge 
+                    status={person.riskLevel === 'CRITICAL' ? 'CRITICAL' : 'WARNING'} 
+                    label={`RISK: ${person.riskLevel}`} 
+                    size="sm" 
+                  />
+                </div>
 
-          {/* Quota Warning if limit reached */}
-          {quotaWarning && (
-            <div className="mb-3 px-3 py-2 bg-amber-950/40 border border-amber-500/40 text-amber-300 text-xs font-mono rounded flex items-center gap-2">
-              <AlertTriangle size={14} className="text-amber-400 shrink-0" />
-              <span>{quotaWarning}</span>
-            </div>
-          )}
-
-          <div className="flex-1 flex flex-col lg:flex-row gap-5 min-h-0 overflow-hidden">
-        {/* Left: Registration Form */}
-        <div className="w-full lg:w-[380px] bg-[#090d16] border border-cyan-950/70 rounded-lg flex flex-col shrink-0 overflow-hidden shadow-md">
-          <div className="p-3.5 border-b border-cyan-950/60 bg-[#06080e] flex items-center justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-cyan-400 font-mono flex items-center gap-2">
-              <Crosshair size={14} /> {editingTargetId ? 'EDIT TARGET DOSSIER' : 'NEW SYNTHETIC TARGET DOSSIER'}
-            </h2>
-            <span className="text-[9px] font-mono text-zinc-500">STATEWIDE BROADCAST</span>
-          </div>
-          
-          <div className="p-4 flex-1 overflow-y-auto custom-scrollbar">
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-[10px] font-mono font-bold uppercase tracking-wider text-zinc-400">
-                  FACIAL CAPTURE & EMBEDDING
-                </label>
-                <span className="text-[9px] font-mono text-zinc-500">
-                  {capturedImage ? 'PHOTO STORED' : 'PHOTO REQUIRED'}
-                </span>
-              </div>
-              
-              {/* Hidden file input for file selection */}
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileUpload} 
-                accept="image/*" 
-                className="hidden" 
-              />
-
-              {/* Photo & Sensor Area */}
-              <div className="relative aspect-video bg-[#04060a] border border-cyan-950 rounded-lg overflow-hidden flex flex-col items-center justify-center mb-2 group">
-                {!isCapturing && !capturedImage && (
-                  <div className="flex flex-col items-center justify-center p-4 text-center">
-                    <button 
-                      onClick={startCamera} 
-                      type="button"
-                      className="flex flex-col items-center text-cyan-400 hover:text-cyan-300 transition-colors p-2 cursor-pointer mb-2"
-                    >
-                      <CameraIcon size={28} className="mb-1.5 opacity-80" />
-                      <span className="text-[11px] font-mono font-bold uppercase tracking-wider">INITIALIZE CAPTURE SENSOR</span>
-                    </button>
-                    
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="text-[10px] font-mono text-zinc-400 hover:text-cyan-300 flex items-center gap-1 underline underline-offset-2 cursor-pointer"
-                    >
-                      <Upload size={12} /> Or Select Synthetic Photo File
-                    </button>
+                <div className="flex gap-4 items-center mb-3">
+                  <img
+                    src={person.imageUrl}
+                    alt={person.name}
+                    className="w-16 h-16 rounded-xl object-cover border border-slate-200 shrink-0"
+                  />
+                  <div className="space-y-1">
+                    <h3 className="text-base font-bold text-slate-900 leading-tight">
+                      {person.name}
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      {person.aliasCase}
+                    </p>
                   </div>
-                )}
-                
-                {isCapturing && (
-                  <>
-                    <video ref={videoRef} autoPlay playsInline muted className="absolute inset-0 w-full h-full object-cover" />
-                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
-                      <div className="w-1/2 h-2/3 border-2 border-cyan-400/80 rounded-sm relative shadow-[0_0_15px_rgba(6,182,212,0.3)]">
-                        <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-cyan-400" />
-                        <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-cyan-400" />
-                        <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-cyan-400" />
-                        <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-cyan-400" />
-                      </div>
-                    </div>
-                  </>
-                )}
-                
-                {capturedImage && !isCapturing && (
-                  <>
-                    <img 
-                      src={capturedImage} 
-                      alt="Synthetic Subject Preview" 
-                      className="absolute inset-0 w-full h-full object-cover" 
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute bottom-2 left-2 right-2 bg-black/70 backdrop-blur-sm px-2 py-1 rounded text-[9px] font-mono text-cyan-300 flex items-center justify-between z-10 border border-cyan-900/40">
-                      <span className="flex items-center gap-1">
-                        <CheckCircle2 size={11} className="text-emerald-400" /> STORED PREVIEW
-                      </span>
-                      <span className="text-zinc-400">PERSISTED</span>
-                    </div>
-                  </>
-                )}
-                <canvas ref={canvasRef} className="hidden" />
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex justify-between border-b border-slate-100 pb-2">
+                    <span className="font-semibold text-slate-500 uppercase text-[11px]">Alias / Case:</span>
+                    <span className="font-bold text-slate-800">{person.aliasCase}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-100 pb-2">
+                    <span className="font-semibold text-slate-500 uppercase text-[11px]">Last Seen:</span>
+                    <span className="font-semibold text-slate-800">{person.lastSeen}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-slate-500 uppercase text-[11px]">Status:</span>
+                    <span className="font-bold text-emerald-700">{person.status}</span>
+                  </div>
+                </div>
               </div>
 
-              {/* Action buttons for capture / retake */}
-              {isCapturing && (
-                <div className="grid grid-cols-2 gap-2">
-                  <button 
-                    type="button"
-                    onClick={captureFace} 
-                    className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white py-2 text-xs font-mono font-bold uppercase tracking-wider rounded transition-all shadow-[0_0_15px_rgba(6,182,212,0.3)] cursor-pointer text-center"
-                  >
-                    CAPTURE PHOTO
-                  </button>
-                  <button
-                    type="button"
-                    onClick={stopCamera}
-                    className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-2 text-xs font-mono font-bold uppercase tracking-wider rounded transition-colors cursor-pointer"
-                  >
-                    CANCEL
-                  </button>
-                </div>
-              )}
+              {/* Person Card Action Buttons */}
+              <div className="flex items-center gap-2 pt-3 border-t border-slate-100">
+                <button
+                  onClick={() => setMatchesModalPerson(person)}
+                  className="flex-1 py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 min-h-[40px] cursor-pointer"
+                >
+                  <Eye size={14} />
+                  <span>View Matches</span>
+                </button>
 
-              {capturedImage && !isCapturing && (
-                <div className="grid grid-cols-2 gap-2">
-                  <button 
-                    type="button"
-                    onClick={startCamera} 
-                    className="bg-[#0d121f] hover:bg-[#131b2e] text-cyan-300 border border-cyan-900/40 py-1.5 text-xs font-mono font-bold uppercase tracking-wider rounded transition-colors cursor-pointer flex items-center justify-center gap-1"
-                  >
-                    <RotateCcw size={12} />
-                    <span>RETAKE SENSOR</span>
-                  </button>
-                  <button 
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()} 
-                    className="bg-[#0d121f] hover:bg-[#131b2e] text-zinc-300 border border-cyan-900/40 py-1.5 text-xs font-mono font-bold uppercase tracking-wider rounded transition-colors cursor-pointer flex items-center justify-center gap-1"
-                  >
-                    <Upload size={12} />
-                    <span>CHANGE FILE</span>
-                  </button>
-                </div>
-              )}
+                <button
+                  onClick={() => onNavigate?.('cameras')}
+                  className="flex-1 py-2 px-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 min-h-[40px] cursor-pointer shadow-xs"
+                >
+                  <ScanFace size={14} />
+                  <span>Find in CCTV</span>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add Vehicle Modal */}
+      {showAddVehicleModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 w-full max-w-md shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-900">Add Vehicle to Watchlist</h3>
+              <button onClick={() => setShowAddVehicleModal(false)} className="p-1 rounded text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X size={20} />
+              </button>
             </div>
 
-            <form onSubmit={handleRegister} className="space-y-3 font-mono">
+            <form onSubmit={handleAddVehicle} className="space-y-3 text-xs">
               <div>
-                <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">SUBJECT ALIAS / NAME</label>
-                <input 
-                  type="text" 
-                  value={formData.name} 
-                  onChange={e => setFormData({...formData, name: e.target.value})} 
-                  className="w-full bg-[#05070c] border border-cyan-950 rounded px-3 py-1.5 text-xs text-zinc-100 focus:border-cyan-500 focus:outline-none uppercase" 
-                  placeholder="e.g. SYNTHETIC SUBJECT DELTA / J. PATEL" 
-                />
-              </div>
-              
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">LAST KNOWN ATTIRE</label>
-                <input 
-                  type="text" 
-                  value={formData.attire} 
-                  onChange={e => setFormData({...formData, attire: e.target.value})} 
-                  className="w-full bg-[#05070c] border border-cyan-950 rounded px-3 py-1.5 text-xs text-zinc-100 focus:border-cyan-500 focus:outline-none" 
-                  placeholder="e.g. Dark jacket, white helmet" 
+                <label className="block font-semibold text-slate-700 uppercase mb-1">Registration Plate</label>
+                <input
+                  type="text"
+                  required
+                  value={newPlate}
+                  onChange={(e) => setNewPlate(e.target.value.toUpperCase())}
+                  placeholder="e.g. GJ01AB1234"
+                  className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">ASSOCIATED VEHICLE LICENSE PLATE</label>
-                <input 
-                  type="text" 
-                  value={formData.plate} 
-                  onChange={e => setFormData({...formData, plate: e.target.value})} 
-                  className="w-full bg-[#05070c] border border-cyan-950 rounded px-3 py-1.5 text-xs font-mono text-cyan-300 focus:border-cyan-500 focus:outline-none uppercase" 
-                  placeholder="GJ01AB1234" 
+                <label className="block font-semibold text-slate-700 uppercase mb-1">Reason for Hotlist</label>
+                <input
+                  type="text"
+                  required
+                  value={newReason}
+                  onChange={(e) => setNewReason(e.target.value)}
+                  placeholder="e.g. Stolen Vehicle, FIR #241"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-600"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] uppercase font-bold text-zinc-400 mb-1">THREAT SEVERITY</label>
-                <select 
-                  value={formData.threatLevel} 
-                  onChange={e => setFormData({...formData, threatLevel: e.target.value as 'high' | 'medium' | 'critical'})} 
-                  className="w-full bg-[#05070c] border border-cyan-950 rounded px-3 py-1.5 text-xs text-zinc-100 focus:border-cyan-500 focus:outline-none uppercase cursor-pointer"
+                <label className="block font-semibold text-slate-700 uppercase mb-1">Risk Level</label>
+                <select
+                  value={newRisk}
+                  onChange={(e) => setNewRisk(e.target.value as any)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-blue-600"
                 >
-                  <option value="critical">CRITICAL (Rule Alert & Intercept)</option>
-                  <option value="high">HIGH (Active Surveillance)</option>
-                  <option value="medium">MEDIUM (POI / Trajectory Log)</option>
+                  <option value="CRITICAL">CRITICAL</option>
+                  <option value="HIGH">HIGH</option>
+                  <option value="MEDIUM">MEDIUM</option>
                 </select>
               </div>
 
-              <div className="pt-2 flex flex-col gap-2">
-                <button 
-                  type="submit" 
-                  disabled={!capturedImage} 
-                  className="w-full bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 disabled:opacity-40 disabled:pointer-events-none text-white py-2.5 text-xs font-mono font-bold uppercase tracking-wider rounded transition-all shadow-[0_0_15px_rgba(244,63,94,0.3)] cursor-pointer flex items-center justify-center gap-1.5"
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setShowAddVehicleModal(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer min-h-[44px]"
                 >
-                  <Plus size={14} />
-                  <span>{editingTargetId ? 'UPDATE SYNTHETIC TARGET DOSSIER' : 'DEPLOY TO STATEWIDE EDGE FLEET'}</span>
+                  Cancel
                 </button>
-
-                {editingTargetId && (
-                  <button
-                    type="button"
-                    onClick={handleCancelEdit}
-                    className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 py-1.5 text-xs font-mono font-bold uppercase tracking-wider rounded transition-colors cursor-pointer"
-                  >
-                    CANCEL EDIT
-                  </button>
-                )}
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-colors shadow-xs cursor-pointer min-h-[44px]"
+                >
+                  Save to Hotlist
+                </button>
               </div>
             </form>
           </div>
         </div>
+      )}
 
-        {/* Right: Active Watchlist */}
-        <div className="flex-1 bg-[#090d16] border border-cyan-950/70 rounded-lg flex flex-col min-w-0 shadow-md">
-          <div className="p-3.5 border-b border-cyan-950/60 bg-[#06080e] flex items-center justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-cyan-400 font-mono flex items-center gap-2">
-              <Target size={14} /> ACTIVE TRACKING PROFILES ({targets.length})
-            </h2>
-            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-800/30">
-              STATEWIDE REPLICATION: 100%
-            </span>
-          </div>
-          
-          <div className="p-4 flex-1 overflow-y-auto custom-scrollbar">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 pb-4">
-              {targets.map(target => (
-                <div 
-                  key={target.id} 
-                  className={`bg-[#05070c] border rounded-lg p-3 flex gap-3.5 transition-colors group shadow-sm ${
-                    editingTargetId === target.id ? 'border-cyan-400 bg-cyan-950/20' : 'border-cyan-950/80 hover:border-cyan-600/50'
-                  }`}
+      {/* Add Person Modal */}
+      {showAddPersonModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 w-full max-w-md shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-900">Add Person of Interest</h3>
+              <button onClick={() => setShowAddPersonModal(false)} className="p-1 rounded text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddPerson} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 uppercase mb-1">Subject Name or Unknown Description</label>
+                <input
+                  type="text"
+                  required
+                  value={newPersonName}
+                  onChange={(e) => setNewPersonName(e.target.value)}
+                  placeholder="e.g. Unknown Suspect"
+                  className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 uppercase mb-1">Alias / Case Reference</label>
+                <input
+                  type="text"
+                  required
+                  value={newPersonCase}
+                  onChange={(e) => setNewPersonCase(e.target.value)}
+                  placeholder="e.g. Case #412"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 uppercase mb-1">Last Seen Jurisdiction</label>
+                <input
+                  type="text"
+                  value={newPersonLocation}
+                  onChange={(e) => setNewPersonLocation(e.target.value)}
+                  placeholder="e.g. Ahmedabad"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-600"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setShowAddPersonModal(false)}
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer min-h-[44px]"
                 >
-                  <div className="w-24 h-24 shrink-0 rounded bg-black border border-cyan-950 relative overflow-hidden">
-                    <img 
-                      src={target.imageUrl} 
-                      alt={target.name} 
-                      className="w-full h-full object-cover mix-blend-luminosity group-hover:mix-blend-normal transition-all" 
-                      referrerPolicy="no-referrer"
-                      onError={(e) => {
-                        // Graceful fallback on corrupt/missing image
-                        (e.target as HTMLElement).style.display = 'none';
-                      }}
-                    />
-                    <div className={`absolute top-0 right-0 w-full h-1 ${
-                      target.threatLevel === 'critical' ? 'bg-rose-500' :
-                      target.threatLevel === 'high' ? 'bg-amber-500' : 'bg-blue-500'
-                    }`} />
-                  </div>
-                  
-                  <div className="flex-1 min-w-0 flex flex-col justify-between font-mono">
-                    <div>
-                      <div className="flex items-start justify-between mb-1">
-                        <h3 className="font-bold text-xs text-zinc-100 truncate pr-2" title={target.name}>
-                          {target.name}
-                        </h3>
-                        <span className={`text-[8px] font-bold px-1.5 py-0.2 rounded border uppercase tracking-wider shrink-0 ${
-                          target.threatLevel === 'critical' ? 'text-rose-400 border-rose-500/30 bg-rose-500/10' :
-                          target.threatLevel === 'high' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' :
-                          'text-blue-400 border-blue-500/30 bg-blue-500/10'
-                        }`}>
-                          {target.threatLevel}
-                        </span>
-                      </div>
-                      
-                      {(target.associatedPlate || target.vehiclePlate) && (
-                        <div className="text-[10px] font-bold text-cyan-300 bg-cyan-950/60 inline-block px-1.5 py-0.5 rounded border border-cyan-700/40 mb-1">
-                          IND | {target.associatedPlate || target.vehiclePlate}
-                        </div>
-                      )}
-                      
-                      {(target.lastKnownAttire || target.attire) && (
-                        <p className="text-[11px] text-zinc-400 truncate mb-1">
-                          Attire: {target.lastKnownAttire || target.attire}
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center justify-between text-[9px] text-zinc-500 pt-1 border-t border-white/5">
-                      <div className="flex items-center gap-1.5">
-                        <span>{target.id}</span>
-                        <span className="text-emerald-400">● EDGE SYNCED</span>
-                      </div>
-                      
-                      <div className="flex items-center gap-1.5 opacity-80 group-hover:opacity-100 transition-opacity">
-                        <button
-                          type="button"
-                          onClick={() => handleStartEdit(target)}
-                          className="text-cyan-400 hover:text-cyan-200 p-1 cursor-pointer"
-                          title="Edit Target Dossier"
-                        >
-                          <Edit3 size={12} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteTarget(target.id)}
-                          className="text-rose-400 hover:text-rose-200 p-1 cursor-pointer"
-                          title="Delete Target"
-                        >
-                          <Trash2 size={12} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-colors shadow-xs cursor-pointer min-h-[44px]"
+                >
+                  Register Suspect
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* View History Drawer/Modal for Vehicle */}
+      {historyModalTarget && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 w-full max-w-lg shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div>
+                <span className="text-xs font-bold text-slate-500">VEHICLE SIGHTING HISTORY</span>
+                <h3 className="text-xl font-black font-mono text-slate-900">{historyModalTarget.plate}</h3>
+              </div>
+              <button onClick={() => setHistoryModalTarget(null)} className="p-1 rounded text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-slate-900">CAM-001 (Traffic Junction)</div>
+                  <div className="text-slate-500">Ahmedabad • SG Highway</div>
                 </div>
-              ))}
+                <div className="text-right font-mono font-bold text-slate-700">11:49 AM Today</div>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-slate-900">CAM-014 (Ashram Road)</div>
+                  <div className="text-slate-500">Ahmedabad • Transit Corridor</div>
+                </div>
+                <div className="text-right font-mono font-bold text-slate-700">Yesterday 18:22</div>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setHistoryModalTarget(null)}
+                className="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl text-xs cursor-pointer min-h-[44px]"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
-      </div>
-    </>
-  )}
-</div>
-);
-}
+      )}
 
+      {/* View Matches Modal for Person */}
+      {matchesModalPerson && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 w-full max-w-lg shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <div>
+                <span className="text-xs font-bold text-slate-500">CCTV MATCH CANDIDATES</span>
+                <h3 className="text-xl font-bold text-slate-900">{matchesModalPerson.name}</h3>
+              </div>
+              <button onClick={() => setMatchesModalPerson(null)} className="p-1 rounded text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-4 bg-purple-50 border border-purple-200 rounded-xl text-xs text-purple-900 space-y-2">
+              <div className="font-bold text-sm">Latest CCTV Correlation Match</div>
+              <div className="flex justify-between">
+                <span>Location:</span>
+                <strong className="text-slate-900">Ahmedabad • CAM-001</strong>
+              </div>
+              <div className="flex justify-between">
+                <span>Landmark Similarity:</span>
+                <strong className="text-slate-900">89.4% (Requires Officer Verification)</strong>
+              </div>
+              <div className="flex justify-between">
+                <span>Statutory Reference:</span>
+                <span>BSA 2023 Sec 63-65 Electronic Record</span>
+              </div>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setMatchesModalPerson(null)}
+                className="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-xl text-xs cursor-pointer min-h-[44px]"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -32,7 +32,8 @@ import {
   EvidenceCaptureReason,
   GodsEyeTargetRecord,
   GodsEyeTargetSighting,
-  GodsEyeFilterOptions
+  GodsEyeFilterOptions,
+  VehicleClassType
 } from "./src/types.js";
 
 import { PersonTrackingService } from "./src/services/GodsEyeService.js";
@@ -41,6 +42,8 @@ import { evidenceStorage } from "./src/services/EvidenceStorageProvider.js";
 import { EdgeDiscoveryService } from "./src/edge-agent/DiscoveryService.js";
 import { DEFAULT_DEMO_VIDEO_SOURCES, isValidYouTubeVideoId } from "./src/services/DemoVideoService.js";
 import { DemoVideoSource } from "./src/video/types.js";
+import { sentinelServerService } from "./src/services/server/SentinelServerService.js";
+import { hsrpVisionMeshService } from "./src/services/vision/hsrpVisionMeshService.js";
 
 // Mock Data Generators
 const generateCameras = (): Camera[] => {
@@ -106,6 +109,41 @@ const generateCameras = (): Camera[] => {
 };
 
 const syntheticCameras = generateCameras();
+
+// Register real Sentinel CAM01 node in camera registry
+if (!syntheticCameras.some(c => c.id === 'cam01')) {
+  syntheticCameras.push({
+    id: 'cam01',
+    name: '01 Chiman bhai Bridge (Corp8 Sentinel Live)',
+    location: 'Chiman bhai Bridge, Ahmedabad',
+    locationDescription: 'Corp8 Sentinel Live Sandbox Stream',
+    status: 'online',
+    lastActive: new Date().toISOString(),
+    mapX: 50,
+    mapY: 60,
+    latitude: 23.0225,
+    longitude: 72.5714,
+    siteId: 'SITE-SENTINEL-AHMEDABAD',
+    department: 'Traffic Enforcement',
+    district: 'Ahmedabad',
+    vendor: 'Corp8-Sentinel',
+    model: 'Sentinel-H264-RTSP',
+    vms: 'Sentinel-VMS',
+    protocol: 'RTSP',
+    streamQuality: '1080p',
+    resolution: '1920x1080',
+    fps: 25,
+    channel: 1,
+    channelNumber: 1,
+    edgeNodeId: 'EDGE-SENTINEL-01',
+    direction: 'Northbound',
+    sourceType: 'RTSP',
+    adapterType: 'RtspStreamAdapter',
+    streamState: 'CONNECTED',
+    integrationStatus: 'CONNECTED',
+    discoveryMethod: 'RTSP_PROBE'
+  });
+}
 
 // --- REPOSITORIES & SERVICES ---
 
@@ -376,6 +414,7 @@ async function processWatchlistAndRules(event: SecurityEventPayload, reqId: stri
     if (!alerts.some(a => a.id === helmetAlertId || a.evidenceReference === evidenceRef || (a.cameraId === event.cameraId && a.vehicleNumber === event.metadata?.plate && a.type === 'rule' && a.id.includes('HELMET')))) {
       const cam = syntheticCameras.find(c => c.id === event.cameraId);
       const confPercent = Math.round((event.metadata?.helmetConfidence || 0.94) * 100);
+      const isReal = event.metadata?.isRealAI;
       const newAlert: Alert = {
         id: helmetAlertId,
         severity: 'high',
@@ -384,19 +423,52 @@ async function processWatchlistAndRules(event: SecurityEventPayload, reqId: stri
         cameraId: event.cameraId,
         location: cam?.location || 'Traffic Corridor',
         timestamp: event.timestamp || new Date().toISOString(),
-        description: `Helmet Violation: Rider without safety helmet detected on vehicle ${event.metadata?.plate || 'Unknown'} at ${event.cameraId} (Inference: ${confPercent}% — Simulated)`,
+        description: `Helmet Violation: Rider without safety helmet detected on vehicle ${event.metadata?.plate || 'Unknown'} at ${cam?.name || event.cameraId} (Inference: ${confPercent}%${isReal ? ' — Live Real AI' : ' — Simulated'})`,
         isRead: false,
         snapshotUrl: event.snapshotReference || `https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800&auto=format&fit=crop&q=60`,
         siteId: cam?.siteId || event.siteId || 'SITE-1',
         vehicleNumber: event.metadata?.plate,
         confidence: event.metadata?.helmetConfidence || 0.94,
         status: 'new',
-        evidenceReference: evidenceRef
+        evidenceReference: evidenceRef,
+        isSimulated: !isReal,
+        sourceType: isReal ? 'REAL_SENTINEL' : undefined
       };
       alerts.unshift(newAlert);
       if (alerts.length > 100) alerts.pop();
       await auditService.log('SYSTEM_RULES_ENGINE', 'ALERT_GENERATED', `HELMET_VIOLATION:${event.metadata?.plate || event.cameraId} [${event.eventId}]`, 'HIGH_PRIORITY_DISPATCH', reqId);
     }
+  }
+
+  // 3. Dynamic Rule: Real Sentinel CAM01 Live Detection Alert
+  if (event.cameraId === 'cam01' && event.metadata?.isRealAI) {
+    const liveAlertId = `ALT-SENTINEL-${event.eventId}`;
+    const evidenceRef = event.metadata?.evidenceId || `EVD-${event.eventId.slice(-8)}`;
+    const cam = syntheticCameras.find(c => c.id === event.cameraId);
+    const objClass = String(event.metadata?.objectClass || 'Traffic Object').toUpperCase();
+    const confPercent = Math.round((event.confidence || 0.9) * 100);
+    const newAlert: Alert = {
+      id: liveAlertId,
+      severity: event.priority === 'high' ? 'high' : event.priority === 'medium' ? 'medium' : 'low',
+      type: event.metadata?.helmetStatus === 'NO_HELMET' ? 'rule' : 'traffic',
+      cameraName: cam?.name || '01 Chiman bhai Bridge (Corp8 Sentinel Live)',
+      cameraId: event.cameraId,
+      location: cam?.location || 'Chiman bhai Bridge, Ahmedabad',
+      timestamp: event.timestamp || new Date().toISOString(),
+      description: `Real Sentinel Detection: ${objClass} recognized on live CAM01 feed at Chiman bhai Bridge (Inference: ${confPercent}%)`,
+      isRead: false,
+      snapshotUrl: event.snapshotReference || `/api/sentinel/snapshot/cam01`,
+      siteId: 'SITE-SENTINEL-AHMEDABAD',
+      vehicleNumber: event.metadata?.plate,
+      confidence: event.confidence || 0.9,
+      status: 'new',
+      evidenceReference: evidenceRef,
+      isSimulated: false,
+      sourceType: 'REAL_SENTINEL'
+    };
+    alerts.unshift(newAlert);
+    if (alerts.length > 100) alerts.pop();
+    await auditService.log('SENTINEL_AI_PIPELINE', 'REAL_FRAME_DETECTION', `${objClass}:${event.cameraId} [${event.eventId}]`, 'CONFIRMED', reqId);
   }
 }
 
@@ -1593,6 +1665,187 @@ async function startServer() {
   });
 
   // ==========================================
+  // REAL SENTINEL CAMERA GRID INTEGRATION
+  // Authenticated live stream proxy & catalogue
+  // ==========================================
+
+  // Diagnostic health endpoint according to Section 16 specification
+  app.get('/api/sentinel/health', async (_req, res) => {
+    try {
+      const report = await sentinelServerService.getHealthReport();
+      return res.json(report);
+    } catch (err: any) {
+      return res.status(500).json({
+        reachable: false,
+        authenticated: false,
+        catalogueAvailable: false,
+        cameraCount: 0,
+        testedAt: new Date().toISOString(),
+        rtsp: {
+          host: sentinelServerService.getHost(),
+          port: sentinelServerService.getRtspPort(),
+          hostReachable: false
+        },
+        ffmpegAvailable: false,
+        error: err?.message || 'Internal health check failure'
+      });
+    }
+  });
+
+  // Real camera discovery endpoint (no credentials returned)
+  app.get('/api/sentinel/cameras', async (req, res) => {
+    try {
+      const force = req.query.force === 'true';
+      const cameras = await sentinelServerService.getCameras(force);
+      return res.json({
+        source: 'sentinel',
+        authenticated: true,
+        cooldown: sentinelServerService.isCooldown(),
+        cooldownMessage: sentinelServerService.getCooldownMessage(),
+        cameraCount: cameras.length,
+        cameras
+      });
+    } catch (err: any) {
+      console.warn('[Sentinel] Using fallback camera catalogue:', err?.message);
+      const fallbackCameras = sentinelServerService.getFallbackCameras();
+      return res.json({
+        source: 'sentinel',
+        authenticated: true,
+        fallback: true,
+        cameraCount: fallbackCameras.length,
+        cameras: fallbackCameras
+      });
+    }
+  });
+
+  // Backward-compatible ingest catalogue endpoint returning real discovered cameras
+  app.get('/api/sentinel/ingest', async (_req, res) => {
+    try {
+      const cameras = await sentinelServerService.getCameras();
+      const host = sentinelServerService.getHost();
+      const port = sentinelServerService.getRtspPort();
+      return res.json({
+        gateway: 'Sentinel-Gateway-SCRB-Production',
+        version: '2026.1-live',
+        timestamp: new Date().toISOString(),
+        cameraCount: cameras.length,
+        cameras: cameras.map(cam => ({
+          id: cam.id,
+          name: cam.name,
+          location: cam.location,
+          district: cam.district,
+          codec: cam.codec,
+          status: cam.status,
+          resolution: cam.resolution,
+          fps: cam.declaredFps,
+          bitrateKbps: 4096,
+          rtspUrl: `rtsp://${host}:${port}/stream/${cam.id}`,
+          whepUrl: `http://${host}:8889/stream/${cam.id}/whep`,
+          hlsUrl: cam.hlsStreamUrl,
+          gopSize: 50,
+          lastSeenIso: new Date().toISOString(),
+          metadata: {
+            latitude: cam.latitude,
+            longitude: cam.longitude,
+            sensorFormat: '1080p-H264'
+          }
+        }))
+      });
+    } catch (err: any) {
+      const fallbackCameras = sentinelServerService.getFallbackCameras();
+      const host = sentinelServerService.getHost();
+      const port = sentinelServerService.getRtspPort();
+      return res.json({
+        gateway: 'Sentinel-Gateway-SCRB-Production',
+        version: '2026.1-fallback',
+        timestamp: new Date().toISOString(),
+        cameraCount: fallbackCameras.length,
+        cameras: fallbackCameras.map(cam => ({
+          id: cam.id,
+          name: cam.name,
+          location: cam.location,
+          district: cam.district,
+          codec: cam.codec,
+          status: cam.status,
+          resolution: cam.resolution,
+          fps: cam.declaredFps,
+          bitrateKbps: 4096,
+          rtspUrl: `rtsp://${host}:${port}/stream/${cam.id}`,
+          whepUrl: `http://${host}:8889/stream/${cam.id}/whep`,
+          hlsUrl: cam.hlsStreamUrl,
+          gopSize: 50,
+          lastSeenIso: new Date().toISOString(),
+          metadata: {
+            latitude: cam.latitude,
+            longitude: cam.longitude,
+            sensorFormat: '1080p-H264'
+          }
+        }))
+      });
+    }
+  });
+
+  // HLS stream manifest proxy with key URI rewriting
+  app.get('/api/sentinel/stream/:camId/index.m3u8', async (req, res) => {
+    const { camId } = req.params;
+    try {
+      const manifest = await sentinelServerService.getHlsManifest(camId);
+      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      return res.send(manifest);
+    } catch (err: any) {
+      if (err?.message?.includes('STREAM_COOLDOWN')) {
+        return res.status(429).json({ error: 'STREAM_COOLDOWN', message: err?.message, retryAfter: 30 });
+      }
+      console.warn(`[Sentinel] Stream notice for ${camId}:`, err?.message);
+      return res.status(502).json({ error: 'STREAM_UNAVAILABLE', message: err?.message });
+    }
+  });
+
+  // HLS AES-128 key proxy
+  app.get('/api/sentinel/stream/enc.key', async (_req, res) => {
+    try {
+      const keyBuffer = await sentinelServerService.getEncryptionKey();
+      res.setHeader('Content-Type', 'application/octet-stream');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      return res.send(keyBuffer);
+    } catch (err: any) {
+      console.error('[Sentinel] Error loading encryption key:', err?.message);
+      return res.status(502).json({ error: 'KEY_UNAVAILABLE', message: err?.message });
+    }
+  });
+
+  // HLS media segment proxy
+  app.get('/api/sentinel/stream/:camId/:segment', async (req, res) => {
+    const { camId, segment } = req.params;
+    try {
+      const segmentBuffer = await sentinelServerService.getSegment(camId, segment);
+      res.setHeader('Content-Type', 'video/mp2t');
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      return res.send(segmentBuffer);
+    } catch (err: any) {
+      return res.status(404).json({ error: 'SEGMENT_NOT_FOUND', message: err?.message });
+    }
+  });
+
+  // Snapshot proxy (extracts actual frame from stream using FFmpeg)
+  app.get('/api/sentinel/snapshot/:camId', async (req, res) => {
+    const { camId } = req.params;
+    try {
+      const snap = await sentinelServerService.getSnapshot(camId);
+      res.setHeader('Content-Type', 'image/jpeg');
+      res.setHeader('Cache-Control', 'public, max-age=10');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      return res.send(snap);
+    } catch (err: any) {
+      return res.status(503).json({ error: 'SNAPSHOT_FAILED', message: err?.message });
+    }
+  });
+
+  // ==========================================
   // REAL FRAME-BY-FRAME AI VISION (GEMINI)
   // ==========================================
   let geminiClient: GoogleGenAI | null = null;
@@ -1637,39 +1890,71 @@ async function startServer() {
     });
   });
 
-  // Frame Analysis Pipeline
-  app.post('/api/ai/analyze-frame', async (req, res) => {
+  // Types for Shared Gemini Vision Pipeline
+  interface GeminiFrameAnalysisParams {
+    frameBase64: string;
+    frameTimestamp?: number;
+    sourceId?: string;
+    helmetThreshold?: number;
+  }
+
+  interface GeminiFrameAnalysisResult {
+    status: string;
+    frameTimestamp: number;
+    detections: Array<{
+      id: string;
+      class: string;
+      confidence: number;
+      box: { x: number; y: number; width: number; height: number };
+      attributes: {
+        helmet: 'HELMET' | 'NO_HELMET' | 'UNKNOWN';
+        vehicleType?: string;
+        color?: string;
+      };
+      plate?: string;
+      plateConfidence?: number;
+    }>;
+    roadSafetyEvents: Array<{
+      type: string;
+      confidence: number;
+      description?: string;
+    }>;
+    aiModel: string;
+    analysisTimeMs: number;
+    sourceId: string;
+    warning?: string;
+  }
+
+  // Shared Reusable Gemini Vision Inference Function
+  async function runGeminiFrameAnalysis(params: GeminiFrameAnalysisParams): Promise<GeminiFrameAnalysisResult> {
     const startTime = Date.now();
-    const { frameTimestamp = 0, sourceId = 'UPLOAD-DEMO-001', helmetThreshold = 0.85 } = req.body;
-    const frameBase64 = req.body.frameBase64 || req.body.frameDataUrl;
+    const { frameBase64, frameTimestamp = 0, sourceId = 'UNKNOWN-STREAM', helmetThreshold = 0.85 } = params;
 
     if (!frameBase64 || typeof frameBase64 !== 'string') {
-      return res.status(400).json({
-        error: 'INVALID_REQUEST',
-        message: 'No frameBase64 payload provided for analysis.'
-      });
+      const err: any = new Error('No frameBase64 payload provided for analysis.');
+      err.code = 'INVALID_REQUEST';
+      err.statusCode = 400;
+      throw err;
     }
 
     if (!process.env.GEMINI_API_KEY) {
-      return res.status(503).json({
-        error: 'AI_SERVICE_UNAVAILABLE',
-        message: 'Gemini API key is not configured on the server. Frame analysis requires a valid GEMINI_API_KEY.'
-      });
+      const err: any = new Error('Gemini API key is not configured on the server. Frame analysis requires a valid GEMINI_API_KEY.');
+      err.code = 'AI_SERVICE_UNAVAILABLE';
+      err.statusCode = 503;
+      throw err;
     }
 
-    // Strip data URL header if included
     const cleanBase64 = frameBase64.replace(/^data:image\/[a-zA-Z0-9+]+;base64,/, '').trim();
     if (cleanBase64.length === 0) {
-      return res.status(400).json({
-        error: 'INVALID_FRAME_DATA',
-        message: 'Empty image payload.'
-      });
+      const err: any = new Error('Empty image payload.');
+      err.code = 'INVALID_FRAME_DATA';
+      err.statusCode = 400;
+      throw err;
     }
 
-    try {
-      const ai = getGeminiClientInstance();
+    const ai = getGeminiClientInstance();
 
-      const prompt = `You are analyzing one frame from an authorized traffic/security video for a software demonstration.
+    const prompt = `You are analyzing one frame from an authorized traffic/security video for a software demonstration.
 
 Return ONLY valid JSON matching the specified schema.
 
@@ -1700,238 +1985,506 @@ Do not invent objects that are not visible.
 If uncertain, return UNKNOWN.
 Do not describe the image in prose.`;
 
-      const generateConfig = {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            frameTimestamp: { type: Type.NUMBER },
-            detections: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  class: { type: Type.STRING },
-                  confidence: { type: Type.NUMBER },
-                  box: {
-                    type: Type.OBJECT,
-                    properties: {
-                      x: { type: Type.NUMBER },
-                      y: { type: Type.NUMBER },
-                      width: { type: Type.NUMBER },
-                      height: { type: Type.NUMBER }
-                    },
-                    required: ['x', 'y', 'width', 'height']
+    const generateConfig = {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          frameTimestamp: { type: Type.NUMBER },
+          detections: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                class: { type: Type.STRING },
+                confidence: { type: Type.NUMBER },
+                box: {
+                  type: Type.OBJECT,
+                  properties: {
+                    x: { type: Type.NUMBER },
+                    y: { type: Type.NUMBER },
+                    width: { type: Type.NUMBER },
+                    height: { type: Type.NUMBER }
                   },
-                  attributes: {
-                    type: Type.OBJECT,
-                    properties: {
-                      helmet: { type: Type.STRING },
-                      vehicleType: { type: Type.STRING },
-                      color: { type: Type.STRING }
-                    }
-                  },
-                  plate: { type: Type.STRING },
-                  plateConfidence: { type: Type.NUMBER }
+                  required: ['x', 'y', 'width', 'height']
                 },
-                required: ['class', 'confidence', 'box']
-              }
-            },
-            roadSafetyEvents: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  type: { type: Type.STRING },
-                  confidence: { type: Type.NUMBER },
-                  description: { type: Type.STRING }
+                attributes: {
+                  type: Type.OBJECT,
+                  properties: {
+                    helmet: { type: Type.STRING },
+                    vehicleType: { type: Type.STRING },
+                    color: { type: Type.STRING }
+                  }
                 },
-                required: ['type', 'confidence']
-              }
+                plate: { type: Type.STRING },
+                plateConfidence: { type: Type.NUMBER }
+              },
+              required: ['class', 'confidence', 'box']
             }
           },
-          required: ['detections', 'roadSafetyEvents']
-        }
-      };
-
-      const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-3.6-flash'];
-      let response: any = null;
-      let usedModel = 'gemini-3.8-flash';
-      let isHighDemandSurge = false;
-      let lastModelError: any = null;
-
-      for (const modelCandidate of candidateModels) {
-        let attempts = 0;
-        const maxAttempts = 2;
-        while (attempts < maxAttempts) {
-          attempts++;
-          try {
-            response = await ai.models.generateContent({
-              model: modelCandidate,
-              contents: {
-                parts: [
-                  {
-                    inlineData: {
-                      mimeType: 'image/jpeg',
-                      data: cleanBase64
-                    }
-                  },
-                  { text: prompt }
-                ]
+          roadSafetyEvents: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                type: { type: Type.STRING },
+                confidence: { type: Type.NUMBER },
+                description: { type: Type.STRING }
               },
-              config: generateConfig
-            });
-            usedModel = modelCandidate;
-            break;
-          } catch (modelErr: any) {
-            lastModelError = modelErr;
-            const errMsg = String(modelErr?.message || modelErr);
-            const isTransient = errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('429');
-            if (isTransient) {
-              isHighDemandSurge = true;
-              if (attempts < maxAttempts) {
-                await new Promise(r => setTimeout(r, 450 * attempts));
-                continue;
-              }
+              required: ['type', 'confidence']
             }
-            // Move to next candidate model
-            break;
           }
+        },
+        required: ['detections', 'roadSafetyEvents']
+      }
+    };
+
+    const candidateModels = ['gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-3.6-flash'];
+    let response: any = null;
+    let usedModel = 'gemini-3.8-flash';
+    let isHighDemandSurge = false;
+    let lastModelError: any = null;
+
+    for (const modelCandidate of candidateModels) {
+      let attempts = 0;
+      const maxAttempts = 2;
+      while (attempts < maxAttempts) {
+        attempts++;
+        try {
+          response = await ai.models.generateContent({
+            model: modelCandidate,
+            contents: {
+              parts: [
+                {
+                  inlineData: {
+                    mimeType: 'image/jpeg',
+                    data: cleanBase64
+                  }
+                },
+                { text: prompt }
+              ]
+            },
+            config: generateConfig
+          });
+          usedModel = modelCandidate;
+          break;
+        } catch (modelErr: any) {
+          lastModelError = modelErr;
+          const errMsg = String(modelErr?.message || modelErr);
+          const isTransient = errMsg.includes('503') || errMsg.includes('high demand') || errMsg.includes('UNAVAILABLE') || errMsg.includes('RESOURCE_EXHAUSTED') || errMsg.includes('429');
+          if (isTransient) {
+            isHighDemandSurge = true;
+            if (attempts < maxAttempts) {
+              await new Promise(r => setTimeout(r, 450 * attempts));
+              continue;
+            }
+          }
+          break;
         }
-        if (response) break;
+      }
+      if (response) break;
+    }
+
+    if (!response) {
+      if (isHighDemandSurge) {
+        console.warn('[Gemini Vision] Transient demand spike across models; shedding frame under backpressure.');
+        return {
+          status: 'HIGH_DEMAND_BACKOFF',
+          frameTimestamp: Number(frameTimestamp) || 0,
+          detections: [],
+          roadSafetyEvents: [],
+          aiModel: 'Gemini Vision (Demand Backpressure Active)',
+          analysisTimeMs: Date.now() - startTime,
+          sourceId,
+          warning: 'Model currently experiencing high demand surge. Frame dropped gracefully.'
+        };
+      }
+      throw lastModelError || new Error('Failed to analyze frame with Gemini Vision models');
+    }
+
+    let rawText = (response.text || '').trim();
+    if (rawText.startsWith('```json')) {
+      rawText = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+    } else if (rawText.startsWith('```')) {
+      rawText = rawText.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
+    }
+
+    let parsedResult: any;
+    try {
+      parsedResult = JSON.parse(rawText);
+    } catch (jsonErr) {
+      console.error('Failed to parse Gemini Vision JSON:', rawText);
+      const err: any = new Error('Gemini Vision returned non-JSON output.');
+      err.code = 'INVALID_AI_RESPONSE';
+      err.statusCode = 502;
+      throw err;
+    }
+
+    const rawDetections = Array.isArray(parsedResult.detections) ? parsedResult.detections : [];
+    const validatedDetections = rawDetections
+      .map((item: any, idx: number) => {
+        if (!item || typeof item !== 'object' || !item.box) return null;
+
+        const rawClass = String(item.class || 'unknown').toLowerCase().trim();
+        let normalizedClass = 'unknown';
+        if (rawClass.includes('person') || rawClass.includes('pedestrian') || rawClass.includes('human') || rawClass.includes('rider')) normalizedClass = 'person';
+        else if (rawClass.includes('motorcycle') || rawClass.includes('motorbike') || rawClass.includes('scooter') || (rawClass.includes('bike') && !rawClass.includes('bicycle'))) normalizedClass = 'motorcycle';
+        else if (rawClass.includes('bicycle') || rawClass.includes('cyclist')) normalizedClass = 'bicycle';
+        else if (rawClass.includes('car') || rawClass.includes('sedan') || rawClass.includes('suv') || rawClass.includes('auto')) normalizedClass = 'car';
+        else if (rawClass.includes('bus')) normalizedClass = 'bus';
+        else if (rawClass.includes('truck')) normalizedClass = 'truck';
+        else if (rawClass.includes('vehicle')) normalizedClass = 'vehicle';
+
+        const x = Math.max(0, Math.min(1, Number(item.box.x) || 0));
+        const y = Math.max(0, Math.min(1, Number(item.box.y) || 0));
+        const width = Math.max(0.01, Math.min(1 - x, Number(item.box.width) || 0.05));
+        const height = Math.max(0.01, Math.min(1 - y, Number(item.box.height) || 0.05));
+        const confidence = Math.max(0, Math.min(1, Number(item.confidence) || 0.5));
+
+        let helmet: 'HELMET' | 'NO_HELMET' | 'UNKNOWN' = 'UNKNOWN';
+        const rawHelmet = String(item.attributes?.helmet || '').toUpperCase().trim();
+        if (rawHelmet === 'HELMET' || rawHelmet === 'NO_HELMET') {
+          helmet = rawHelmet;
+        }
+
+        return {
+          id: `det-${idx}-${Date.now()}`,
+          class: normalizedClass,
+          confidence,
+          box: { x, y, width, height },
+          attributes: {
+            helmet
+          },
+          plate: item.plate ? String(item.plate).trim() : undefined,
+          plateConfidence: item.plateConfidence ? Number(item.plateConfidence) : undefined
+        };
+      })
+      .filter(Boolean);
+
+    const rawEvents = Array.isArray(parsedResult.roadSafetyEvents) ? parsedResult.roadSafetyEvents : [];
+    const allowedEvents = ['NO_HELMET', 'TRIPLE_RIDING', 'WRONG_WAY', 'RED_LIGHT_VIOLATION', 'STOP_LINE_VIOLATION', 'DANGEROUS_PARKING', 'PEDESTRIAN_CONFLICT', 'UNSAFE_RIDING'];
+
+    const validatedSafetyEvents = rawEvents
+      .map((evt: any) => {
+        if (!evt || typeof evt !== 'object' || !evt.type) return null;
+        const rawType = String(evt.type).toUpperCase().replace(/[\s-]/g, '_');
+        const type = allowedEvents.includes(rawType) ? rawType : 'UNKNOWN';
+        if (type === 'UNKNOWN') return null;
+
+        const confidence = Math.max(0, Math.min(1, Number(evt.confidence) || 0.5));
+        return {
+          type,
+          confidence,
+          description: evt.description ? String(evt.description) : undefined
+        };
+      })
+      .filter(Boolean);
+
+    const threshold = Number(helmetThreshold) || 0.85;
+    const noHelmetRiders = validatedDetections.filter(
+      (d: any) => (d.class === 'person' || d.class === 'motorcycle') && 
+                   d.attributes?.helmet === 'NO_HELMET' && 
+                   d.confidence >= threshold
+    );
+
+    if (noHelmetRiders.length > 0 && !validatedSafetyEvents.some((e: any) => e.type === 'NO_HELMET')) {
+      validatedSafetyEvents.push({
+        type: 'NO_HELMET',
+        confidence: noHelmetRiders[0].confidence,
+        description: `Rider observed without protective helmet (Confidence: ${Math.round(noHelmetRiders[0].confidence * 100)}%)`
+      });
+    }
+
+    const analysisTimeMs = Date.now() - startTime;
+
+    return {
+      status: 'ok',
+      frameTimestamp: Number(frameTimestamp) || 0,
+      detections: validatedDetections,
+      roadSafetyEvents: validatedSafetyEvents,
+      aiModel: `Gemini Vision (${usedModel})`,
+      analysisTimeMs,
+      sourceId
+    };
+  }
+
+  // Real Snapshot In-Memory Storage for Cryptographic Evidence
+  const realSnapshotStorage = new Map<string, { buffer: Buffer; mimeType: string; timestamp: number; sha256: string }>();
+
+  // Sentinel CAM01 Real-AI Telemetry & State Tracker
+  interface SentinelCam01Telemetry {
+    camId: 'cam01';
+    status: 'IDLE' | 'ANALYZING' | 'STREAM_BUFFERING' | 'STREAM_STALLED' | 'HEALTHY_ACTIVE' | 'AI_KEY_REQUIRED' | 'ERROR';
+    lastCaptureTimestamp: number | null;
+    lastCaptureIso: string | null;
+    lastAnalysisDurationMs: number;
+    lastDetectionsCount: number;
+    lastObjectsDetected: string[];
+    totalFramesSampled: number;
+    totalDetectionsFound: number;
+    lastEventId: string | null;
+    lastError: string | null;
+    enabled: boolean;
+  }
+
+  const cam01Telemetry: SentinelCam01Telemetry = {
+    camId: 'cam01',
+    status: 'IDLE',
+    lastCaptureTimestamp: null,
+    lastCaptureIso: null,
+    lastAnalysisDurationMs: 0,
+    lastDetectionsCount: 0,
+    lastObjectsDetected: [],
+    totalFramesSampled: 0,
+    totalDetectionsFound: 0,
+    lastEventId: null,
+    lastError: null,
+    enabled: true
+  };
+
+  // Wire Vision Mesh Events to Central Event Store & Watchlist Engine
+  hsrpVisionMeshService.setEventCallback(async (ev) => {
+    centralRepo.createEvent(ev);
+    await processWatchlistAndRules(ev, `REQ-HSRP-${Date.now()}`);
+  });
+
+  let isCam01AnalysisRunning = false;
+
+  // Real Sentinel CAM01 Frame Extraction & AI Analysis Sampling Loop
+  async function sampleAndAnalyzeSentinelCam01(): Promise<void> {
+    if (!cam01Telemetry.enabled) return;
+    if (isCam01AnalysisRunning) {
+      // Non-overlapping execution: Skip if previous inference is still in progress
+      return;
+    }
+    isCam01AnalysisRunning = true;
+    try {
+      let frameBuffer: Buffer;
+      try {
+        frameBuffer = await sentinelServerService.getSnapshot('cam01');
+      } catch (snapErr: any) {
+        // Stream buffering / snapshot retrieval error: Do NOT fabricate detections
+        cam01Telemetry.status = 'STREAM_BUFFERING';
+        cam01Telemetry.lastError = `Snapshot buffer/stream condition: ${snapErr?.message || snapErr}`;
+        return;
       }
 
-      if (!response) {
-        if (isHighDemandSurge) {
-          console.warn('[Gemini Vision] Transient demand spike across models; shedding frame under backpressure.');
-          return res.json({
-            status: 'HIGH_DEMAND_BACKOFF',
-            frameTimestamp: Number(frameTimestamp) || 0,
-            detections: [],
-            roadSafetyEvents: [],
-            aiModel: 'Gemini Vision (Demand Backpressure Active)',
-            analysisTimeMs: Date.now() - startTime,
-            sourceId,
-            warning: 'Model currently experiencing high demand surge. Frame dropped gracefully.'
+      if (!frameBuffer || frameBuffer.length === 0) {
+        cam01Telemetry.status = 'STREAM_STALLED';
+        cam01Telemetry.lastError = 'Zero-byte frame returned from stream';
+        return;
+      }
+
+      const captureTimestamp = Date.now();
+      const captureIso = new Date(captureTimestamp).toISOString();
+      cam01Telemetry.lastCaptureTimestamp = captureTimestamp;
+      cam01Telemetry.lastCaptureIso = captureIso;
+      cam01Telemetry.totalFramesSampled++;
+
+      // Compute cryptographic SHA-256 digest over the genuine JPEG bitstream
+      const sha256 = crypto.createHash('sha256').update(frameBuffer).digest('hex');
+      const snapshotId = `SNAP-CAM01-${captureTimestamp}`;
+      realSnapshotStorage.set(snapshotId, {
+        buffer: frameBuffer,
+        mimeType: 'image/jpeg',
+        timestamp: captureTimestamp,
+        sha256
+      });
+
+      // Keep recent 50 snapshots in memory
+      if (realSnapshotStorage.size > 50) {
+        const oldestKey = realSnapshotStorage.keys().next().value;
+        if (oldestKey) realSnapshotStorage.delete(oldestKey);
+      }
+
+      const snapshotUrl = `/api/central/snapshots/${snapshotId}`;
+      const cleanBase64 = frameBuffer.toString('base64');
+
+      if (!process.env.GEMINI_API_KEY) {
+        cam01Telemetry.status = 'AI_KEY_REQUIRED';
+        cam01Telemetry.lastError = 'Real Sentinel CAM01 RTSP frames extracted successfully via FFmpeg, but GEMINI_API_KEY is not configured in server environment secrets.';
+        return;
+      }
+
+      // Execute shared Gemini Vision inference pipeline
+      const analysisRes = await runGeminiFrameAnalysis({
+        frameBase64: cleanBase64,
+        frameTimestamp: captureTimestamp / 1000,
+        sourceId: 'cam01',
+        helmetThreshold: 0.80
+      });
+
+      cam01Telemetry.status = 'HEALTHY_ACTIVE';
+      cam01Telemetry.lastAnalysisDurationMs = analysisRes.analysisTimeMs;
+      cam01Telemetry.lastError = null;
+
+      const detections = analysisRes.detections || [];
+      cam01Telemetry.lastDetectionsCount = detections.length;
+      cam01Telemetry.lastObjectsDetected = detections.map(d => d.class);
+
+      // Only create SecurityEventPayload when genuine AI results exist
+      if (detections.length > 0) {
+        cam01Telemetry.totalDetectionsFound += detections.length;
+
+        for (const det of detections) {
+          const eventId = `EVT-SENTINEL-CAM01-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+          cam01Telemetry.lastEventId = eventId;
+
+          let eventType = 'OBJECT_DETECTION';
+          if (det.class === 'car' || det.class === 'bus' || det.class === 'truck' || det.class === 'vehicle') {
+            eventType = 'VEHICLE_SIGHTING';
+          } else if (det.class === 'person') {
+            eventType = 'PEDESTRIAN_SIGHTING';
+          } else if (det.class === 'motorcycle' || det.class === 'bicycle') {
+            eventType = 'TWO_WHEELER_SIGHTING';
+          }
+
+          const isNoHelmet = det.attributes?.helmet === 'NO_HELMET';
+          const priority = isNoHelmet ? 'high' : det.confidence > 0.85 ? 'medium' : 'low';
+
+          const ev: SecurityEventPayload = {
+            eventId,
+            edgeNodeId: 'EDGE-SENTINEL-01',
+            siteId: 'SITE-SENTINEL-AHMEDABAD',
+            cameraId: 'cam01',
+            timestamp: captureIso,
+            eventType,
+            priority,
+            confidence: det.confidence,
+            snapshotReference: snapshotUrl,
+            metadata: {
+              sourceType: 'REAL_SENTINEL_RTSP',
+              sourceCamera: 'cam01',
+              cameraName: '01 Chiman bhai Bridge (Corp8 Sentinel Live)',
+              location: 'Chiman bhai Bridge, Ahmedabad',
+              objectClass: det.class,
+              boundingBox: det.box,
+              attributes: det.attributes,
+              helmetStatus: det.attributes?.helmet || 'UNKNOWN',
+              helmetConfidence: det.confidence,
+              sha256,
+              evidenceId: `EVD-${eventId}`,
+              aiModel: analysisRes.aiModel,
+              roadSafetyEvents: analysisRes.roadSafetyEvents,
+              isRealAI: true,
+              detectionId: det.id,
+              plate: det.plate
+            }
+          };
+
+          // Register in Central Event Store
+          centralRepo.createEvent(ev);
+
+          // Evaluate Rules and Watchlist
+          const reqId = `REQ-SENTINEL-${Date.now()}`;
+          await processWatchlistAndRules(ev, reqId);
+
+          // Archive in Forensic Evidence Storage
+          await evidenceStorage.storeEvidence({
+            evidenceId: `EVD-${eventId}`,
+            eventId: eventId,
+            sourceCamera: 'cam01',
+            cameraName: '01 Chiman bhai Bridge (Corp8 Sentinel Live)',
+            sourceType: 'REAL_SENTINEL' as any,
+            timestamp: captureIso,
+            GPS: { latitude: 23.0225, longitude: 72.5714 },
+            frameReference: snapshotUrl,
+            thumbnailReference: snapshotUrl,
+            sha256,
+            plateNormalized: det.plate ? normalizePlate(det.plate) : undefined,
+            plateText: det.plate,
+            vehicleClass: (['car', 'motorcycle', 'scooter', 'bus', 'truck', 'auto_rickshaw', 'van', 'suv'].includes(det.class) ? (det.class as VehicleClassType) : 'unknown'),
+            vehicleConfidence: det.confidence,
+            analysisMode: 'REAL_AI',
+            sourceOfTruth: 'CAMERA_OBSERVED' as any,
+            label: 'REAL CORP8 SENTINEL EVIDENCE RECORD',
+            status: 'VERIFIED'
           });
         }
-        throw lastModelError || new Error('Failed to analyze frame with Gemini Vision models');
       }
+    } catch (err: any) {
+      cam01Telemetry.status = 'ERROR';
+      cam01Telemetry.lastError = `Analysis loop error: ${err?.message || err}`;
+      console.error('[Sentinel AI CAM01] Analysis loop error:', err?.message || err);
+    } finally {
+      isCam01AnalysisRunning = false;
+    }
+  }
 
-      let rawText = (response.text || '').trim();
-      if (rawText.startsWith('```json')) {
-        rawText = rawText.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
-      } else if (rawText.startsWith('```')) {
-        rawText = rawText.replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
-      }
+  // Frame Analysis Pipeline (Preserves backward-compatible API behavior)
+  app.post('/api/ai/analyze-frame', async (req, res) => {
+    const { frameTimestamp = 0, sourceId = 'UPLOAD-DEMO-001', helmetThreshold = 0.85 } = req.body;
+    const frameBase64 = req.body.frameBase64 || req.body.frameDataUrl;
 
-      let parsedResult: any;
-      try {
-        parsedResult = JSON.parse(rawText);
-      } catch (jsonErr) {
-        console.error('Failed to parse Gemini Vision JSON:', rawText);
-        return res.status(502).json({
-          error: 'INVALID_AI_RESPONSE',
-          message: 'Gemini Vision returned non-JSON output.'
-        });
-      }
-
-      // Normalization and validation of detections
-      const rawDetections = Array.isArray(parsedResult.detections) ? parsedResult.detections : [];
-      const validatedDetections = rawDetections
-        .map((item: any, idx: number) => {
-          if (!item || typeof item !== 'object' || !item.box) return null;
-
-          const rawClass = String(item.class || 'unknown').toLowerCase().trim();
-          let normalizedClass = 'unknown';
-          if (rawClass.includes('person') || rawClass.includes('pedestrian') || rawClass.includes('human') || rawClass.includes('rider')) normalizedClass = 'person';
-          else if (rawClass.includes('motorcycle') || rawClass.includes('motorbike') || rawClass.includes('scooter') || (rawClass.includes('bike') && !rawClass.includes('bicycle'))) normalizedClass = 'motorcycle';
-          else if (rawClass.includes('bicycle') || rawClass.includes('cyclist')) normalizedClass = 'bicycle';
-          else if (rawClass.includes('car') || rawClass.includes('sedan') || rawClass.includes('suv') || rawClass.includes('auto')) normalizedClass = 'car';
-          else if (rawClass.includes('bus')) normalizedClass = 'bus';
-          else if (rawClass.includes('truck')) normalizedClass = 'truck';
-          else if (rawClass.includes('vehicle')) normalizedClass = 'vehicle';
-
-          // Validate and clamp coordinates to [0, 1]
-          const x = Math.max(0, Math.min(1, Number(item.box.x) || 0));
-          const y = Math.max(0, Math.min(1, Number(item.box.y) || 0));
-          const width = Math.max(0.01, Math.min(1 - x, Number(item.box.width) || 0.05));
-          const height = Math.max(0.01, Math.min(1 - y, Number(item.box.height) || 0.05));
-          const confidence = Math.max(0, Math.min(1, Number(item.confidence) || 0.5));
-
-          // Check helmet attribute
-          let helmet: 'HELMET' | 'NO_HELMET' | 'UNKNOWN' = 'UNKNOWN';
-          const rawHelmet = String(item.attributes?.helmet || '').toUpperCase().trim();
-          if (rawHelmet === 'HELMET' || rawHelmet === 'NO_HELMET') {
-            helmet = rawHelmet;
-          }
-
-          return {
-            id: `det-${idx}-${Date.now()}`,
-            class: normalizedClass,
-            confidence,
-            box: { x, y, width, height },
-            attributes: {
-              helmet
-            }
-          };
-        })
-        .filter(Boolean);
-
-      // Validate road safety events
-      const rawEvents = Array.isArray(parsedResult.roadSafetyEvents) ? parsedResult.roadSafetyEvents : [];
-      const allowedEvents = ['NO_HELMET', 'TRIPLE_RIDING', 'WRONG_WAY', 'RED_LIGHT_VIOLATION', 'STOP_LINE_VIOLATION', 'DANGEROUS_PARKING', 'PEDESTRIAN_CONFLICT', 'UNSAFE_RIDING'];
-
-      const validatedSafetyEvents = rawEvents
-        .map((evt: any) => {
-          if (!evt || typeof evt !== 'object' || !evt.type) return null;
-          const rawType = String(evt.type).toUpperCase().replace(/[\s-]/g, '_');
-          const type = allowedEvents.includes(rawType) ? rawType : 'UNKNOWN';
-          if (type === 'UNKNOWN') return null;
-
-          const confidence = Math.max(0, Math.min(1, Number(evt.confidence) || 0.5));
-          return {
-            type,
-            confidence,
-            description: evt.description ? String(evt.description) : undefined
-          };
-        })
-        .filter(Boolean);
-
-      // If a person with NO_HELMET was detected above the helmet confidence threshold, ensure a NO_HELMET event is created
-      const threshold = Number(helmetThreshold) || 0.85;
-      const noHelmetRiders = validatedDetections.filter(
-        (d: any) => (d.class === 'person' || d.class === 'motorcycle') && 
-                     d.attributes?.helmet === 'NO_HELMET' && 
-                     d.confidence >= threshold
-      );
-
-      if (noHelmetRiders.length > 0 && !validatedSafetyEvents.some((e: any) => e.type === 'NO_HELMET')) {
-        validatedSafetyEvents.push({
-          type: 'NO_HELMET',
-          confidence: noHelmetRiders[0].confidence,
-          description: `Rider observed without protective helmet (Confidence: ${Math.round(noHelmetRiders[0].confidence * 100)}%)`
-        });
-      }
-
-      const analysisTimeMs = Date.now() - startTime;
-
-      res.json({
-        status: 'ok',
-        frameTimestamp: Number(frameTimestamp) || 0,
-        detections: validatedDetections,
-        roadSafetyEvents: validatedSafetyEvents,
-        aiModel: `Gemini Vision (${usedModel})`,
-        analysisTimeMs,
-        sourceId
+    if (!frameBase64 || typeof frameBase64 !== 'string') {
+      return res.status(400).json({
+        error: 'INVALID_REQUEST',
+        message: 'No frameBase64 payload provided for analysis.'
       });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(503).json({
+        error: 'AI_SERVICE_UNAVAILABLE',
+        message: 'Gemini API key is not configured on the server. Frame analysis requires a valid GEMINI_API_KEY.'
+      });
+    }
+
+    try {
+      const result = await runGeminiFrameAnalysis({
+        frameBase64,
+        frameTimestamp,
+        sourceId,
+        helmetThreshold
+      });
+
+      res.json(result);
     } catch (apiErr: any) {
       console.error('Gemini Vision Frame Analysis API Error:', apiErr?.message || apiErr);
-      res.status(500).json({
-        error: 'AI_ANALYSIS_ERROR',
+      res.status(apiErr?.statusCode || 500).json({
+        error: apiErr?.code || 'AI_ANALYSIS_ERROR',
         message: apiErr?.message || 'Error occurred during frame analysis in Gemini Vision service'
       });
     }
+  });
+
+  // Endpoints for Evidence Snapshot Retrieval and Sentinel AI Telemetry
+  app.get('/api/central/snapshots/:snapshotId', (req, res) => {
+    const item = realSnapshotStorage.get(req.params.snapshotId) || hsrpVisionMeshService.getSnapshot(req.params.snapshotId);
+    if (!item) {
+      return res.status(404).send('Snapshot not found or expired');
+    }
+    res.setHeader('Content-Type', item.mimeType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('X-Evidence-Sha256', item.sha256);
+    return res.send(item.buffer);
+  });
+
+  app.get('/api/sentinel/ai-status/cam01', (req, res) => {
+    const mesh = hsrpVisionMeshService.getTelemetry();
+    res.json({
+      ...cam01Telemetry,
+      ...mesh,
+      camId: 'cam01',
+      status: mesh.pipelineState !== 'IDLE' ? mesh.pipelineState : cam01Telemetry.status
+    });
+  });
+
+  app.post('/api/sentinel/ai-trigger/cam01', async (req, res) => {
+    const verification = await hsrpVisionMeshService.executeCycle('cam01', true);
+    await sampleAndAnalyzeSentinelCam01();
+    const mesh = hsrpVisionMeshService.getTelemetry();
+    res.json({
+      ...cam01Telemetry,
+      ...mesh,
+      camId: 'cam01',
+      status: mesh.pipelineState !== 'IDLE' ? mesh.pipelineState : cam01Telemetry.status,
+      verification
+    });
+  });
+
+  app.get('/api/sentinel/hsrp/verifications', (req, res) => {
+    res.json(hsrpVisionMeshService.getTelemetry().recentVerifications);
   });
 
   // Reset Demo State
@@ -1962,6 +2515,19 @@ Do not describe the image in prose.`;
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
+
+  // Start Sentinel CAM01 Real-AI frame analyzer loop (runs every 9s)
+  const CAM01_AI_INTERVAL_MS = 9000;
+  setInterval(() => {
+    sampleAndAnalyzeSentinelCam01().catch(err => {
+      console.error('[Sentinel AI CAM01] Background loop error:', err);
+    });
+  }, CAM01_AI_INTERVAL_MS);
+
+  // Initial sampling trigger after 3s warm-up
+  setTimeout(() => {
+    sampleAndAnalyzeSentinelCam01().catch(() => {});
+  }, 3000);
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);

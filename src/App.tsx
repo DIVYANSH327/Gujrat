@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
 import { AISearch } from './components/AISearch';
@@ -29,18 +29,35 @@ import { HumanReviewQueueView } from './components/HumanReviewQueueView';
 import { DigitalTwinScaleView } from './components/DigitalTwinScaleView';
 import { GovernmentDeploymentView } from './components/GovernmentDeploymentView';
 import { GeospatialMapView } from './components/geospatial/GeospatialMapView';
+import { SentinelCameraGridLab } from './components/SentinelCameraGridLab';
+import { SentinelHealthIndicator } from './components/SentinelHealthIndicator';
 import { ViewMode, DetectionEvent } from './types';
 import { mockDetections } from './mockData';
 import { PROJECT_BRANDING } from './branding';
 import { audioAlertService } from './services/AudioAlertService';
-import { Shield, Volume2, VolumeX, Menu, X, Info } from 'lucide-react';
+import { 
+  Shield, 
+  Volume2, 
+  VolumeX, 
+  Menu, 
+  X, 
+  Info, 
+  Search, 
+  Bell, 
+  User, 
+  CheckCircle2, 
+  Clock,
+  PanelLeftClose
+} from 'lucide-react';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<ViewMode>('command_center');
   const [selectedMissionId, setSelectedMissionId] = useState<string>('');
   const [selectedIncidentId, setSelectedIncidentId] = useState<string>('');
+  const [headerSearchQuery, setHeaderSearchQuery] = useState<string>('');
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [time, setTime] = useState(new Date());
   const [detections, setDetections] = useState<DetectionEvent[]>(mockDetections);
   const [isAudioMuted, setIsAudioMuted] = useState(() => audioAlertService.isMuted());
@@ -66,6 +83,25 @@ export default function App() {
       snapshotUrl: imageUrl
     };
     setDetections(prev => [newEvent, ...prev]);
+  };
+
+  const handleGlobalSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const q = headerSearchQuery.trim().toUpperCase();
+    if (!q) return;
+
+    if (q.startsWith('CAM-') || q.startsWith('CAMERA')) {
+      setCurrentView('cameras');
+    } else if (q.startsWith('INC-')) {
+      setSelectedIncidentId(q);
+      setCurrentView('incidents');
+    } else if (q.startsWith('MSN-')) {
+      setSelectedMissionId(q);
+      setCurrentView('missions');
+    } else {
+      // Direct to Vehicle Search
+      setCurrentView('search');
+    }
   };
 
   const renderView = () => {
@@ -111,14 +147,14 @@ export default function App() {
       case 'police_intel':
         return (
           <PoliceDataIntelligence 
-            onNavigateToGodsEye={(plate) => setCurrentView('challenge')} 
-            onSelectCameraId={(camId) => setCurrentView('cameras')} 
+            onNavigateToGodsEye={() => setCurrentView('challenge')} 
+            onSelectCameraId={() => setCurrentView('cameras')} 
           />
         );
       case 'challan_mode':
         return (
           <ChallanModeDashboard 
-            onNavigate={(view, payload) => {
+            onNavigate={(view) => {
               setCurrentView(view as ViewMode);
             }} 
           />
@@ -157,14 +193,23 @@ export default function App() {
         return <SystemReadinessView />;
       case 'gov_deployment':
         return <GovernmentDeploymentView />;
+      case 'sentinel_grid':
+        return (
+          <SentinelCameraGridLab
+            onNavigate={(view) => setCurrentView(view)}
+            onImportCameraToLive={(cam) => {
+              setCurrentView('cameras');
+            }}
+          />
+        );
       case 'geospatial_map':
         return (
           <GeospatialMapView
             onNavigate={(view) => setCurrentView(view)}
-            onSelectVehicle={(plate) => {
+            onSelectVehicle={() => {
               setCurrentView('tracking');
             }}
-            onSelectCameraId={(camId) => {
+            onSelectCameraId={() => {
               setCurrentView('cameras');
             }}
           />
@@ -175,129 +220,176 @@ export default function App() {
   };
 
   // Indian Standard Time format (UTC+5:30)
-  const istTimeStr = time.toLocaleTimeString('en-IN', { hour12: false, timeZone: 'Asia/Kolkata' });
-  const istDateStr = time.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata' });
+  const istTimeStr = time.toLocaleTimeString('en-IN', { hour12: true, timeZone: 'Asia/Kolkata' });
 
   return (
-    <div className="flex flex-col h-screen bg-[#07090e] text-zinc-100 font-sans overflow-hidden select-none">
-      {/* Top Global Command Status Bar */}
-      <header className="flex items-center justify-between px-3 sm:px-4 py-2.5 border-b border-cyan-950/60 bg-[#090c14] shrink-0 z-30 shadow-md">
-        {/* Left Branding & Mobile Hamburger */}
-        <div className="flex items-center gap-2 sm:gap-3">
+    <div className="flex flex-col h-screen bg-slate-100 text-slate-900 font-sans overflow-hidden select-none">
+      {/* Officer Global Header */}
+      <header className="flex items-center justify-between px-3 sm:px-6 py-2.5 bg-white border-b border-slate-200 shrink-0 z-30 shadow-2xs">
+        {/* Left: Branding & Mobile Hamburger */}
+        <div className="flex items-center gap-3">
           {/* Mobile Hamburger Button */}
           <button
             onClick={() => setIsMobileMenuOpen(prev => !prev)}
             aria-label="Open Navigation Menu"
-            className="lg:hidden p-2 rounded-lg bg-[#0d121f] border border-cyan-900/50 text-cyan-300 hover:text-white hover:bg-cyan-950/50 transition min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+            className="lg:hidden p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
           >
             {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
 
-          <div 
-            onClick={() => setIsAboutOpen(true)}
-            className="flex items-center gap-2.5 cursor-pointer group"
-            title="Click to view System Information, Authorship & Verification"
+          {/* Desktop Sidebar Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setIsSidebarCollapsed(prev => !prev)}
+            aria-label={isSidebarCollapsed ? "Expand Navigation Sidebar" : "Collapse Navigation Sidebar"}
+            title={isSidebarCollapsed ? "Expand Navigation Sidebar" : "Collapse Navigation Sidebar"}
+            className="hidden lg:flex p-2 rounded-xl bg-slate-50 border border-slate-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition min-h-[40px] min-w-[40px] items-center justify-center cursor-pointer"
           >
-            <div className="w-9 h-9 bg-gradient-to-br from-blue-900 to-indigo-950 rounded-lg border border-cyan-500/40 group-hover:border-cyan-400 flex items-center justify-center shadow-[0_0_12px_rgba(6,182,212,0.25)] relative transition-all shrink-0">
-              <Shield className="w-5 h-5 text-cyan-400 group-hover:scale-105 transition-transform" />
-              <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#090c14] flex items-center justify-center">
-                <span className="w-1 h-1 bg-white rounded-full"></span>
-              </div>
+            <PanelLeftClose size={18} className={isSidebarCollapsed ? "rotate-180 transition-transform" : "transition-transform"} />
+          </button>
+
+          {/* Clean Gujarat Police Emblem / Title */}
+          <div 
+            onClick={() => setCurrentView('command_center')}
+            className="flex items-center gap-3 cursor-pointer group select-none"
+            title="Gujarat Police AI CCTV Intelligence Platform"
+          >
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-xs group-hover:bg-blue-700 transition-colors shrink-0">
+              <Shield size={20} className="stroke-[2.2]" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-zinc-300 font-mono">GUJARAT POLICE</span>
-                <span className="hidden sm:inline-block text-[9px] font-mono px-1.5 py-0.2 bg-cyan-950/80 text-cyan-400 border border-cyan-700/40 rounded font-semibold tracking-wider">
-                  {PROJECT_BRANDING.version}
+                <span className="text-sm font-bold text-slate-900 leading-tight">
+                  Gujarat Police
+                </span>
+                <span className="hidden sm:inline-block text-[10px] font-semibold px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full">
+                  HQ Operational
                 </span>
               </div>
-              <h1 className="text-xs sm:text-sm font-black tracking-tight text-zinc-100 font-mono group-hover:text-cyan-200 transition-colors">
-                AI CCTV INTELLIGENCE
+              <h1 className="text-xs font-medium text-slate-500 leading-tight">
+                AI CCTV Intelligence Platform
               </h1>
             </div>
           </div>
-
-          {/* Simple Clean Status Indicator */}
-          <div className="hidden md:flex items-center gap-2 px-2.5 py-1 bg-[#0d121f] border border-emerald-500/30 rounded-full ml-3">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-            <span className="text-emerald-400 font-bold tracking-wider text-[11px] font-mono">SYSTEM ONLINE</span>
-          </div>
         </div>
 
-        {/* Far Right Badge & IST Time */}
+        {/* Center/Desktop: Officer Universal Search Bar */}
+        <div className="hidden md:flex flex-1 max-w-xl mx-6">
+          <form onSubmit={handleGlobalSearch} className="w-full relative">
+            <input
+              type="text"
+              value={headerSearchQuery}
+              onChange={(e) => setHeaderSearchQuery(e.target.value)}
+              placeholder="Search vehicle, plate, camera or incident..."
+              className="w-full bg-slate-50 border border-slate-300 rounded-xl py-2 pl-10 pr-10 text-xs sm:text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-600 focus:bg-white transition-all shadow-2xs"
+            />
+            <div className="absolute left-3 top-2.5 text-slate-400 pointer-events-none">
+              <Search size={16} />
+            </div>
+            {headerSearchQuery && (
+              <button
+                type="button"
+                onClick={() => setHeaderSearchQuery('')}
+                className="absolute right-3 top-2.5 text-xs text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
+          </form>
+        </div>
+
+        {/* Right: Notifications, Officer Profile, Online Status */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Audio Alert Toggle */}
+          <SentinelHealthIndicator />
+          {/* Online Status Pill */}
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-full">
+            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+            <span className="text-xs font-semibold text-emerald-700">Online</span>
+          </div>
+
+          {/* Audio Chime Button */}
           <button
             onClick={handleToggleAudio}
             title={isAudioMuted ? "Unmute Audio Alert Chimes" : "Mute Audio Alert Chimes"}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded border text-xs font-mono transition-colors cursor-pointer min-h-[36px] ${
+            className={`p-2 rounded-xl border transition-colors cursor-pointer min-h-[40px] min-w-[40px] flex items-center justify-center ${
               isAudioMuted
-                ? 'bg-rose-950/40 border-rose-500/40 text-rose-400 hover:bg-rose-900/40'
-                : 'bg-cyan-950/40 border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/40'
+                ? 'bg-slate-100 border-slate-200 text-slate-400 hover:bg-slate-200'
+                : 'bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100'
             }`}
           >
-            {isAudioMuted ? <VolumeX size={14} /> : <Volume2 size={14} />}
-            <span className="hidden md:inline text-[10px] font-bold">{isAudioMuted ? 'MUTED' : 'AUDIO'}</span>
+            {isAudioMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
           </button>
 
-          {/* SIMULATED DEMO BADGE (PROMINENT) */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-amber-950/40 border border-amber-500/50 rounded shadow-[0_0_10px_rgba(245,158,11,0.15)] min-h-[36px]">
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            <div className="flex flex-col text-left">
-              <span className="text-[10px] font-mono font-bold text-amber-300 tracking-wider">SIMULATED DEMO</span>
-              <span className="hidden sm:inline text-[8px] font-mono text-amber-400/80 -mt-0.5">SYNTHETIC FEEDS</span>
-            </div>
-          </div>
+          {/* Notifications Button */}
+          <button
+            onClick={() => setCurrentView('alerts')}
+            title="Operational Alerts"
+            className="p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer relative min-h-[40px] min-w-[40px] flex items-center justify-center"
+          >
+            <Bell size={16} />
+            <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white animate-pulse" />
+          </button>
 
-          {/* Clock */}
-          <div className="hidden sm:flex flex-col items-end pl-2 border-l border-white/10 font-mono">
-            <span className="text-[9px] text-zinc-500 uppercase tracking-widest">IST (UTC+5:30)</span>
-            <span className="text-xs font-bold text-cyan-300 tabular-nums">{istTimeStr}</span>
-            <span className="text-[8px] text-zinc-500">{istDateStr}</span>
+          {/* Officer Profile Badge */}
+          <div 
+            onClick={() => setIsAboutOpen(true)}
+            className="flex items-center gap-2.5 pl-2 border-l border-slate-200 cursor-pointer group select-none"
+            title="Officer Profile & System Credentials"
+          >
+            <div className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-300 flex items-center justify-center text-slate-700 group-hover:border-blue-400 group-hover:text-blue-600 transition-colors font-bold text-xs">
+              VJ
+            </div>
+            <div className="hidden lg:flex flex-col text-left leading-tight">
+              <span className="text-xs font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
+                Insp. V. K. Jadeja
+              </span>
+              <span className="text-[11px] text-slate-500 font-medium">
+                HQ Control Room
+              </span>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Container */}
+      {/* Main Workspace Layout */}
       <div className="flex-1 flex overflow-hidden">
+        {/* Officer Grouped Navigation Sidebar */}
         <Sidebar 
           currentView={currentView} 
           onViewChange={(view) => {
             setCurrentView(view);
             setIsMobileMenuOpen(false);
           }} 
-          activeAlertCount={3}
+          activeAlertCount={6}
           isOpen={isMobileMenuOpen}
           onClose={() => setIsMobileMenuOpen(false)}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(prev => !prev)}
         />
-        <main className="flex-1 relative overflow-y-auto overflow-x-hidden flex flex-col custom-scrollbar bg-[#05070c]">
+
+        {/* Content Area */}
+        <main className="flex-1 relative overflow-y-auto overflow-x-hidden flex flex-col custom-scrollbar bg-slate-50">
           {renderView()}
         </main>
       </div>
 
-      {/* Subtle Professional Application Footer */}
-      <footer className="px-4 py-1.5 bg-[#06080d] border-t border-cyan-950/40 shrink-0 z-20 flex flex-col sm:flex-row items-center justify-between text-[10px] font-mono text-zinc-500 select-none">
+      {/* Clean Modern Government Footer */}
+      <footer className="px-4 sm:px-6 py-2 bg-white border-t border-slate-200 shrink-0 z-20 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 select-none gap-1 sm:gap-0">
         <div className="flex items-center gap-2">
-          <span className="text-zinc-400 font-semibold">{PROJECT_BRANDING.systemName}</span>
-          <span className="text-zinc-700 hidden sm:inline">•</span>
-          <span className="text-zinc-400">{PROJECT_BRANDING.conceptAndEngineering}</span>
+          <span className="font-semibold text-slate-700">{PROJECT_BRANDING.systemName}</span>
+          <span className="text-slate-300 hidden sm:inline">•</span>
+          <span className="text-slate-500">{PROJECT_BRANDING.conceptAndEngineering}</span>
         </div>
-        <div className="flex items-center gap-3 text-[9px] text-zinc-500 mt-0.5 sm:mt-0">
+
+        <div className="flex items-center gap-3">
+          <span className="text-slate-400">{PROJECT_BRANDING.copyrightNotice}</span>
+          <span className="text-slate-300 hidden sm:inline">|</span>
           <button 
             onClick={() => setIsAboutOpen(true)}
-            className="text-cyan-400/90 font-medium hover:text-cyan-300 hover:underline cursor-pointer flex items-center gap-1"
+            className="text-blue-600 hover:text-blue-800 font-medium hover:underline cursor-pointer inline-flex items-center gap-1"
           >
-            <Info size={10} />
-            <span>{PROJECT_BRANDING.madeBy}</span>
-          </button>
-          <span className="text-zinc-700 hidden sm:inline">|</span>
-          <span className="text-zinc-400">{PROJECT_BRANDING.copyrightNotice}</span>
-          <span className="text-zinc-700 hidden sm:inline">|</span>
-          <button
-            onClick={() => setIsAboutOpen(true)}
-            className="px-1.5 py-0.2 bg-cyan-950/60 hover:bg-cyan-900/80 text-cyan-300 border border-cyan-800/40 rounded text-[8px] font-bold tracking-wider cursor-pointer"
-          >
-            ABOUT / SYSTEM INFO
+            <Info size={12} />
+            <span>Legal Notice & System Info</span>
           </button>
         </div>
       </footer>

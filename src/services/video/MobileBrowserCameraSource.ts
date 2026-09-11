@@ -83,6 +83,22 @@ export class MobileBrowserCameraSource implements ICameraSource {
     }
   }
 
+  private connectionListeners: Set<(state: MobileCameraConnectionState) => void> = new Set();
+
+  public onConnectionChange(listener: (state: MobileCameraConnectionState) => void): () => void {
+    this.connectionListeners.add(listener);
+    return () => {
+      this.connectionListeners.delete(listener);
+    };
+  }
+
+  private setConnectionState(state: MobileCameraConnectionState): void {
+    this.connectionState = state;
+    this.connectionListeners.forEach((fn) => {
+      try { fn(state); } catch (e) { console.error(e); }
+    });
+  }
+
   public getConnectionState(): MobileCameraConnectionState {
     return this.connectionState;
   }
@@ -141,19 +157,26 @@ export class MobileBrowserCameraSource implements ICameraSource {
     }
   }
 
+  public detachVideoElement(): void {
+    if (this.videoElement) {
+      this.videoElement.srcObject = null;
+      this.videoElement = null;
+    }
+  }
+
   /**
    * Request permission and initiate real phone camera stream
    */
   public async start(constraints?: MediaStreamConstraints): Promise<MediaStream> {
     this.lastErrorMessage = null;
-    this.connectionState = 'REQUESTING_PERMISSION';
+    this.setConnectionState('REQUESTING_PERMISSION');
 
     // Verify browser mediaDevices support and secure context
     if (typeof navigator === 'undefined' || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       const errMsg = (typeof window !== 'undefined' && window.isSecureContext === false)
         ? 'INSECURE CONTEXT: Camera API requires HTTPS or localhost on Android.'
         : 'CAMERA API UNAVAILABLE: Browser does not support mediaDevices.getUserMedia.';
-      this.connectionState = 'ERROR';
+      this.setConnectionState('ERROR');
       this.lastErrorMessage = errMsg;
       throw new Error(errMsg);
     }
@@ -194,7 +217,7 @@ export class MobileBrowserCameraSource implements ICameraSource {
         });
       }
 
-      this.connectionState = 'CONNECTED';
+      this.setConnectionState('CONNECTED');
 
       // Start session
       this.currentSession = {
@@ -221,7 +244,7 @@ export class MobileBrowserCameraSource implements ICameraSource {
 
       return mediaStream;
     } catch (err: any) {
-      this.connectionState = 'ERROR';
+      this.setConnectionState('ERROR');
       const parsedError = this.translateMediaError(err);
       this.lastErrorMessage = parsedError;
       throw new Error(parsedError);
@@ -256,7 +279,7 @@ export class MobileBrowserCameraSource implements ICameraSource {
       this.currentSession.sampledFrameCount = this.framesSampledCount;
     }
 
-    this.connectionState = 'DISCONNECTED';
+    this.setConnectionState('DISCONNECTED');
 
     sysEvents.emit('mobile_camera_stopped', {
       cameraId: this.id,
@@ -270,7 +293,7 @@ export class MobileBrowserCameraSource implements ICameraSource {
       if (this.videoElement) {
         this.videoElement.pause();
       }
-      this.connectionState = 'PAUSED';
+      this.setConnectionState('PAUSED');
       if (this.currentSession) {
         this.currentSession.status = 'PAUSED';
       }
@@ -283,7 +306,7 @@ export class MobileBrowserCameraSource implements ICameraSource {
       if (this.videoElement) {
         this.videoElement.play().catch(() => {});
       }
-      this.connectionState = 'CONNECTED';
+      this.setConnectionState('CONNECTED');
       if (this.currentSession) {
         this.currentSession.status = 'ACTIVE';
       }
@@ -472,7 +495,7 @@ export class MobileBrowserCameraSource implements ICameraSource {
   }
 
   private handleTrackEnded(): void {
-    this.connectionState = 'DISCONNECTED';
+    this.setConnectionState('DISCONNECTED');
     this.stream = null;
     if (this.videoElement) {
       this.videoElement.srcObject = null;

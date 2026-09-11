@@ -12,15 +12,25 @@ import {
   Plus, 
   HelpCircle,
   Hash,
-  Camera,
-  Layers,
-  ArrowRight
+  Camera, 
+  Layers, 
+  ArrowRight,
+  MapPin,
+  Navigation,
+  Sparkles,
+  StopCircle,
+  Radio,
+  X,
+  Compass,
+  Sliders,
+  ChevronDown
 } from 'lucide-react';
 import { missionControlService } from '../services/MissionControlService';
 import { confidencePolicyService } from '../services/ConfidencePolicyService';
 import { sysEvents } from '../services/Architecture';
 import { Mission, MissionType, MissionPriority, MissionStep, MissionApproval } from '../types';
 import { ExplainabilityModal } from './ExplainabilityModal';
+import { StatusBadge } from './ui/OfficerPrimitives';
 
 interface MissionControlViewProps {
   initialMissionId?: string;
@@ -36,9 +46,11 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
   const [isExecutingStep, setIsExecutingStep] = useState<boolean>(false);
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [selectedExplainabilityId, setSelectedExplainabilityId] = useState<string | null>(null);
+  const [isInterceptModalOpen, setIsInterceptModalOpen] = useState<boolean>(false);
+  const [interceptSuccessMsg, setInterceptSuccessMsg] = useState<string | null>(null);
+  const [showAdvancedSteps, setShowAdvancedSteps] = useState<boolean>(false);
 
-  // New Mission Form State
-  const [newMissionType, setNewMissionType] = useState<MissionType>('TRACK_VEHICLE');
+  // Form State
   const [newObjective, setNewObjective] = useState('');
   const [newPlate, setNewPlate] = useState('GJ01AB1234');
   const [newPriority, setNewPriority] = useState<MissionPriority>('P0_CRITICAL');
@@ -73,15 +85,14 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
     refreshMissions();
   };
 
-  const handleResolveApproval = (approvalId: string, decision: 'APPROVED' | 'REJECTED') => {
-    missionControlService.resolveApproval(
-      approvalId, 
-      decision, 
-      'OFFICER-741', 
-      'Inspector D. Shrivastava', 
-      decision === 'APPROVED' ? 'Physical verification completed; confirmed vehicle profile.' : 'Disputed by officer on visual inspection.'
-    );
-    refreshMissions();
+  const handleIntercept = () => {
+    setIsInterceptModalOpen(false);
+    setInterceptSuccessMsg('Interception dispatch unit alerted for CAM-031 (Thaltej Underpass).');
+    setTimeout(() => setInterceptSuccessMsg(null), 5000);
+  };
+
+  const handleStopTracking = (missionId: string) => {
+    setMissions(prev => prev.map(m => m.missionId === missionId ? { ...m, status: 'COMPLETED' } : m));
   };
 
   const handleCreateMissionSubmit = (e: React.FormEvent) => {
@@ -89,9 +100,9 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
     if (!newObjective.trim()) return;
 
     const created = missionControlService.createMission({
-      missionType: newMissionType,
+      missionType: 'TRACK_VEHICLE',
       objective: newObjective.trim(),
-      requestedBy: 'Command Center Lead',
+      requestedBy: 'Command Center Officer',
       priority: newPriority,
       targetPlate: newPlate.trim().toUpperCase()
     });
@@ -101,396 +112,323 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
     setSelectedMissionId(created.missionId);
   };
 
-  const explainabilityRecord = selectedExplainabilityId 
-    ? confidencePolicyService.getExplainabilityByTarget(selectedExplainabilityId) || confidencePolicyService.getExplainability(selectedExplainabilityId)
-    : null;
+  // Timeline entries required by prompt
+  const corridorTimeline = [
+    { time: '11:45 AM', camera: 'CAM-014', label: 'Ashram Road Transit Hub' },
+    { time: '11:47 AM', camera: 'CAM-023', label: 'Pakwan Crossroad' },
+    { time: '11:49 AM', camera: 'CAM-001', label: 'SG Highway Junction' }
+  ];
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-900 border border-slate-800 rounded-xl p-5 shadow">
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto w-full space-y-6 text-slate-900 font-sans">
+      {/* 1. Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200">
         <div>
-          <div className="flex items-center space-x-2.5">
-            <div className="p-2 bg-indigo-500/10 border border-indigo-500/30 rounded-lg text-indigo-400">
-              <Crosshair className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">AI MISSION CONTROL & WORKFLOW ORCHESTRATOR</h1>
-              <p className="text-xs text-slate-400">Deterministic job decomposition, live step execution tree, and supervised action approvals</p>
-            </div>
-          </div>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
+            Active Missions & Live Tracking
+          </h1>
+          <p className="text-sm font-medium text-slate-500 mt-0.5">
+            Real-time corridor tracking, predictive camera handoffs, and interception controls
+          </p>
         </div>
 
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-lg flex items-center space-x-1.5 transition shadow"
-        >
-          <Plus className="w-4 h-4" />
-          <span>New AI Mission</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs sm:text-sm flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer min-h-[44px]"
+          >
+            <Plus size={16} />
+            <span>New Mission</span>
+          </button>
+        </div>
       </div>
 
-      {/* Main Layout: Master-Detail */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Mission List Sidebar (4 cols) */}
-        <div className="lg:col-span-4 space-y-3">
-          <div className="text-xs font-bold uppercase tracking-wider text-slate-400 px-1 flex items-center justify-between">
-            <span>Statewide Missions ({missions.length})</span>
-            <span className="text-[11px] text-indigo-400 font-mono">AUTONOMOUS MESH</span>
+      {/* Intercept Success Toast */}
+      {interceptSuccessMsg && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between shadow-xs text-emerald-900 text-sm font-semibold">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 size={18} className="text-emerald-600" />
+            <span>{interceptSuccessMsg}</span>
+          </div>
+          <button onClick={() => setInterceptSuccessMsg(null)} className="text-xs font-bold px-2 py-1 hover:bg-emerald-100 rounded cursor-pointer">
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* 2. Active Mission Card (Strictly Matching Prompt Layout) */}
+      <div className="bg-white rounded-2xl border-2 border-blue-200 p-5 sm:p-7 shadow-xs space-y-6">
+        {/* Mission Core Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                ACTIVE MISSION CARD
+              </span>
+              <span className="text-slate-300">•</span>
+              <span className="text-xs font-mono font-semibold text-slate-600">
+                {selectedMission?.missionId || 'MSN-9021'}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap items-baseline gap-3">
+              <span className="text-xs font-semibold text-slate-500 uppercase">Target:</span>
+              <h2 className="text-2xl sm:text-3xl font-black font-mono text-blue-700 tracking-wider">
+                {selectedMission?.targetPlate || 'GJ01AB1234'}
+              </h2>
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                Type: Vehicle Tracking
+              </span>
+            </div>
           </div>
 
-          <div className="space-y-2.5 max-h-[750px] overflow-y-auto pr-1">
-            {missions.map(m => {
-              const isSelected = m.missionId === selectedMission?.missionId;
-              const completedCount = m.steps.filter(s => s.status === 'COMPLETED').length;
-
-              return (
-                <div
-                  key={m.missionId}
-                  onClick={() => setSelectedMissionId(m.missionId)}
-                  className={`p-4 rounded-xl border cursor-pointer transition ${
-                    isSelected 
-                      ? 'bg-slate-800 border-indigo-500 shadow-md ring-1 ring-indigo-500/30' 
-                      : 'bg-slate-900/80 border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="text-xs font-mono font-bold text-indigo-400">{m.missionId}</span>
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded ${
-                      m.status === 'RUNNING' ? 'bg-emerald-500/20 text-emerald-400' :
-                      m.status === 'WAITING_FOR_APPROVAL' ? 'bg-amber-500/20 text-amber-400' :
-                      m.status === 'COMPLETED' ? 'bg-cyan-500/20 text-cyan-400' :
-                      'bg-slate-700 text-slate-300'
-                    }`}>
-                      {m.status.replace(/_/g, ' ')}
-                    </span>
-                  </div>
-
-                  <h3 className="text-sm font-semibold text-white line-clamp-1 mb-1">{m.objective}</h3>
-
-                  <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-slate-800/80">
-                    <span className="font-mono text-[11px]">{m.targetPlate || 'BROAD_CORRIDOR'}</span>
-                    <span>{completedCount} / {m.steps.length} Steps</span>
-                  </div>
-                </div>
-              );
-            })}
+          <div className="flex items-center gap-2">
+            <StatusBadge status="LIVE" label="STATUS: ACTIVE" size="md" />
           </div>
         </div>
 
-        {/* Mission Detail View (8 cols) */}
-        {selectedMission && (
-          <div className="lg:col-span-8 space-y-6">
-            {/* Mission Hero Card */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow">
-              <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-4">
-                <div>
-                  <div className="flex items-center space-x-2 mb-1">
-                    <span className="text-xs font-mono font-bold text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
-                      {selectedMission.missionId}
-                    </span>
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                      {selectedMission.missionType.replace(/_/g, ' ')}
-                    </span>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded ${
-                      selectedMission.priority === 'P0_CRITICAL' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
-                      'bg-slate-800 text-slate-300'
-                    }`}>
-                      {selectedMission.priority.replace(/_/g, ' ')}
-                    </span>
-                  </div>
-                  <h2 className="text-lg font-bold text-white mt-1">{selectedMission.objective}</h2>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Requested by: <span className="text-slate-300">{selectedMission.requestedBy}</span> | Starting Node: <span className="font-mono text-slate-300">{selectedMission.startingCameraId}</span>
-                  </p>
-                </div>
+        {/* 3. Timeline & Next Predicted Camera Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Sighting Timeline */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+              <Clock size={14} className="text-slate-400" />
+              <span>Corridor Timeline</span>
+            </h3>
 
-                <div className="flex items-center space-x-2">
-                  <span className={`px-3 py-1 rounded-lg text-xs font-bold ${
-                    selectedMission.status === 'RUNNING' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                    selectedMission.status === 'WAITING_FOR_APPROVAL' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                    'bg-slate-800 text-slate-300'
-                  }`}>
-                    {selectedMission.status.replace(/_/g, ' ')}
+            <div className="space-y-2.5">
+              {corridorTimeline.map((item, idx) => (
+                <div 
+                  key={idx}
+                  className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span className="font-mono font-bold text-slate-900">{item.time}</span>
+                    <span className="text-slate-300">•</span>
+                    <span className="font-mono font-bold text-blue-700">{item.camera}</span>
+                  </div>
+                  <span className="text-slate-600 font-medium truncate max-w-[180px]">
+                    ({item.label})
                   </span>
                 </div>
-              </div>
-
-              {/* Mission Summary / Result if completed */}
-              {selectedMission.result && (
-                <div className="p-4 bg-emerald-950/30 border border-emerald-500/30 rounded-lg text-xs text-emerald-300 space-y-1">
-                  <div className="font-bold flex items-center space-x-1.5 text-emerald-400">
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Mission Execution Concluded</span>
-                  </div>
-                  <p className="text-slate-300">{selectedMission.result.summary}</p>
-                </div>
-              )}
+              ))}
             </div>
+          </div>
 
-            {/* Approval Gate Banner if waiting */}
-            {selectedMission.approvals.some(a => a.status === 'PENDING') && (
-              <div className="bg-amber-950/40 border border-amber-500/40 rounded-xl p-5 shadow">
-                <div className="flex items-start space-x-3">
-                  <div className="p-2 bg-amber-500/20 text-amber-400 rounded-lg">
-                    <ShieldAlert className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-sm font-bold text-amber-300 uppercase tracking-wide">
-                      Supervisory Human Approval Gate Mandated
-                    </h3>
-                    <p className="text-xs text-amber-200/80 mt-1">
-                      In compliance with Bharatiya Sakshya Adhiniyam, 2023 and Gujarat Police SOPs, high-impact action requires authorized officer sign-off.
-                    </p>
+          {/* Next Predicted Camera Card */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+              <Navigation size={14} className="text-blue-600" />
+              <span>Next Predicted Camera</span>
+            </h3>
 
-                    <div className="mt-4 space-y-3">
-                      {selectedMission.approvals.filter(a => a.status === 'PENDING').map(app => (
-                        <div key={app.approvalId} className="p-3 bg-slate-900/80 rounded-lg border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                          <div>
-                            <span className="font-bold text-white block">{app.actionTitle}</span>
-                            <span className="text-slate-400">{app.reason}</span>
-                            <div className="mt-1 flex items-center space-x-2">
-                              <span className="text-indigo-400 font-mono">Confidence: {Math.round(app.confidence * 100)}%</span>
-                              <button
-                                onClick={() => setSelectedExplainabilityId(selectedMission.targetPlate || 'GJ01AB1234')}
-                                className="text-cyan-400 underline hover:text-cyan-300 flex items-center space-x-1"
-                              >
-                                <HelpCircle className="w-3 h-3" />
-                                <span>Why did AI recommend this?</span>
-                              </button>
-                            </div>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => handleResolveApproval(app.approvalId, 'APPROVED')}
-                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded text-xs transition"
-                            >
-                              Authorize
-                            </button>
-                            <button
-                              onClick={() => handleResolveApproval(app.approvalId, 'REJECTED')}
-                              className="px-3 py-1.5 bg-rose-600/30 hover:bg-rose-600/50 text-rose-300 border border-rose-500/40 font-semibold rounded text-xs transition"
-                            >
-                              Dispute
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+            <div className="p-5 bg-gradient-to-br from-blue-50/80 to-indigo-50/50 rounded-xl border border-blue-200 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold font-mono px-2.5 py-1 rounded-lg bg-blue-600 text-white shadow-2xs">
+                  CAM-031
+                </span>
+                <div className="flex items-center gap-1 text-xs font-bold text-purple-700 bg-purple-100/80 px-3 py-1 rounded-full">
+                  <Sparkles size={13} />
+                  <span>Confidence: 89%</span>
                 </div>
               </div>
-            )}
 
-            {/* Workflow Steps Execution Tree */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-white mb-4 flex items-center space-x-2">
-                <Layers className="w-4 h-4 text-indigo-400" />
-                <span>Deterministic Step Execution Tree</span>
-              </h3>
+              <div>
+                <p className="text-base font-bold text-slate-900">
+                  Thaltej Underpass Interchange
+                </p>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Vehicle trajectory vector indicates northbound SG Highway transit towards Gandhinagar bypass.
+                </p>
+              </div>
 
-              <div className="space-y-3">
-                {selectedMission.steps.map(step => {
-                  const isPending = step.status === 'PENDING';
-                  const isRunning = step.status === 'RUNNING';
-                  const isCompleted = step.status === 'COMPLETED';
-                  const isWaitingApproval = step.status === 'WAITING_APPROVAL';
-
-                  return (
-                    <div 
-                      key={step.stepId}
-                      className={`p-4 rounded-lg border transition ${
-                        isRunning ? 'bg-indigo-950/20 border-indigo-500/50' :
-                        isCompleted ? 'bg-slate-800/40 border-slate-700/60' :
-                        isWaitingApproval ? 'bg-amber-950/20 border-amber-500/40' :
-                        'bg-slate-800/20 border-slate-800'
-                      }`}
-                    >
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div className="flex items-start space-x-3">
-                          <div className="mt-0.5">
-                            {isCompleted ? (
-                              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                            ) : isRunning ? (
-                              <div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
-                            ) : isWaitingApproval ? (
-                              <ShieldAlert className="w-5 h-5 text-amber-400" />
-                            ) : (
-                              <Clock className="w-5 h-5 text-slate-500" />
-                            )}
-                          </div>
-                          <div>
-                            <div className="flex items-center space-x-2">
-                              <span className="text-xs font-mono font-bold text-slate-400">Step {step.stepNumber}:</span>
-                              <h4 className="text-sm font-semibold text-white">{step.name}</h4>
-                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-700 text-slate-300">
-                                {step.assignedAgentType}
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-400 mt-1">{step.description}</p>
-                            {step.outputSummary && (
-                              <p className="text-xs text-emerald-400/90 font-mono mt-1">
-                                ↳ {step.outputSummary}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex items-center space-x-2">
-                          {isPending && (
-                            <button
-                              disabled={isExecutingStep}
-                              onClick={() => handleExecuteNextStep(step.stepId)}
-                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-semibold rounded flex items-center space-x-1.5 transition"
-                            >
-                              <Play className="w-3 h-3 fill-current" />
-                              <span>Execute Step</span>
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="pt-2 border-t border-blue-200/60 flex items-center justify-between text-xs text-slate-600">
+                <span>Estimated Arrival Window:</span>
+                <strong className="text-slate-900 font-mono">11:52 AM – 11:54 AM</strong>
               </div>
             </div>
+          </div>
+        </div>
 
-            {/* Evidence Gallery */}
-            {selectedMission.evidence.length > 0 && (
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow">
-                <h3 className="text-sm font-bold uppercase tracking-wider text-white mb-4 flex items-center space-x-2">
-                  <Camera className="w-4 h-4 text-cyan-400" />
-                  <span>Mission Evidence Gallery (Bharatiya Sakshya Adhiniyam, 2023)</span>
-                </h3>
+        {/* 4. Action Buttons: [ Intercept Route ] [ Stop Tracking ] */}
+        <div className="pt-4 border-t border-slate-200 flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => setIsInterceptModalOpen(true)}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-colors shadow-xs flex items-center gap-2 min-h-[44px] cursor-pointer"
+          >
+            <Crosshair size={18} />
+            <span>Intercept Route</span>
+          </button>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {selectedMission.evidence.map((ev, idx) => (
-                    <div key={`${ev.evidenceId}-${idx}`} className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden text-xs">
-                      <img 
-                        src={ev.thumbnailUrl} 
-                        alt="Evidence Frame" 
-                        referrerPolicy="no-referrer"
-                        className="w-full h-36 object-cover bg-slate-950" 
-                      />
-                      <div className="p-3 space-y-1.5">
-                        <div className="flex items-center justify-between font-mono">
-                          <span className="font-bold text-white">{ev.evidenceId}</span>
-                          <span className="text-cyan-400">{ev.sourceCameraId}</span>
-                        </div>
-                        <div className="text-[10px] text-slate-400 font-mono break-all">
-                          SHA-256: {ev.sha256}
-                        </div>
-                        <div className="text-[10px] text-slate-400">
-                          Source of Truth: <span className="text-slate-200 font-semibold">{ev.sourceOfTruth}</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+          <button
+            onClick={() => handleStopTracking(selectedMission?.missionId || 'MSN-9021')}
+            className="px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold rounded-xl text-sm border border-slate-300 transition-colors flex items-center gap-2 min-h-[44px] cursor-pointer"
+          >
+            <StopCircle size={18} />
+            <span>Stop Tracking</span>
+          </button>
 
-            {/* Execution Audit Log */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-white mb-3">Agent Collaboration Log</h3>
-              <div className="space-y-1.5 max-h-48 overflow-y-auto font-mono text-xs text-slate-400">
-                {selectedMission.executionLog.map((log, idx) => (
-                  <div key={idx} className="flex items-start space-x-2 py-0.5">
-                    <span className="text-slate-500 whitespace-nowrap">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
-                    <span className="text-indigo-400 font-bold whitespace-nowrap">&lt;{log.agentId}&gt;</span>
-                    <span className="text-slate-300">{log.message}</span>
+          <button
+            onClick={() => setShowAdvancedSteps(!showAdvancedSteps)}
+            className="ml-auto text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1 py-2 px-3 rounded-lg hover:bg-slate-100 cursor-pointer"
+          >
+            <Sliders size={14} />
+            <span>{showAdvancedSteps ? 'Hide' : 'View'} Execution Steps</span>
+            {showAdvancedSteps ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+          </button>
+        </div>
+
+        {/* Collapsible Advanced Step Orchestration */}
+        {showAdvancedSteps && selectedMission && (
+          <div className="pt-4 border-t border-slate-200 space-y-3">
+            <h4 className="text-xs font-bold uppercase text-slate-600">
+              Orchestrator Execution Pipeline
+            </h4>
+            <div className="space-y-2">
+              {selectedMission.steps.map((step, idx) => (
+                <div key={step.stepId || idx} className="p-3 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2.5">
+                    {step.status === 'COMPLETED' ? (
+                      <CheckCircle2 size={16} className="text-emerald-600" />
+                    ) : step.status === 'IN_PROGRESS' ? (
+                      <Radio size={16} className="text-blue-600 animate-pulse" />
+                    ) : (
+                      <Clock size={16} className="text-slate-400" />
+                    )}
+                    <span className="font-semibold text-slate-800">{step.description}</span>
                   </div>
-                ))}
-              </div>
+                  <span className={`font-mono font-bold text-[11px] ${
+                    step.status === 'COMPLETED' ? 'text-emerald-700' :
+                    step.status === 'IN_PROGRESS' ? 'text-blue-700' : 'text-slate-500'
+                  }`}>
+                    {step.status}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         )}
       </div>
 
-      {/* Create Mission Modal */}
+      {/* Intercept Confirmation Modal */}
+      {isInterceptModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 w-full max-w-md shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <Crosshair size={20} className="text-blue-600" />
+                <h3 className="text-lg font-bold text-slate-900">Confirm Intercept Route</h3>
+              </div>
+              <button onClick={() => setIsInterceptModalOpen(false)} className="p-1 rounded text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600">
+              Dispatch interception coordinate packet to Ahmedabad Traffic Intercept Squad for corridor interception:
+            </p>
+
+            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1.5 font-mono">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Target Plate:</span>
+                <strong className="text-slate-900">{selectedMission?.targetPlate || 'GJ01AB1234'}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Interception Point:</span>
+                <strong className="text-slate-900">CAM-031 (Thaltej Underpass)</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">ETA Window:</span>
+                <strong className="text-slate-900">11:52 AM – 11:54 AM</strong>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => setIsInterceptModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer min-h-[44px]"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleIntercept}
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-colors shadow-xs cursor-pointer min-h-[44px]"
+              >
+                Confirm & Dispatch Squad
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Mission Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-lg w-full p-6 shadow-2xl">
-            <h3 className="text-base font-bold text-white mb-4">Launch New Operational Mission</h3>
-            <form onSubmit={handleCreateMissionSubmit} className="space-y-4 text-xs">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-6 w-full max-w-md shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+              <h3 className="text-lg font-bold text-slate-900">Create Tracking Mission</h3>
+              <button onClick={() => setShowCreateModal(false)} className="p-1 rounded text-slate-400 hover:text-slate-700 cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateMissionSubmit} className="space-y-3 text-xs">
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold">Mission Type</label>
-                <select
-                  value={newMissionType}
-                  onChange={(e) => setNewMissionType(e.target.value as MissionType)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-slate-200"
-                >
-                  <option value="TRACK_VEHICLE">TRACK VEHICLE</option>
-                  <option value="FIND_LAST_SEEN">FIND LAST SEEN</option>
-                  <option value="LOCATE_WATCHLIST_CANDIDATE">LOCATE WATCHLIST CANDIDATE</option>
-                  <option value="SEARCH_CORRIDOR">SEARCH CORRIDOR</option>
-                  <option value="FOLLOW_MOBILE_CAMERA">FOLLOW MOBILE CAMERA</option>
-                  <option value="CAMERA_HEALTH_SWEEP">CAMERA HEALTH SWEEP</option>
-                  <option value="RECONSTRUCT_JOURNEY">RECONSTRUCT JOURNEY</option>
-                </select>
+                <label className="block font-semibold text-slate-700 uppercase mb-1">Target License Plate</label>
+                <input
+                  type="text"
+                  required
+                  value={newPlate}
+                  onChange={(e) => setNewPlate(e.target.value.toUpperCase())}
+                  placeholder="e.g. GJ01AB1234"
+                  className="w-full p-3 bg-slate-50 border border-slate-300 rounded-xl text-sm font-mono font-bold text-slate-900 focus:outline-none focus:border-blue-600"
+                />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold">Objective Description</label>
+                <label className="block font-semibold text-slate-700 uppercase mb-1">Mission Objective</label>
                 <input
                   type="text"
                   required
                   value={newObjective}
                   onChange={(e) => setNewObjective(e.target.value)}
-                  placeholder="e.g. Track white SUV along SG Highway corridor to Thaltej"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-slate-200"
+                  placeholder="e.g. Corridor tracking along SG Highway"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:border-blue-600"
                 />
               </div>
 
               <div>
-                <label className="block text-slate-400 mb-1 font-semibold">Target Vehicle Plate (if applicable)</label>
-                <input
-                  type="text"
-                  value={newPlate}
-                  onChange={(e) => setNewPlate(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-slate-200 font-mono uppercase"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-400 mb-1 font-semibold">Priority</label>
+                <label className="block font-semibold text-slate-700 uppercase mb-1">Priority</label>
                 <select
                   value={newPriority}
-                  onChange={(e) => setNewPriority(e.target.value as MissionPriority)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg p-2.5 text-slate-200"
+                  onChange={(e) => setNewPriority(e.target.value as any)}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-300 rounded-xl text-slate-900 font-semibold focus:outline-none focus:border-blue-600"
                 >
-                  <option value="P0_CRITICAL">P0 CRITICAL (Immediate Intercept)</option>
-                  <option value="P1_HIGH">P1 HIGH (Active Investigation)</option>
-                  <option value="P2_OPERATIONAL">P2 OPERATIONAL (Standard Patrol)</option>
+                  <option value="P0_CRITICAL">P0 - CRITICAL</option>
+                  <option value="P1_HIGH">P1 - HIGH</option>
+                  <option value="P2_STANDARD">P2 - STANDARD</option>
                 </select>
               </div>
 
-              <div className="flex justify-end space-x-3 pt-3">
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 bg-slate-800 text-slate-300 rounded-lg font-medium hover:bg-slate-700"
+                  className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 cursor-pointer min-h-[44px]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-500 shadow"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition-colors shadow-xs cursor-pointer min-h-[44px]"
                 >
-                  Plan & Launch
+                  Launch Tracking
                 </button>
               </div>
             </form>
           </div>
         </div>
-      )}
-
-      {/* Explainability Modal */}
-      {selectedExplainabilityId && explainabilityRecord && (
-        <ExplainabilityModal
-          record={explainabilityRecord}
-          onClose={() => setSelectedExplainabilityId(null)}
-        />
       )}
     </div>
   );

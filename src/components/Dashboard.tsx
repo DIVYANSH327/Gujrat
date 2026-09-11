@@ -21,6 +21,7 @@ import {
   Sliders
 } from 'lucide-react';
 import { ViewMode } from '../types';
+import { AlertCard } from './AlertCard';
 
 interface DashboardProps {
   onViewChange?: (view: ViewMode) => void;
@@ -282,6 +283,27 @@ export function Dashboard({ onViewChange }: DashboardProps) {
             <Activity size={20} />
           </div>
         </div>
+      </div>
+
+      {/* Active Priority Alert Card */}
+      <div className="mb-5">
+        <AlertCard
+          alert={{
+            id: 'ALT-8821',
+            violationType: 'Wrong-Way Transit & Speed Exceedance',
+            vehiclePlate: 'GJ01AB1234',
+            vehicleType: 'White SUV',
+            cameraId: 'CAM-014',
+            location: 'Ahmedabad • SG Highway Junction',
+            timestamp: '18:54:12',
+            confidence: 96.4,
+            evidenceUrl: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800&auto=format&fit=crop&q=60'
+          }}
+          onReviewAlert={() => onViewChange && onViewChange('tracking')}
+          onViewFullEvidence={() => onViewChange && onViewChange('tracking')}
+          onTrackVehicle={() => onViewChange && onViewChange('tracking')}
+          onViewCamera={() => onViewChange && onViewChange('cameras')}
+        />
       </div>
 
       {/* 2. Middle Section: OPERATIONAL MAP & ACTIVE INVESTIGATIONS */}

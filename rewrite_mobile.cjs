@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+const fs = require('fs');
+
+const code = `import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Smartphone, Play, Square, AlertTriangle, MapPin, Camera, Activity, Info } from 'lucide-react';
 import { centralRepo } from '../services/Architecture';
 import { SecurityEventPayload, ViewMode } from '../types';
@@ -103,11 +105,6 @@ export function MobileCameraTest({ onNavigate }: MobileCameraTestProps) {
   const startCamera = async () => {
     setCameraState('STARTING');
     setErrorMessage(null);
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      setCameraState('ERROR');
-      setErrorMessage('Camera API is not supported in this browser. Please ensure you are using HTTPS.');
-      return;
-    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -330,9 +327,9 @@ export function MobileCameraTest({ onNavigate }: MobileCameraTestProps) {
       ctx.strokeRect(x, y, w, h);
       
       ctx.fillStyle = '#3b82f6';
-      const text = det.plate ? `${det.class.toUpperCase()} - ${det.plate}` : det.class.toUpperCase();
+      const text = det.plate ? \`\${det.class.toUpperCase()} - \${det.plate}\` : det.class.toUpperCase();
       const fontSize = Math.max(14, canvas.width / 40);
-      ctx.font = `bold ${fontSize}px sans-serif`;
+      ctx.font = \`bold \${fontSize}px sans-serif\`;
       ctx.fillText(text, x, y > fontSize + 5 ? y - 5 : y + fontSize + 5);
     });
   }, [detections, diagnostics.videoWidth]);
@@ -349,7 +346,7 @@ export function MobileCameraTest({ onNavigate }: MobileCameraTestProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-           <span className={`w-2.5 h-2.5 rounded-full ${cameraState === 'LIVE' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+           <span className={\`w-2.5 h-2.5 rounded-full \${cameraState === 'LIVE' ? 'bg-emerald-500' : 'bg-rose-500'}\`} />
            <span className="text-xs font-bold text-slate-300">
              {cameraState === 'LIVE' ? 'CAMERA LIVE' : cameraState}
            </span>
@@ -430,11 +427,11 @@ export function MobileCameraTest({ onNavigate }: MobileCameraTestProps) {
           <button
             onClick={togglePatrol}
             disabled={cameraState === 'ERROR' || aiState === 'KEY_REQUIRED'}
-            className={`w-full py-4 px-6 rounded-xl font-bold text-lg flex items-center justify-center gap-3 transition-colors shadow-lg cursor-pointer ${
+            className={\`w-full py-4 px-6 rounded-xl font-bold text-lg flex items-center justify-center gap-3 transition-colors shadow-lg cursor-pointer \${
               isPatrolActive 
                 ? 'bg-rose-600 hover:bg-rose-700 text-white' 
                 : 'bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50'
-            }`}
+            }\`}
           >
             {isPatrolActive ? <Square size={24} /> : <Play size={24} />}
             <span>{isPatrolActive ? 'PAUSE PATROL' : 'PATROL ACTIVE'}</span>
@@ -489,3 +486,6 @@ export function MobileCameraTest({ onNavigate }: MobileCameraTestProps) {
     </div>
   );
 }
+`
+fs.writeFileSync('src/components/MobileCameraTest.tsx', code);
+console.log('MobileCameraTest.tsx Phase 1 rewrite completed.');

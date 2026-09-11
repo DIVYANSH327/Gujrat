@@ -95,6 +95,7 @@ export interface Camera {
   locationAccuracy?: number;
   locationSource?: LocationSource | string;
   locationStatus?: LocationStatus | string;
+  alertCount?: number;
   // V0.7 Connector Additions
   sourceType?: VideoSourceType;
   adapterType?: string;
@@ -521,7 +522,56 @@ export interface SecurityRule {
   };
 }
 
-export type ViewMode = 'dashboard' | 'command_center' | 'missions' | 'incidents' | 'review_queue' | 'digital_twin' | 'system_brain' | 'scale_lab' | 'cameras' | 'youtube_demo' | 'real_ai_test_lab' | 'ai_mesh' | 'police_intel' | 'ai_training_lab' | 'federated' | 'sites' | 'search' | 'alerts' | 'watchlist' | 'tracking' | 'nodes' | 'policies' | 'challenge' | 'system' | 'challan_mode' | 'mobile_camera' | 'gov_deployment' | 'geospatial_map';
+export type ViewMode = 'dashboard' | 'command_center' | 'missions' | 'incidents' | 'review_queue' | 'digital_twin' | 'system_brain' | 'scale_lab' | 'cameras' | 'youtube_demo' | 'real_ai_test_lab' | 'ai_mesh' | 'police_intel' | 'ai_training_lab' | 'federated' | 'sites' | 'search' | 'alerts' | 'watchlist' | 'tracking' | 'nodes' | 'policies' | 'challenge' | 'system' | 'challan_mode' | 'mobile_camera' | 'gov_deployment' | 'geospatial_map' | 'sentinel_grid';
+
+// ============================================================
+// SENTINEL CAMERA GRID ARCHITECTURE TYPES (SCRB SANDBOX SPEC)
+// ============================================================
+
+export type SentinelCodec = 'H.264' | 'H.265';
+export type SentinelStreamStatus = 'live' | 'offline' | 'reconnecting' | 'degraded';
+
+export interface SentinelCameraCatalogueItem {
+  id: string; // e.g. "1", "2", "cam-101"
+  name: string; // e.g. "SG Highway - Pakwan Cross Road"
+  location: string; // District / Junction description
+  district: string; // Gandhinagar, Ahmedabad, Surat, Rajkot, etc.
+  codec: SentinelCodec;
+  status: SentinelStreamStatus;
+  resolution: string; // e.g. "1920x1080", "2560x1440", "1280x720"
+  fps: number; // Declared nominal FPS (e.g. 25, 30)
+  bitrateKbps: number; // e.g. 4096
+  rtspUrl: string; // rtsp://<host>:8554/stream/<id>
+  whepUrl: string; // http://<host>:8889/stream/<id>/whep
+  hlsUrl: string;  // http://<host>/live/stream/<id>/index.m3u8
+  gopSize?: number; // GOP / Keyframe interval (e.g. 50 frames)
+  sampleVideoUrl?: string; // Fallback video for in-browser visual playback preview
+  lastSeenIso?: string;
+  metadata?: {
+    cameraType?: 'FIXED' | 'PTZ' | 'ANPR' | 'SPEED_DOME';
+    latitude?: number;
+    longitude?: number;
+    sensorFormat?: string;
+  };
+}
+
+export interface SentinelIngestCatalogueResponse {
+  gateway: string;
+  version: string;
+  timestamp: string;
+  cameraCount: number;
+  cameras: SentinelCameraCatalogueItem[];
+}
+
+export interface SentinelComplianceCheckItem {
+  id: string;
+  category: 'TRANSPORT' | 'TIMING' | 'RESILIENCE' | 'DECODER' | 'CATALOGUE' | 'DISCONTINUITY';
+  title: string;
+  directive: string;
+  passed: boolean;
+  notes: string;
+  timestamp?: string;
+}
 
 // ============================================================
 // MOBILE CAMERA ARCHITECTURE TYPES (PHASE 1: REAL BROWSER SOURCE)
