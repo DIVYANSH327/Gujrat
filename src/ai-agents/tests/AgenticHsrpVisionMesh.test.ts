@@ -358,7 +358,9 @@ async function runTests() {
   console.log('===============================================================');
 }
 
-runTests().catch(err => {
+runTests().then(() => {
+  process.exit(0);
+}).catch(err => {
   console.error('Test failed with unhandled error:', err);
   process.exit(1);
 });

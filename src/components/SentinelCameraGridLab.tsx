@@ -34,17 +34,22 @@ import {
 } from '../types';
 import { sentinelGridService, SentinelHealthReport } from '../services/SentinelGridService';
 import { SentinelStreamPlayer, SentinelStreamTelemetry } from './SentinelStreamPlayer';
+import { BackgroundVehicleIntelligenceTab } from './BackgroundVehicleIntelligenceTab';
+import { CctvRawDiagnosticDashboard } from './CctvRawDiagnosticDashboard';
+import { Car } from 'lucide-react';
 
 interface SentinelCameraGridLabProps {
   onNavigate?: (view: ViewMode) => void;
   onImportCameraToLive?: (camera: SentinelCameraCatalogueItem) => void;
+  initialTab?: 'grid' | 'intelligence' | 'diagnostics' | 'snippets' | 'checklist';
 }
 
 type GridLayoutMode = '2x2' | '3x3' | '4x4' | '5x5' | 'all';
 
 export function SentinelCameraGridLab({
   onNavigate,
-  onImportCameraToLive
+  onImportCameraToLive,
+  initialTab = 'grid'
 }: SentinelCameraGridLabProps) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [cameras, setCameras] = useState<SentinelCameraCatalogueItem[]>([]);
@@ -56,13 +61,14 @@ export function SentinelCameraGridLab({
   const [selectedCodec, setSelectedCodec] = useState<string>('ALL');
   const [gridLayout, setGridLayout] = useState<GridLayoutMode>('4x4');
   const [currentPage, setCurrentPage] = useState<number>(1);
+  const [isLowBandwidthGrid, setIsLowBandwidthGrid] = useState<boolean>(true);
 
   // Spotlight modal
   const [spotlightCamera, setSpotlightCamera] = useState<SentinelCameraCatalogueItem | null>(null);
   const [spotlightTelemetry, setSpotlightTelemetry] = useState<SentinelStreamTelemetry | null>(null);
 
   // Bottom tabs
-  const [activeTab, setActiveTab] = useState<'grid' | 'diagnostics' | 'snippets' | 'checklist'>('grid');
+  const [activeTab, setActiveTab] = useState<'grid' | 'intelligence' | 'diagnostics' | 'snippets' | 'checklist'>(initialTab);
   const [activeSnippetTab, setActiveSnippetTab] = useState<'opencv' | 'gstreamer' | 'ffmpeg' | 'deepstream'>('opencv');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [importedCameraIds, setImportedCameraIds] = useState<Set<string>>(new Set());
@@ -257,12 +263,23 @@ export function SentinelCameraGridLab({
               </button>
               <button
                 type="button"
+                onClick={() => setActiveTab('intelligence')}
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'intelligence' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <Car size={13} />
+                <span>Vehicle Intel (TEST A)</span>
+              </button>
+              <button
+                type="button"
                 onClick={() => setActiveTab('diagnostics')}
-                className={`px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer ${
+                className={`px-3 py-1 rounded-lg text-xs font-medium transition cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'diagnostics' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                Diagnostics
+                <Activity size={13} />
+                <span>Raw Video Audit</span>
               </button>
               <button
                 type="button"
@@ -343,6 +360,19 @@ export function SentinelCameraGridLab({
                   <option value="H.264">H.264 (AVC)</option>
                   <option value="H.265">H.265 (HEVC)</option>
                 </select>
+
+                {/* Bandwidth Mode Toggle (TEST B) */}
+                <button
+                  type="button"
+                  onClick={() => setIsLowBandwidthGrid((prev) => !prev)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border ${
+                    isLowBandwidthGrid
+                      ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                      : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                  }`}
+                >
+                  <span>{isLowBandwidthGrid ? '⚡ Low-BW Grid (~24 KB/s total - Estimated)' : '🌐 Full HD HLS (~60 Mbps total)'}</span>
+                </button>
               </div>
 
               {/* Layout Mode Selector & Pagination */}
@@ -432,6 +462,7 @@ export function SentinelCameraGridLab({
                         codec={camera.codec}
                         declaredFps={camera.fps}
                         streamUrl={camera.hlsUrl}
+                        lowBandwidthMode={isLowBandwidthGrid}
                         aspectRatio="16/9"
                         onClick={() => setSpotlightCamera(camera)}
                       />
@@ -483,10 +514,22 @@ export function SentinelCameraGridLab({
         )}
 
         {/* ============================================================ */}
-        {/* TAB 2: DIAGNOSTICS & TELEMETRY (Section 18 Debug Mode) */}
+        {/* TAB: VEHICLE INTELLIGENCE & MULTI-CAMERA ANPR (TEST A & CAM12) */}
+        {/* ============================================================ */}
+        {activeTab === 'intelligence' && (
+          <div className="space-y-4">
+            <BackgroundVehicleIntelligenceTab />
+          </div>
+        )}
+
+        {/* ============================================================ */}
+        {/* TAB 2: CORP8 RAW VIDEO DIAGNOSTIC & FRAME DECODER AUDIT */}
         {/* ============================================================ */}
         {activeTab === 'diagnostics' && (
-          <div className="space-y-4">
+          <div className="space-y-6">
+            {/* Master Diagnostic & Decoder Audit Engine */}
+            <CctvRawDiagnosticDashboard initialCameraId={spotlightCamera?.id || 'cam01'} />
+
             {/* System Health Card */}
             <div className="bg-slate-950 rounded-2xl border border-slate-800 p-5 space-y-4">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">

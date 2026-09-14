@@ -80,6 +80,7 @@ export const RealAIVideoAnalysis: React.FC<RealAIVideoAnalysisProps> = ({ onNavi
   const [videoDuration, setVideoDuration] = useState<number>(0);
   const [lastAnalyzedTime, setLastAnalyzedTime] = useState<number>(0);
   const [lastDelaySec, setLastDelaySec] = useState<number>(0);
+  const [activeAiModel, setActiveAiModel] = useState<string>('AI Vision (Gemini / OmniRoute Router)');
 
   // Evidence & Alerts
   const [evidenceList, setEvidenceList] = useState<EvidenceItem[]>([]);
@@ -358,6 +359,9 @@ export const RealAIVideoAnalysis: React.FC<RealAIVideoAnalysisProps> = ({ onNavi
       });
 
       // 3. Update detections and overlay
+      if (result.aiModel) {
+        setActiveAiModel(result.aiModel);
+      }
       setCurrentDetections(result.detections || []);
       setCurrentRoadEvents(result.roadSafetyEvents || []);
       setLastDelaySec(result.analysisTimeMs ? result.analysisTimeMs / 1000 : 0);
@@ -700,7 +704,7 @@ export const RealAIVideoAnalysis: React.FC<RealAIVideoAnalysisProps> = ({ onNavi
                 ACTIVE FRAME DETECTIONS ({currentDetections.length})
               </span>
               <span className="text-[11px] font-mono text-zinc-500">
-                AI MODEL: {metrics.status === 'ERROR' ? 'FAILED' : 'Gemini Vision (gemini-3.8-flash)'}
+                AI MODEL: {metrics.status === 'ERROR' ? 'FAILED' : activeAiModel}
               </span>
             </div>
 

@@ -39,7 +39,6 @@ import { humanReviewQueueService } from '../services/HumanReviewQueueService';
 import { systemHealthService, StatewideHealthSnapshot } from '../services/SystemHealthService';
 import { sysEvents, centralRepo } from '../services/Architecture';
 import { Mission, IncidentRecord, PredictiveHandoffPoint, MissionType } from '../types';
-import { mockAlerts, mockCameras } from '../mockData';
 import { 
   MetricCard, 
   QuickActionGrid, 
@@ -67,6 +66,39 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({
   const [handoffs, setHandoffs] = useState<PredictiveHandoffPoint[]>([]);
   const [pendingReviewsCount, setPendingReviewsCount] = useState<number>(4);
   const [health, setHealth] = useState<StatewideHealthSnapshot | null>(null);
+  const [aiEngineTelemetry, setAiEngineTelemetry] = useState<{
+    provider: string;
+    model: string;
+    aiStatus: string;
+    fallbackUsed: boolean;
+  }>({
+    provider: 'NONE',
+    model: 'edge-vision-2.5',
+    aiStatus: 'READY',
+    fallbackUsed: false
+  });
+
+  useEffect(() => {
+    const fetchAiTelemetry = async () => {
+      try {
+        const res = await fetch('/api/ai/status');
+        if (res.ok) {
+          const data = await res.json();
+          setAiEngineTelemetry({
+            provider: data.provider || 'NONE',
+            model: data.model || 'edge-vision-2.5',
+            aiStatus: data.aiStatus || (data.configured ? 'READY' : 'EDGE_AUTONOMOUS'),
+            fallbackUsed: !!data.fallbackUsed
+          });
+        }
+      } catch {
+        // keep current telemetry state
+      }
+    };
+    fetchAiTelemetry();
+    const timer = setInterval(fetchAiTelemetry, 6000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Modals / Drawers state
   const [isAlertDetailOpen, setIsAlertDetailOpen] = useState(false);
@@ -228,7 +260,42 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Phase 17 AI Engine Status Indicator */}
+          <div className="flex items-center gap-2 px-3 py-1 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 shadow-2xs">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">AI Engine</span>
+            {aiEngineTelemetry.provider === 'OMNIROUTE' ? (
+              aiEngineTelemetry.fallbackUsed ? (
+                <span className="inline-flex items-center gap-1.5 font-semibold text-amber-700">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  Gemini <span className="text-slate-400 font-normal">↳ OmniRoute fallback used</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-700">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  OmniRoute <span className="text-slate-500 font-mono text-[11px]">→ {aiEngineTelemetry.model}</span>
+                </span>
+              )
+            ) : aiEngineTelemetry.provider === 'GEMINI' ? (
+              aiEngineTelemetry.fallbackUsed ? (
+                <span className="inline-flex items-center gap-1.5 font-semibold text-amber-700">
+                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  OmniRoute <span className="text-slate-400 font-normal">↳ Gemini fallback used</span>
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 font-semibold text-emerald-700">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  Gemini <span className="text-slate-500 font-mono text-[11px]">{aiEngineTelemetry.model}</span>
+                </span>
+              )
+            ) : (
+              <span className="inline-flex items-center gap-1.5 font-semibold text-slate-600">
+                <span className="w-2 h-2 rounded-full bg-blue-500" />
+                Autonomous Edge Vision <span className="text-slate-400 font-normal text-[11px]">2.5</span>
+              </span>
+            )}
+          </div>
+
           <span className="text-xs font-semibold px-3 py-1 bg-white border border-slate-200 rounded-xl text-slate-600 shadow-2xs">
             District: <strong className="text-slate-900">Ahmedabad</strong>
           </span>
@@ -455,7 +522,14 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
           <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
             <span className="text-slate-500">AI Vision Engine:</span>
-            <p className="font-bold text-slate-800">Gemini 3.8 Flash (Server-side)</p>
+            <p className="font-bold text-slate-800">
+              {aiEngineTelemetry.provider === 'OMNIROUTE'
+                ? `OmniRoute → ${aiEngineTelemetry.model}`
+                : aiEngineTelemetry.provider === 'GEMINI'
+                ? `Gemini (${aiEngineTelemetry.model})`
+                : 'Autonomous Edge Vision 2.5'}
+              {aiEngineTelemetry.fallbackUsed && ' (Fallback Active)'}
+            </p>
           </div>
           <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
             <span className="text-slate-500">Evidence Hash Standard:</span>

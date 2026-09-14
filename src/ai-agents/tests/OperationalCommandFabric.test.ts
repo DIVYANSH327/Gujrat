@@ -191,6 +191,7 @@ async function runTests() {
   console.log('\n================================================================');
   console.log('✅ ALL OPERATIONAL AI COMMAND FABRIC TESTS PASSED SUCCESSFULLY!');
   console.log('================================================================\n');
+  process.exit(0);
 }
 
 runTests().catch(err => {

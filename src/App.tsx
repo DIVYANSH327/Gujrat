@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
 import { AISearch } from './components/AISearch';
@@ -9,6 +10,7 @@ import { TargetTracking } from './components/TargetTracking';
 import { EdgeFleet } from './components/EdgeFleet';
 import { SecurityPolicies } from './components/SecurityPolicies';
 import { ChallengeMode } from './components/ChallengeMode';
+import { GodsEyeWorkspace } from './components/godseye/GodsEyeWorkspace';
 import { SystemReadinessView } from './components/SystemReadinessView';
 import { YouTubeDemoCameras } from './components/YouTubeDemoCameras';
 import { AIAgentMesh } from './components/AIAgentMesh';
@@ -31,8 +33,9 @@ import { GovernmentDeploymentView } from './components/GovernmentDeploymentView'
 import { GeospatialMapView } from './components/geospatial/GeospatialMapView';
 import { SentinelCameraGridLab } from './components/SentinelCameraGridLab';
 import { SentinelHealthIndicator } from './components/SentinelHealthIndicator';
+import { NightAuditView } from './components/night-audit/NightAuditView';
+import { AlertNotificationToast } from './components/AlertNotificationToast';
 import { ViewMode, DetectionEvent } from './types';
-import { mockDetections } from './mockData';
 import { PROJECT_BRANDING } from './branding';
 import { audioAlertService } from './services/AudioAlertService';
 import { 
@@ -59,7 +62,7 @@ export default function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [time, setTime] = useState(new Date());
-  const [detections, setDetections] = useState<DetectionEvent[]>(mockDetections);
+  const [detections, setDetections] = useState<DetectionEvent[]>([]);
   const [isAudioMuted, setIsAudioMuted] = useState(() => audioAlertService.isMuted());
 
   useEffect(() => {
@@ -74,12 +77,12 @@ export default function App() {
 
   const handleAutoCapture = (imageUrl: string, mode: string) => {
     const newEvent: DetectionEvent = {
-      id: `auto-${Date.now()}`,
-      cameraId: 'CAM-014',
+      id: `capture-${Date.now()}`,
+      cameraId: 'LIVE-CAM',
       timestamp: new Date().toISOString(),
       objectType: mode === 'walking' ? 'person' : 'vehicle',
-      confidence: +(0.88 + Math.random() * 0.10).toFixed(2),
-      metadata: { movementMode: mode, plate: 'GJ01AB1234' },
+      confidence: 1.0,
+      metadata: { movementMode: mode },
       snapshotUrl: imageUrl
     };
     setDetections(prev => [newEvent, ...prev]);
@@ -162,13 +165,19 @@ export default function App() {
       case 'ai_training_lab':
         return <AiTrainingLab />;
       case 'ai_mesh':
-        return <AIAgentMesh onNavigateToTracking={() => setCurrentView('challenge')} onNavigateToCameras={() => setCurrentView('cameras')} />;
+        return (
+          <AIAgentMesh 
+            onNavigateToTracking={() => setCurrentView('challenge')} 
+            onNavigateToCameras={() => setCurrentView('cameras')} 
+            onNavigateToMobileCamera={() => setCurrentView('mobile_camera')} 
+          />
+        );
       case 'federated':
         return <FederatedCctvView onNavigate={setCurrentView} />;
       case 'sites':
         return <CctvSiteRegistryView onNavigate={setCurrentView} />;
       case 'challenge':
-        return <ChallengeMode />;
+        return <GodsEyeWorkspace />;
       case 'search':
         return <AISearch detections={detections} onNavigateToGodsEye={() => setCurrentView('challenge')} />;
       case 'cameras':
@@ -202,6 +211,18 @@ export default function App() {
             }}
           />
         );
+      case 'raw_video_audit':
+        return (
+          <SentinelCameraGridLab
+            initialTab="diagnostics"
+            onNavigate={(view) => setCurrentView(view)}
+            onImportCameraToLive={(cam) => {
+              setCurrentView('cameras');
+            }}
+          />
+        );
+      case 'night_audit':
+        return <NightAuditView />;
       case 'geospatial_map':
         return (
           <GeospatialMapView
@@ -368,8 +389,20 @@ export default function App() {
         />
 
         {/* Content Area */}
-        <main className="flex-1 relative overflow-y-auto overflow-x-hidden flex flex-col custom-scrollbar bg-slate-50">
-          {renderView()}
+        <main className="flex-1 relative overflow-y-auto overflow-x-hidden flex flex-col custom-scrollbar bg-slate-50" id="main-content-viewport">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentView}
+              initial={{ opacity: 0, y: 3 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -3 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="flex-1 flex flex-col w-full h-full"
+              id={`view-container-${currentView}`}
+            >
+              {renderView()}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
 
@@ -393,6 +426,18 @@ export default function App() {
           </button>
         </div>
       </footer>
+
+      {/* Real-time Slide-in Incident Notification Toasts */}
+      <AlertNotificationToast 
+        onNavigate={(view) => setCurrentView(view as ViewMode)}
+        onSelectIncident={(incidentId) => {
+          setSelectedIncidentId(incidentId);
+          setCurrentView('incidents');
+        }}
+        onSelectCamera={(cameraId) => {
+          setCurrentView('cameras');
+        }}
+      />
 
       {/* In-App About & System Info Modal */}
       <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />

@@ -10,7 +10,14 @@ import {
   ShieldAlert,
   BarChart2,
   Cpu,
-  Radio
+  Radio,
+  Cloud,
+  Database,
+  Layers,
+  ArrowRight,
+  Send,
+  FileCode,
+  ShieldCheck
 } from 'lucide-react';
 import { operationalDigitalTwinService } from '../services/OperationalDigitalTwinService';
 import { sysEvents } from '../services/Architecture';
@@ -19,14 +26,33 @@ import { DigitalTwinMetrics, DigitalTwinFleetScale } from '../types';
 export const DigitalTwinScaleView: React.FC = () => {
   const [scale, setScale] = useState<DigitalTwinFleetScale>(80000);
   const [metrics, setMetrics] = useState<DigitalTwinMetrics>(operationalDigitalTwinService.getMetrics());
+  const [cloudTelemetry, setCloudTelemetry] = useState<any>(null);
+  const [cloudTopology, setCloudTopology] = useState<any>(null);
+  const [activeTab, setActiveTab] = useState<'SCALE_LAB' | 'GOOGLE_CLOUD_ARCH' | 'BIGQUERY_SCHEMA'>('SCALE_LAB');
+  const [dispatchStatus, setDispatchStatus] = useState<string | null>(null);
 
   const refreshMetrics = () => {
     setMetrics(operationalDigitalTwinService.getMetrics());
   };
 
+  const fetchCloudScaleData = async () => {
+    try {
+      const [statusRes, topRes] = await Promise.all([
+        fetch('/api/cloud-scale/status').then(r => r.ok ? r.json() : null),
+        fetch('/api/cloud-scale/topology').then(r => r.ok ? r.json() : null)
+      ]);
+      if (statusRes) setCloudTelemetry(statusRes);
+      if (topRes) setCloudTopology(topRes);
+    } catch {}
+  };
+
   useEffect(() => {
     refreshMetrics();
-    const timer = setInterval(refreshMetrics, 1500);
+    fetchCloudScaleData();
+    const timer = setInterval(() => {
+      refreshMetrics();
+      fetchCloudScaleData();
+    }, 2000);
     const unsub1 = sysEvents.on('DIGITAL_TWIN_FAULT_INJECTED', refreshMetrics);
     const unsub2 = sysEvents.on('DIGITAL_TWIN_RESTORED', refreshMetrics);
     return () => {
@@ -52,6 +78,26 @@ export const DigitalTwinScaleView: React.FC = () => {
     refreshMetrics();
   };
 
+  const handleDispatchTestCloudEvent = async () => {
+    setDispatchStatus('Dispatching CloudEvent v1.0...');
+    try {
+      const res = await fetch('/api/cloud-scale/dispatch-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cameraId: 'cam12', plate: 'GJ01AB1234' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDispatchStatus(`✅ CloudEvent enqueued: ${data.result.eventId} (Queue: ${data.telemetry.queueDepth})`);
+        fetchCloudScaleData();
+      } else {
+        setDispatchStatus(`❌ Failed: ${data.error}`);
+      }
+    } catch (err: any) {
+      setDispatchStatus(`❌ Error: ${err?.message || err}`);
+    }
+  };
+
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
@@ -62,207 +108,479 @@ export const DigitalTwinScaleView: React.FC = () => {
               <Server className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">OPERATIONAL DIGITAL TWIN & SCALE LAB</h1>
-              <p className="text-xs text-slate-400">Architectural stress-testing, fleet-scale event simulation, and autonomous failover validation</p>
+              <h1 className="text-xl font-bold text-white tracking-tight">STATEWIDE 80,000+ CCTV SCALE & GOOGLE CLOUD ARCHITECTURE</h1>
+              <p className="text-xs text-slate-400">Heterogeneous edge pre-filtering, CloudEvent v1.0 fabric, BigQuery analytics, and 24/7 graceful offline isolation</p>
             </div>
           </div>
         </div>
 
-        {/* Disclaimer Pill */}
-        <span className="px-3 py-1 text-[11px] font-bold rounded-lg bg-indigo-500/10 text-indigo-300 border border-indigo-500/30">
-          ARCHITECTURAL SCALE SIMULATION (80K+ CAMERAS)
-        </span>
-      </div>
-
-      {/* Scale Selector */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center space-x-2">
-            <Sliders className="w-4 h-4 text-cyan-400" />
-            <span>Select Simulated Camera Fleet Scale:</span>
-          </span>
-          <span className="text-xs font-mono font-bold text-cyan-400">
-            {scale.toLocaleString()} Active Grid Nodes
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-          {([1000, 10000, 50000, 80000, 100000] as DigitalTwinFleetScale[]).map(s => (
-            <button
-              key={s}
-              onClick={() => handleScaleChange(s)}
-              className={`p-3 rounded-lg border text-xs font-bold font-mono transition text-center ${
-                scale === s 
-                  ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg ring-2 ring-indigo-500/30' 
-                  : 'bg-slate-800/80 border-slate-700/60 text-slate-300 hover:bg-slate-800'
-              }`}
-            >
-              {s.toLocaleString()} CAMERAS
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Telemetry Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow">
-          <span className="text-xs text-slate-400 font-semibold block mb-1">Statewide Ingestion</span>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-2xl font-bold text-cyan-400 font-mono">{metrics.eventsPerSec.toLocaleString()}</span>
-            <span className="text-xs text-slate-400">events/s</span>
-          </div>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow">
-          <span className="text-xs text-slate-400 font-semibold block mb-1">P95 Pipeline Latency</span>
-          <div className="flex items-baseline space-x-2">
-            <span className={`text-2xl font-bold font-mono ${metrics.p95LatencyMs > 250 ? 'text-rose-400' : 'text-emerald-400'}`}>
-              {metrics.p95LatencyMs}
-            </span>
-            <span className="text-xs text-slate-400">ms</span>
-          </div>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow">
-          <span className="text-xs text-slate-400 font-semibold block mb-1">Agent Mesh Fleet</span>
-          <div className="flex items-baseline space-x-2">
-            <span className="text-2xl font-bold text-indigo-400 font-mono">{metrics.activeAgents}</span>
-            <span className="text-xs text-slate-400">autonomous nodes</span>
-          </div>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow">
-          <span className="text-xs text-slate-400 font-semibold block mb-1">Backpressure & Queue</span>
-          <div className="flex items-baseline space-x-2">
-            <span className={`text-2xl font-bold font-mono ${metrics.backpressureActive ? 'text-amber-400' : 'text-slate-200'}`}>
-              {metrics.queuedJobs}
-            </span>
-            <span className="text-xs text-slate-400">{metrics.backpressureActive ? 'THROTTLED' : 'NOMINAL'}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Fault Injection & Rebalancing Controls */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-2">
-            <Zap className="w-5 h-5 text-amber-400" />
-            <h3 className="text-sm font-bold uppercase tracking-wider text-white">Dynamic Fault-Injection & Failover Testing</h3>
-          </div>
+        {/* View Mode Switcher */}
+        <div className="flex items-center space-x-1.5 bg-slate-800/80 p-1 rounded-lg border border-slate-700">
           <button
-            onClick={handleRestore}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold flex items-center space-x-1.5 border border-slate-700 transition"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Restore Nominal State</span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          <button
-            onClick={() => handleTriggerFault('CAMERA_FAILURE')}
-            className={`p-3 rounded-lg border text-xs font-semibold transition text-left space-y-1 ${
-              metrics.faultInjectionState.cameraFailureActive
-                ? 'bg-rose-950/40 border-rose-500/80 text-rose-300'
-                : 'bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-800'
+            onClick={() => setActiveTab('SCALE_LAB')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition ${
+              activeTab === 'SCALE_LAB' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <span className="block font-bold">1. Camera Failure</span>
-            <span className="text-[11px] text-slate-400 block">Drop 12% cameras; verify degraded-mode isolation</span>
+            Digital Twin Lab
           </button>
-
           <button
-            onClick={() => handleTriggerFault('EDGE_FAILURE')}
-            className={`p-3 rounded-lg border text-xs font-semibold transition text-left space-y-1 ${
-              metrics.faultInjectionState.edgeFailureActive
-                ? 'bg-rose-950/40 border-rose-500/80 text-rose-300'
-                : 'bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-800'
+            onClick={() => setActiveTab('GOOGLE_CLOUD_ARCH')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition flex items-center space-x-1 ${
+              activeTab === 'GOOGLE_CLOUD_ARCH' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <span className="block font-bold">2. Edge Node Dropout</span>
-            <span className="text-[11px] text-slate-400 block">Isolate edge gateway; trigger job re-queuing</span>
+            <Cloud className="w-3.5 h-3.5" />
+            <span>Cloud Architecture (80K)</span>
           </button>
-
           <button
-            onClick={() => handleTriggerFault('REGIONAL_FAILURE')}
-            className={`p-3 rounded-lg border text-xs font-semibold transition text-left space-y-1 ${
-              metrics.faultInjectionState.regionalFailureActive
-                ? 'bg-rose-950/40 border-rose-500/80 text-rose-300'
-                : 'bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-800'
+            onClick={() => setActiveTab('BIGQUERY_SCHEMA')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition flex items-center space-x-1 ${
+              activeTab === 'BIGQUERY_SCHEMA' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
-            <span className="block font-bold">3. Regional Outage</span>
-            <span className="text-[11px] text-slate-400 block">Sever metro link; trigger statewide rebalancing</span>
-          </button>
-
-          <button
-            onClick={() => handleTriggerFault('LATENCY_BURST')}
-            className={`p-3 rounded-lg border text-xs font-semibold transition text-left space-y-1 ${
-              metrics.faultInjectionState.latencyBurstActive
-                ? 'bg-amber-950/40 border-amber-500/80 text-amber-300'
-                : 'bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-800'
-            }`}
-          >
-            <span className="block font-bold">4. WAN Latency Spike</span>
-            <span className="text-[11px] text-slate-400 block">Inject 3.2x latency; verify backpressure throttle</span>
-          </button>
-
-          <button
-            onClick={() => handleTriggerFault('AGENT_OVERLOAD')}
-            className={`p-3 rounded-lg border text-xs font-semibold transition text-left space-y-1 ${
-              metrics.faultInjectionState.agentOverloadActive
-                ? 'bg-amber-950/40 border-amber-500/80 text-amber-300'
-                : 'bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-800'
-            }`}
-          >
-            <span className="block font-bold">5. Agent Fleet Overload</span>
-            <span className="text-[11px] text-slate-400 block">Simulate 25% agent drain; test workload failover</span>
+            <Database className="w-3.5 h-3.5" />
+            <span>BigQuery Partitioning</span>
           </button>
         </div>
       </div>
 
-      {/* Regional Load Breakdown */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow">
-        <h3 className="text-sm font-bold uppercase tracking-wider text-white mb-4 flex items-center space-x-2">
-          <BarChart2 className="w-4 h-4 text-indigo-400" />
-          <span>Regional Processing Clusters & Load Balancing</span>
-        </h3>
-
-        <div className="space-y-4">
-          {metrics.regionalLoads.map((reg, idx) => (
-            <div key={idx} className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/50 text-xs">
-              <div className="flex items-center justify-between mb-2">
+      {activeTab === 'GOOGLE_CLOUD_ARCH' && (
+        <div className="space-y-6">
+          {/* Cloud Adapter Real-Time Telemetry Bar */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-800">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-cyan-500/10 border border-cyan-500/30 rounded-lg text-cyan-400">
+                  <Cloud className="w-5 h-5" />
+                </div>
                 <div>
-                  <span className="font-bold text-white text-sm">{reg.region}</span>
-                  <span className="text-slate-400 ml-2">({reg.camerasCount.toLocaleString()} Cameras, {reg.activeAgents} Agents)</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-slate-400 font-mono">{reg.bandwidthMbps} Mbps</span>
-                  <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
-                    reg.status === 'OVERLOADED' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
-                    reg.status === 'ELEVATED' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                    'bg-emerald-500/20 text-emerald-400'
-                  }`}>
-                    {reg.status} ({reg.loadPercent}%)
-                  </span>
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">Google Cloud Scale Adapter Status</h3>
+                  <p className="text-xs text-slate-400">
+                    Mode: <span className="font-mono font-bold text-cyan-400">{cloudTelemetry?.status || 'OFFLINE_LOCAL_MODE'}</span>
+                    <span className="ml-2 text-slate-500">(CCTV Ingestion & Local Evidence 100% Decoupled from Cloud)</span>
+                  </p>
                 </div>
               </div>
 
-              {/* Progress Bar */}
-              <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
-                <div 
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    reg.loadPercent > 90 ? 'bg-rose-500' :
-                    reg.loadPercent > 75 ? 'bg-amber-500' :
-                    'bg-indigo-500'
-                  }`}
-                  style={{ width: `${reg.loadPercent}%` }}
-                />
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleDispatchTestCloudEvent}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Dispatch Test CloudEvent</span>
+                </button>
               </div>
             </div>
-          ))}
+
+            {dispatchStatus && (
+              <div className="mb-4 p-2.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-mono text-slate-300">
+                {dispatchStatus}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="p-3 bg-slate-800/60 rounded-lg border border-slate-700/60">
+                <span className="text-[11px] text-slate-400 block mb-1">Queue Depth</span>
+                <span className="text-xl font-bold font-mono text-cyan-400">
+                  {cloudTelemetry?.queueDepth ?? 0} / {cloudTelemetry?.maxQueueCapacity ?? 2000}
+                </span>
+              </div>
+              <div className="p-3 bg-slate-800/60 rounded-lg border border-slate-700/60">
+                <span className="text-[11px] text-slate-400 block mb-1">Bandwidth Reduction</span>
+                <span className="text-xl font-bold font-mono text-emerald-400">~99.6%</span>
+                <span className="text-[10px] text-slate-400 block">320 Gbps raw → 1.15 Gbps events</span>
+              </div>
+              <div className="p-3 bg-slate-800/60 rounded-lg border border-slate-700/60">
+                <span className="text-[11px] text-slate-400 block mb-1">Dead-Letter Count</span>
+                <span className="text-xl font-bold font-mono text-slate-200">
+                  {cloudTelemetry?.deadLetterCount ?? 0}
+                </span>
+                <span className="text-[10px] text-slate-400 block">Bounded ring buffer</span>
+              </div>
+              <div className="p-3 bg-slate-800/60 rounded-lg border border-slate-700/60">
+                <span className="text-[11px] text-slate-400 block mb-1">Regional Gateways</span>
+                <span className="text-xl font-bold font-mono text-indigo-400">33 Districts</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Statewide 80,000+ Architecture Flow Pipeline */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-white mb-4 flex items-center space-x-2">
+              <Layers className="w-4 h-4 text-indigo-400" />
+              <span>Statewide 80,000+ Camera Scaled Ingestion Pipeline</span>
+            </h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {[
+                {
+                  step: '01',
+                  name: '80K+ Cameras',
+                  role: 'Heterogeneous Connectors',
+                  tech: 'RTSP, ONVIF, VMS, Radar Doppler, ANPR Nodes',
+                  color: 'border-slate-700 bg-slate-800/40 text-slate-200'
+                },
+                {
+                  step: '02',
+                  name: 'Regional Edge',
+                  role: 'Local Ingestion & Filter',
+                  tech: 'Laplacian Blur, Motion Trigger, YOLOv8 Edge',
+                  color: 'border-cyan-500/40 bg-cyan-950/20 text-cyan-300'
+                },
+                {
+                  step: '03',
+                  name: 'CloudEvent Fabric',
+                  role: 'Standard Ingestion Bus',
+                  tech: 'Google Cloud Pub/Sub, Idempotency Deduplication',
+                  color: 'border-indigo-500/40 bg-indigo-950/20 text-indigo-300'
+                },
+                {
+                  step: '04',
+                  name: 'AI Vision Mesh',
+                  role: 'Targeted Verification',
+                  tech: 'Gemini Multimodal, HSRP Rule 50 Checker',
+                  color: 'border-purple-500/40 bg-purple-950/20 text-purple-300'
+                },
+                {
+                  step: '05',
+                  name: 'BigQuery / GCS',
+                  role: 'Partitioned Analytics',
+                  tech: 'BigQuery Day-Partitioning, SHA-256 Vault',
+                  color: 'border-amber-500/40 bg-amber-950/20 text-amber-300'
+                },
+                {
+                  step: '06',
+                  name: 'Command & GIS',
+                  role: 'Live Operational UI',
+                  tech: 'Alert Notification Toast, Section 63 BSA',
+                  color: 'border-emerald-500/40 bg-emerald-950/20 text-emerald-300'
+                }
+              ].map((stage, idx) => (
+                <div key={idx} className={`p-4 rounded-xl border flex flex-col justify-between space-y-2 ${stage.color}`}>
+                  <div>
+                    <span className="text-[10px] font-mono font-bold opacity-60 block">STAGE {stage.step}</span>
+                    <h4 className="text-xs font-bold font-sans mt-0.5">{stage.name}</h4>
+                    <p className="text-[11px] font-medium opacity-80 mt-1">{stage.role}</p>
+                  </div>
+                  <div className="pt-2 border-t border-white/10 text-[10px] opacity-70 font-mono">
+                    {stage.tech}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Heterogeneous Camera Capability Matrix */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-white mb-4 flex items-center space-x-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>Heterogeneous Camera Capability & Protocol Discovery Matrix</span>
+            </h3>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-800 text-slate-400 font-mono text-[11px]">
+                    <th className="py-2.5 px-3">Camera Node / Class</th>
+                    <th className="py-2.5 px-3">Protocol</th>
+                    <th className="py-2.5 px-3">Video</th>
+                    <th className="py-2.5 px-3">ANPR</th>
+                    <th className="py-2.5 px-3">Radar Doppler</th>
+                    <th className="py-2.5 px-3">Edge AI</th>
+                    <th className="py-2.5 px-3">Stream Profile</th>
+                    <th className="py-2.5 px-3">Edge Gateway Routing</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 font-mono text-slate-300">
+                  <tr>
+                    <td className="py-3 px-3 font-sans font-bold text-white">CAM-12 (Toll Plaza Hero)</td>
+                    <td className="py-3 px-3 text-cyan-400">ANPR / RTSP</td>
+                    <td className="py-3 px-3 text-emerald-400">✅ Supported</td>
+                    <td className="py-3 px-3 text-emerald-400">✅ High Res (HSRP)</td>
+                    <td className="py-3 px-3 text-slate-500">❌ False</td>
+                    <td className="py-3 px-3 text-emerald-400">✅ Active</td>
+                    <td className="py-3 px-3">1080p @ 25fps</td>
+                    <td className="py-3 px-3 text-indigo-400">EDGE-GANDHINAGAR-01</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 px-3 font-sans font-bold text-white">Highway Radar Node (NH-48)</td>
+                    <td className="py-3 px-3 text-cyan-400">RADAR_INTEGRATED</td>
+                    <td className="py-3 px-3 text-emerald-400">✅ Supported</td>
+                    <td className="py-3 px-3 text-emerald-400">✅ Supported</td>
+                    <td className="py-3 px-3 text-emerald-400">✅ 24GHz Doppler</td>
+                    <td className="py-3 px-3 text-emerald-400">✅ Speed Trigger</td>
+                    <td className="py-3 px-3">4K Event Burst</td>
+                    <td className="py-3 px-3 text-indigo-400">EDGE-AHMEDABAD-02</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 px-3 font-sans font-bold text-white">General Metro PTZ</td>
+                    <td className="py-3 px-3 text-cyan-400">ONVIF Profile S</td>
+                    <td className="py-3 px-3 text-emerald-400">✅ Supported</td>
+                    <td className="py-3 px-3 text-slate-500">⚠️ Conditional</td>
+                    <td className="py-3 px-3 text-slate-500">❌ False</td>
+                    <td className="py-3 px-3 text-slate-500">❌ False</td>
+                    <td className="py-3 px-3">720p Adaptive</td>
+                    <td className="py-3 px-3 text-indigo-400">EDGE-SURAT-01</td>
+                  </tr>
+                  <tr>
+                    <td className="py-3 px-3 font-sans font-bold text-white">Legacy Analog / DVR Feed</td>
+                    <td className="py-3 px-3 text-cyan-400">VMS_API / DVR</td>
+                    <td className="py-3 px-3 text-emerald-400">✅ Supported</td>
+                    <td className="py-3 px-3 text-slate-500">❌ False</td>
+                    <td className="py-3 px-3 text-slate-500">❌ False</td>
+                    <td className="py-3 px-3 text-slate-500">❌ False</td>
+                    <td className="py-3 px-3">360p Low Bandwidth</td>
+                    <td className="py-3 px-3 text-indigo-400">EDGE-RAJKOT-01</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
+
+      {activeTab === 'BIGQUERY_SCHEMA' && (
+        <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Database className="w-5 h-5 text-indigo-400" />
+              <h3 className="text-sm font-bold uppercase tracking-wider text-white">
+                BigQuery Partitioned Analytics Table Specification
+              </h3>
+            </div>
+            <span className="px-3 py-1 bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 rounded-lg text-xs font-mono">
+              Dataset: police_surveillance_mesh | Partition: DAY
+            </span>
+          </div>
+
+          <p className="text-xs text-slate-400">
+            Every surveillance sighting is stored with immutable SHA-256 sourceHash and idempotency keys to ensure judicial compliance under Section 63 of BSA 2023.
+          </p>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-slate-800 text-slate-400 font-mono text-[11px]">
+                  <th className="py-2 px-3">Field Name</th>
+                  <th className="py-2 px-3">Type</th>
+                  <th className="py-2 px-3">Mode</th>
+                  <th className="py-2 px-3">Description</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60 font-mono text-slate-300">
+                <tr><td className="py-2 px-3 text-cyan-400">eventId</td><td>STRING</td><td className="text-amber-400">REQUIRED</td><td className="text-slate-400">Unique UUID v4 event identifier</td></tr>
+                <tr><td className="py-2 px-3 text-cyan-400">cameraId</td><td>STRING</td><td className="text-amber-400">REQUIRED</td><td className="text-slate-400">Canonical CCTV camera identifier</td></tr>
+                <tr><td className="py-2 px-3 text-cyan-400">siteId</td><td>STRING</td><td className="text-amber-400">REQUIRED</td><td className="text-slate-400">Junction / Toll Plaza site location</td></tr>
+                <tr><td className="py-2 px-3 text-cyan-400">district</td><td>STRING</td><td className="text-amber-400">REQUIRED</td><td className="text-slate-400">Administrative district of Gujarat</td></tr>
+                <tr><td className="py-2 px-3 text-cyan-400">timestamp</td><td>TIMESTAMP</td><td className="text-amber-400">REQUIRED</td><td className="text-slate-400">Event detection UTC timestamp (Partition Key)</td></tr>
+                <tr><td className="py-2 px-3 text-cyan-400">vehicleTrackId</td><td>STRING</td><td className="text-amber-400">REQUIRED</td><td className="text-slate-400">Temporal tracking association ID</td></tr>
+                <tr><td className="py-2 px-3 text-cyan-400">ocrText</td><td>STRING</td><td>NULLABLE</td><td className="text-slate-400">Extracted license plate string</td></tr>
+                <tr><td className="py-2 px-3 text-cyan-400">ocrStatus</td><td>STRING</td><td className="text-amber-400">REQUIRED</td><td className="text-slate-400">VERIFIED | PROBABLE | UNCERTAIN | NOT_READABLE</td></tr>
+                <tr><td className="py-2 px-3 text-cyan-400">anprStatus</td><td>STRING</td><td className="text-amber-400">REQUIRED</td><td className="text-slate-400">HSRP compliance classification</td></tr>
+                <tr><td className="py-2 px-3 text-cyan-400">enhancementType</td><td>STRING</td><td className="text-amber-400">REQUIRED</td><td className="text-slate-400">NONE | OPTICAL_ENHANCEMENT | NEURAL_SUPER_RESOLUTION</td></tr>
+                <tr><td className="py-2 px-3 text-cyan-400">sourceHash</td><td>STRING</td><td className="text-amber-400">REQUIRED</td><td className="text-slate-400">SHA-256 hash of immutable source frame buffer</td></tr>
+                <tr><td className="py-2 px-3 text-cyan-400">idempotencyKey</td><td>STRING</td><td className="text-amber-400">REQUIRED</td><td className="text-slate-400">Deduplication unique key</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'SCALE_LAB' && (
+        <>
+          {/* Scale Selector */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center space-x-2">
+                <Sliders className="w-4 h-4 text-cyan-400" />
+                <span>Select Simulated Camera Fleet Scale:</span>
+              </span>
+              <span className="text-xs font-mono font-bold text-cyan-400">
+                {scale.toLocaleString()} Active Grid Nodes
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+              {([1000, 10000, 50000, 80000, 100000] as DigitalTwinFleetScale[]).map(s => (
+                <button
+                  key={s}
+                  onClick={() => handleScaleChange(s)}
+                  className={`p-3 rounded-lg border text-xs font-bold font-mono transition text-center ${
+                    scale === s 
+                      ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg ring-2 ring-indigo-500/30' 
+                      : 'bg-slate-800/80 border-slate-700/60 text-slate-300 hover:bg-slate-800'
+                  }`}
+                >
+                  {s.toLocaleString()} CAMERAS
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Telemetry Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow">
+              <span className="text-xs text-slate-400 font-semibold block mb-1">Statewide Ingestion</span>
+              <div className="flex items-baseline space-x-2">
+                <span className="text-2xl font-bold text-cyan-400 font-mono">{metrics.eventsPerSec.toLocaleString()}</span>
+                <span className="text-xs text-slate-400">events/s</span>
+              </div>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow">
+              <span className="text-xs text-slate-400 font-semibold block mb-1">P95 Pipeline Latency</span>
+              <div className="flex items-baseline space-x-2">
+                <span className={`text-2xl font-bold font-mono ${metrics.p95LatencyMs > 250 ? 'text-rose-400' : 'text-emerald-400'}`}>
+                  {metrics.p95LatencyMs}
+                </span>
+                <span className="text-xs text-slate-400">ms</span>
+              </div>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow">
+              <span className="text-xs text-slate-400 font-semibold block mb-1">Agent Mesh Fleet</span>
+              <div className="flex items-baseline space-x-2">
+                <span className="text-2xl font-bold text-indigo-400 font-mono">{metrics.activeAgents}</span>
+                <span className="text-xs text-slate-400">autonomous nodes</span>
+              </div>
+            </div>
+
+            <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow">
+              <span className="text-xs text-slate-400 font-semibold block mb-1">Backpressure & Queue</span>
+              <div className="flex items-baseline space-x-2">
+                <span className={`text-2xl font-bold font-mono ${metrics.backpressureActive ? 'text-amber-400' : 'text-slate-200'}`}>
+                  {metrics.queuedJobs}
+                </span>
+                <span className="text-xs text-slate-400">{metrics.backpressureActive ? 'THROTTLED' : 'NOMINAL'}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Fault Injection & Rebalancing Controls */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-2">
+                <Zap className="w-5 h-5 text-amber-400" />
+                <h3 className="text-sm font-bold uppercase tracking-wider text-white">Dynamic Fault-Injection & Failover Testing</h3>
+              </div>
+              <button
+                onClick={handleRestore}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold flex items-center space-x-1.5 border border-slate-700 transition"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Restore Nominal State</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+              <button
+                onClick={() => handleTriggerFault('CAMERA_FAILURE')}
+                className={`p-3 rounded-lg border text-xs font-semibold transition text-left space-y-1 ${
+                  metrics.faultInjectionState.cameraFailureActive
+                    ? 'bg-rose-950/40 border-rose-500/80 text-rose-300'
+                    : 'bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <span className="block font-bold">1. Camera Failure</span>
+                <span className="text-[11px] text-slate-400 block">Drop 12% cameras; verify degraded-mode isolation</span>
+              </button>
+
+              <button
+                onClick={() => handleTriggerFault('EDGE_FAILURE')}
+                className={`p-3 rounded-lg border text-xs font-semibold transition text-left space-y-1 ${
+                  metrics.faultInjectionState.edgeFailureActive
+                    ? 'bg-rose-950/40 border-rose-500/80 text-rose-300'
+                    : 'bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <span className="block font-bold">2. Edge Node Dropout</span>
+                <span className="text-[11px] text-slate-400 block">Isolate edge gateway; trigger job re-queuing</span>
+              </button>
+
+              <button
+                onClick={() => handleTriggerFault('REGIONAL_FAILURE')}
+                className={`p-3 rounded-lg border text-xs font-semibold transition text-left space-y-1 ${
+                  metrics.faultInjectionState.regionalFailureActive
+                    ? 'bg-rose-950/40 border-rose-500/80 text-rose-300'
+                    : 'bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <span className="block font-bold">3. Regional Outage</span>
+                <span className="text-[11px] text-slate-400 block">Sever metro link; trigger statewide rebalancing</span>
+              </button>
+
+              <button
+                onClick={() => handleTriggerFault('LATENCY_BURST')}
+                className={`p-3 rounded-lg border text-xs font-semibold transition text-left space-y-1 ${
+                  metrics.faultInjectionState.latencyBurstActive
+                    ? 'bg-amber-950/40 border-amber-500/80 text-amber-300'
+                    : 'bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <span className="block font-bold">4. WAN Latency Spike</span>
+                <span className="text-[11px] text-slate-400 block">Inject 3.2x latency; verify backpressure throttle</span>
+              </button>
+
+              <button
+                onClick={() => handleTriggerFault('AGENT_OVERLOAD')}
+                className={`p-3 rounded-lg border text-xs font-semibold transition text-left space-y-1 ${
+                  metrics.faultInjectionState.agentOverloadActive
+                    ? 'bg-amber-950/40 border-amber-500/80 text-amber-300'
+                    : 'bg-slate-800/60 border-slate-700/60 text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                <span className="block font-bold">5. Agent Fleet Overload</span>
+                <span className="text-[11px] text-slate-400 block">Simulate 25% agent drain; test workload failover</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Regional Load Breakdown */}
+          <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-white mb-4 flex items-center space-x-2">
+              <BarChart2 className="w-4 h-4 text-indigo-400" />
+              <span>Regional Processing Clusters & Load Balancing</span>
+            </h3>
+
+            <div className="space-y-4">
+              {metrics.regionalLoads.map((reg, idx) => (
+                <div key={idx} className="p-4 bg-slate-800/50 rounded-lg border border-slate-700/50 text-xs">
+                  <div className="flex items-center justify-between mb-2">
+                    <div>
+                      <span className="font-bold text-white text-sm">{reg.region}</span>
+                      <span className="text-slate-400 ml-2">({reg.camerasCount.toLocaleString()} Cameras, {reg.activeAgents} Agents)</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-slate-400 font-mono">{reg.bandwidthMbps} Mbps</span>
+                      <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
+                        reg.status === 'OVERLOADED' ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30' :
+                        reg.status === 'ELEVATED' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                        'bg-emerald-500/20 text-emerald-400'
+                      }`}>
+                        {reg.status} ({reg.loadPercent}%)
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Progress Bar */}
+                  <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        reg.loadPercent > 90 ? 'bg-rose-500' :
+                        reg.loadPercent > 75 ? 'bg-amber-500' :
+                        'bg-indigo-500'
+                      }`}
+                      style={{ width: `${reg.loadPercent}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

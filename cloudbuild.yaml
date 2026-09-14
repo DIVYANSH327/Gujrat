@@ -1,0 +1,43 @@
+# Google Cloud Build Pipeline for Sentinel Grid
+# Gujarat Police CCTV & AI Intelligence Platform
+
+steps:
+  # Step 1: Build Docker Container Image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/sentinel-grid/sentinel-server:$SHORT_SHA'
+      - '-t'
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/sentinel-grid/sentinel-server:latest'
+      - '.'
+
+  # Step 2: Push Container to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'asia-south1-docker.pkg.dev/$PROJECT_ID/sentinel-grid/sentinel-server:$SHORT_SHA'
+
+  # Step 3: Deploy to Google Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'sentinel-grid-service'
+      - '--image=asia-south1-docker.pkg.dev/$PROJECT_ID/sentinel-grid/sentinel-server:$SHORT_SHA'
+      - '--region=asia-south1'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--port=3000'
+      - '--cpu=2'
+      - '--memory=2Gi'
+      - '--min-instances=1'
+      - '--max-instances=10'
+      - '--set-env-vars=NODE_ENV=production,ENABLE_GOOGLE_CLOUD_SYNC=true,GCP_BIGQUERY_DATASET=police_surveillance_mesh,GCP_GCS_EVIDENCE_BUCKET=gujarat-police-cctv-evidence-asia-south1'
+
+images:
+  - 'asia-south1-docker.pkg.dev/$PROJECT_ID/sentinel-grid/sentinel-server:$SHORT_SHA'
+  - 'asia-south1-docker.pkg.dev/$PROJECT_ID/sentinel-grid/sentinel-server:latest'
+
+timeout: '900s'

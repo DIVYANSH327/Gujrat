@@ -42,6 +42,7 @@ import { AIJobQueueView } from './AIJobQueueView';
 import { AIWorkflow } from './AIWorkflow';
 import { AIIncidentCorrelationView } from './AIIncidentCorrelationView';
 import { AIAgentDetailsModal } from './AIAgentDetailsModal';
+import { MobilePatrolMeshTab } from './MobilePatrolMeshTab';
 import { sysEvents } from '../services/Architecture';
 import { AIAuditAgent } from '../ai-agents/audit/AIAuditAgent';
 import { IncidentCorrelationAgent } from '../ai-agents/incident/IncidentCorrelationAgent';
@@ -49,13 +50,15 @@ import { IncidentCorrelationAgent } from '../ai-agents/incident/IncidentCorrelat
 interface AIAgentMeshProps {
   onNavigateToTracking?: () => void;
   onNavigateToCameras?: () => void;
+  onNavigateToMobileCamera?: () => void;
 }
 
 export const AIAgentMesh: React.FC<AIAgentMeshProps> = ({
   onNavigateToTracking,
-  onNavigateToCameras
+  onNavigateToCameras,
+  onNavigateToMobileCamera
 }) => {
-  const [activeTab, setActiveTab] = useState<'fleet' | 'workflow' | 'queue' | 'incidents' | 'audit'>('fleet');
+  const [activeTab, setActiveTab] = useState<'fleet' | 'workflow' | 'queue' | 'incidents' | 'audit' | 'mobile_patrol'>('fleet');
   const [agents, setAgents] = useState<AIAgentInfo[]>(agentRegistry.getAllAgentInfos());
   const [jobs, setJobs] = useState<AIAgentJob[]>(jobQueue.getAllJobs());
   const [incidents, setIncidents] = useState<CorrelatedIncident[]>([]);
@@ -420,9 +423,27 @@ export const AIAgentMesh: React.FC<AIAgentMeshProps> = ({
           <FileText size={14} />
           STATUTORY AUDIT TRAIL ({(auditRecords || []).length})
         </button>
+
+        <button
+          onClick={() => setActiveTab('mobile_patrol')}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono font-bold cursor-pointer transition-colors whitespace-nowrap ${
+            activeTab === 'mobile_patrol'
+              ? 'bg-blue-950 border border-blue-500/60 text-blue-300 shadow-sm'
+              : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900/50'
+          }`}
+        >
+          <Car size={14} className="text-blue-400" />
+          PATROL DASHCAM HSRP JUDGMENTS
+        </button>
       </div>
 
       {/* Main Tab Content */}
+      {activeTab === 'mobile_patrol' && (
+        <MobilePatrolMeshTab 
+          onNavigateToMobileCamera={onNavigateToMobileCamera} 
+        />
+      )}
+
       {activeTab === 'fleet' && (
         <AIAgentFleet
           agents={agents}

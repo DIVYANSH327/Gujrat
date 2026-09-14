@@ -1,11 +1,89 @@
 import React, { useState, useEffect } from 'react';
-import { mockNodes } from '../mockData';
 import { Server, Usb, HardDrive, Shield, Video, Network, AlertTriangle, ArrowUpRight, ArrowDownRight, Info, Play, WifiOff, Wifi, Cpu, MemoryStick, Database, CheckCircle2 } from 'lucide-react';
 import { EdgeNode, CommLogEntry } from '../types';
 import { sysEvents, centralAPI, edgeRuntime, runArchitectureTests } from '../services/Architecture';
 
+const CANONICAL_EDGE_NODES: EdgeNode[] = [
+  {
+    id: 'EDGE-GJ-001',
+    siteId: 'SITE-AHM-HQ',
+    status: 'online',
+    ipAddress: '10.142.4.12',
+    dvrCount: 2,
+    camerasConnected: 12,
+    lastHeartbeat: new Date().toISOString(),
+    version: 'v2.4.1-sentinel',
+    deviceCertificateId: 'CERT-ECDSA-GJ-001',
+    capabilities: ['ANPR', 'OBJECT_DETECTION', 'LOCAL_EVIDENCE_STORE'],
+    createdAt: '2025-01-15T00:00:00.000Z',
+    lastSeenAt: new Date().toISOString(),
+    queuedEvents: 0,
+    syncState: 'synchronized',
+    lastConfigUpdate: new Date().toISOString(),
+    policyVersion: 'v1.4.0',
+    securityState: 'secure'
+  },
+  {
+    id: 'EDGE-SURAT-01',
+    siteId: 'SITE-SURAT-RR',
+    status: 'online',
+    ipAddress: '10.142.18.5',
+    dvrCount: 1,
+    camerasConnected: 8,
+    lastHeartbeat: new Date().toISOString(),
+    version: 'v2.4.1-sentinel',
+    deviceCertificateId: 'CERT-ECDSA-GJ-002',
+    capabilities: ['ANPR', 'WRONG_WAY', 'LOCAL_EVIDENCE_STORE'],
+    createdAt: '2025-01-20T00:00:00.000Z',
+    lastSeenAt: new Date().toISOString(),
+    queuedEvents: 0,
+    syncState: 'synchronized',
+    lastConfigUpdate: new Date().toISOString(),
+    policyVersion: 'v1.4.0',
+    securityState: 'secure'
+  },
+  {
+    id: 'EDGE-VAD-01',
+    siteId: 'SITE-VAD-NH48',
+    status: 'online',
+    ipAddress: '10.142.22.9',
+    dvrCount: 1,
+    camerasConnected: 6,
+    lastHeartbeat: new Date().toISOString(),
+    version: 'v2.4.1-sentinel',
+    deviceCertificateId: 'CERT-ECDSA-GJ-003',
+    capabilities: ['ANPR', 'SPEED_DETECTION', 'LOCAL_EVIDENCE_STORE'],
+    createdAt: '2025-02-01T00:00:00.000Z',
+    lastSeenAt: new Date().toISOString(),
+    queuedEvents: 0,
+    syncState: 'synchronized',
+    lastConfigUpdate: new Date().toISOString(),
+    policyVersion: 'v1.4.0',
+    securityState: 'secure'
+  },
+  {
+    id: 'EDGE-GND-01',
+    siteId: 'SITE-GND-SEC10',
+    status: 'online',
+    ipAddress: '10.142.1.2',
+    dvrCount: 1,
+    camerasConnected: 4,
+    lastHeartbeat: new Date().toISOString(),
+    version: 'v2.4.1-sentinel',
+    deviceCertificateId: 'CERT-ECDSA-GJ-004',
+    capabilities: ['ANPR', 'PERIMETER_SECURITY', 'LOCAL_EVIDENCE_STORE'],
+    createdAt: '2025-02-05T00:00:00.000Z',
+    lastSeenAt: new Date().toISOString(),
+    queuedEvents: 0,
+    syncState: 'synchronized',
+    lastConfigUpdate: new Date().toISOString(),
+    policyVersion: 'v1.4.0',
+    securityState: 'secure'
+  }
+];
+
 export function EdgeFleet() {
-  const [nodes, setNodes] = useState<EdgeNode[]>(mockNodes);
+  const [nodes, setNodes] = useState<EdgeNode[]>(CANONICAL_EDGE_NODES);
   const [isProvisioning, setIsProvisioning] = useState(false);
   const [terminalLines, setTerminalLines] = useState<string[]>([]);
   const [isComplete, setIsComplete] = useState(false);

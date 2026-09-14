@@ -24,8 +24,7 @@ import { ViewMode, Camera, DiscoveredVideoDevice, VideoSourceType } from '../typ
 import { EdgeDiscoveryService } from '../edge-agent/DiscoveryService';
 import { CameraDetailsModal } from './CameraDetailsModal';
 import { mobileBrowserCameraSource } from '../services/video/MobileBrowserCameraSource';
-import { sysEvents } from '../services/Architecture';
-import { mockCameras } from '../mockData';
+import { centralRepo, sysEvents } from '../services/Architecture';
 import { StatusBadge, ActionButton } from './ui/OfficerPrimitives';
 
 interface CamerasProps {
@@ -36,30 +35,7 @@ interface CamerasProps {
 const discoveryService = new EdgeDiscoveryService(false);
 
 export function Cameras({ onNavigate }: CamerasProps) {
-  // Operational cameras default with CAM-001 at the top
-  const initialCameras: Camera[] = [
-    {
-      id: 'CAM-001',
-      name: 'Traffic Junction',
-      location: 'Ahmedabad - SG Highway Junction',
-      status: 'online',
-      streamState: 'CONNECTED',
-      protocol: 'ONVIF',
-      sourceType: 'ONVIF',
-      district: 'Ahmedabad',
-      edgeNodeId: 'EDGE-GJ-001',
-      alertCount: 2,
-      lastActive: new Date().toISOString()
-    },
-    ...mockCameras.map((c, i) => ({
-      ...c,
-      alertCount: i % 2 === 0 ? 1 : 0,
-      streamState: c.status === 'online' ? 'CONNECTED' as const : 'DISCONNECTED' as const,
-      protocol: 'ONVIF' as const
-    }))
-  ];
-
-  const [cameras, setCameras] = useState<Camera[]>(initialCameras);
+  const [cameras, setCameras] = useState<Camera[]>(() => discoveryService.getAllCameras());
   const [discoveredDevices, setDiscoveredDevices] = useState<DiscoveredVideoDevice[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<Camera | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'tree'>('grid');

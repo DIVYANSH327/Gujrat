@@ -122,7 +122,7 @@ export class CentralEventBus implements IEventBus {
 
   private constructor() {
     // Purge stale idempotency keys every 30 seconds
-    setInterval(() => {
+    const purgeTimer = setInterval(() => {
       const now = Date.now();
       for (const [k, exp] of this.idempotencyCache.entries()) {
         if (exp < now) {
@@ -130,6 +130,9 @@ export class CentralEventBus implements IEventBus {
         }
       }
     }, 30000);
+    if (purgeTimer && typeof purgeTimer.unref === 'function') {
+      purgeTimer.unref();
+    }
   }
 
   public static getInstance(): CentralEventBus {

@@ -11,13 +11,15 @@
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
-    "test": "tsx src/services/Architecture.ts && tsx src/ai-agents/tests/AIAgentMesh.test.ts && tsx src/ai-agents/tests/UnifiedIntelligenceGrid.test.ts && tsx src/ai-agents/tests/PersistentVehicleIntelligenceV13.test.ts && tsx src/ai-agents/tests/V20VehicleIntelligenceFabric.test.ts && tsx src/ai-agents/tests/V21VehiclePoliceDataMesh.test.ts && tsx src/ai-agents/tests/V23GovernmentFabric.test.ts && tsx src/ai-agents/tests/GeospatialEvidenceService.test.ts && tsx src/ai-agents/tests/RealAIPipelineValidation.test.ts && tsx src/ai-agents/tests/AgenticHsrpVisionMesh.test.ts",
+    "test": "tsx src/ai-agents/tests/AgenticHsrpVisionMesh.test.ts && tsx src/ai-agents/tests/OmniRouteProviderRouter.test.ts && tsx src/ai-agents/tests/SelfRecoveryLifecycle.test.ts && tsx src/ai-agents/tests/Cam12EndToEndRoadTest.test.ts && tsx src/ai-agents/tests/GoogleCloudScaleArchitecture.test.ts && tsx --test src/ai-agents/tests/GoogleCloudAdaptersAndSpecializedAgents.test.ts",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
+    "@googlemaps/markerclusterer": "^2.6.2",
     "@tailwindcss/vite": "^4.1.14",
+    "@vis.gl/react-google-maps": "^1.10.0",
     "@vitejs/plugin-react": "^5.0.4",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",

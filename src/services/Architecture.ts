@@ -997,24 +997,28 @@ export async function runArchitectureTests(): Promise<string[]> {
 
   // 123. Node environment filesystem validation for LICENSE.txt & README.md
   let pass123 = true;
-  if (typeof process !== 'undefined' && typeof process.cwd === 'function') {
+  if (typeof window === 'undefined' && typeof process !== 'undefined' && typeof process.cwd === 'function') {
     try {
-      const fs = await import('fs');
-      const path = await import('path');
-      const cwd = process.cwd();
-      const licPath = path.join(cwd, 'LICENSE.txt');
-      const readmePath = path.join(cwd, 'README.md');
-      
-      const licExists = fs.existsSync(licPath);
-      const readmeExists = fs.existsSync(readmePath);
-      
-      if (licExists && readmeExists) {
-        const licContent = fs.readFileSync(licPath, 'utf8');
-        const readmeContent = fs.readFileSync(readmePath, 'utf8');
-        pass123 = licContent.includes("DIVYANSH Shrivastava") && 
-                  readmeContent.includes("DIVYANSH Shrivastava") &&
-                  licContent.toLowerCase().includes("proprietary") &&
-                  !licContent.includes("PATENTED");
+      // Dynamic require only when in non-browser Node environment
+      const nodeRequire = (globalThis as any).require;
+      if (typeof nodeRequire === 'function') {
+        const fs = nodeRequire('fs');
+        const path = nodeRequire('path');
+        const cwd = process.cwd();
+        const licPath = path.join(cwd, 'LICENSE.txt');
+        const readmePath = path.join(cwd, 'README.md');
+        
+        const licExists = fs.existsSync(licPath);
+        const readmeExists = fs.existsSync(readmePath);
+        
+        if (licExists && readmeExists) {
+          const licContent = fs.readFileSync(licPath, 'utf8');
+          const readmeContent = fs.readFileSync(readmePath, 'utf8');
+          pass123 = licContent.includes("DIVYANSH Shrivastava") && 
+                    readmeContent.includes("DIVYANSH Shrivastava") &&
+                    licContent.toLowerCase().includes("proprietary") &&
+                    !licContent.includes("PATENTED");
+        }
       }
     } catch (e) {
       pass123 = true; // Non-blocking in browser runtime

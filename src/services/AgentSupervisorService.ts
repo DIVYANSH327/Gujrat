@@ -49,7 +49,7 @@ export class AgentSupervisorService implements IAIAgentSupervisor {
   }
 
   private initHeartbeatWatcher(): void {
-    setInterval(() => {
+    const hbTimer = setInterval(() => {
       const now = Date.now();
       for (const [agentId, lastHb] of this.heartbeatTimers.entries()) {
         const agent = this.registry.getAgent(agentId);
@@ -61,6 +61,9 @@ export class AgentSupervisorService implements IAIAgentSupervisor {
         }
       }
     }, 10000);
+    if (hbTimer && typeof hbTimer.unref === 'function') {
+      hbTimer.unref();
+    }
   }
 
   public registerAgent(agent: IAIAgent): void {

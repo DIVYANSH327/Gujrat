@@ -1,10 +1,96 @@
 import React, { useState } from 'react';
-import { mockRules } from '../mockData';
 import { Shield, Plus, Server, Send, CheckCircle2, Lock, FileCode, Cpu, AlertTriangle } from 'lucide-react';
 import { SecurityRule } from '../types';
 
+const CANONICAL_SECURITY_RULES: SecurityRule[] = [
+  {
+    id: 'RULE-ANPR-001',
+    name: 'Statewide ANPR Hotlist Intercept',
+    targetNode: 'ALL',
+    condition: {
+      object: 'vehicle',
+      zone: 'HOTLIST_MATCH == TRUE',
+      time: '00:00-23:59'
+    },
+    action: {
+      event: 'DISPATCH_PATROL_ALERT',
+      priority: 'critical'
+    }
+  },
+  {
+    id: 'RULE-PERIMETER-002',
+    name: 'Restricted High-Security Zone Ingress',
+    targetNode: 'EDGE-GJ-001',
+    condition: {
+      object: 'person | vehicle',
+      zone: 'POLICE_HQ_PERIMETER',
+      time: '22:00-06:00'
+    },
+    action: {
+      event: 'TRIGGER_PERIMETER_ALARM',
+      priority: 'critical'
+    }
+  },
+  {
+    id: 'RULE-TRAFFIC-003',
+    name: 'Corridor Counter-Flow (Wrong Way)',
+    targetNode: 'ALL',
+    condition: {
+      object: 'vehicle',
+      zone: 'EXPRESSWAY_OPPOSITE_VECTOR',
+      time: '00:00-23:59'
+    },
+    action: {
+      event: 'LOG_TRAFFIC_VIOLATION',
+      priority: 'high'
+    }
+  },
+  {
+    id: 'RULE-CROWD-004',
+    name: 'Public Junction Crowd Convergence',
+    targetNode: 'EDGE-SURAT-01',
+    condition: {
+      object: 'crowd_density > 45_PERSONS_PER_M2',
+      zone: 'CIVIC_CENTER',
+      time: '08:00-22:00'
+    },
+    action: {
+      event: 'ALERT_TACTICAL_DESK',
+      priority: 'medium'
+    }
+  },
+  {
+    id: 'RULE-SPEED-005',
+    name: 'Expressway Over-Speed Telemetry',
+    targetNode: 'ALL',
+    condition: {
+      object: 'vehicle_speed > 120_KMH',
+      zone: 'NE1_EXPRESSWAY',
+      time: '00:00-23:59'
+    },
+    action: {
+      event: 'GENERATE_ECHALLAN_EVIDENCE',
+      priority: 'high'
+    }
+  },
+  {
+    id: 'RULE-TAMPER-006',
+    name: 'Optical Occlusion & Camera Tampering',
+    targetNode: 'ALL',
+    condition: {
+      object: 'camera_feed_loss | lens_spray',
+      zone: 'ANY',
+      time: '00:00-23:59'
+    },
+    action: {
+      event: 'DISPATCH_TECH_CREW',
+      priority: 'critical'
+    }
+  }
+];
+
 export function SecurityPolicies() {
-  const [rules, setRules] = useState<SecurityRule[]>(mockRules);
+  const [rules, setRules] = useState<SecurityRule[]>(CANONICAL_SECURITY_RULES);
   const [pushedId, setPushedId] = useState<string | null>(null);
 
   const handlePush = (ruleId: string) => {
@@ -15,7 +101,7 @@ export function SecurityPolicies() {
   };
 
   return (
-    <div className="p-6 h-full flex flex-col bg-[#05070c] text-zinc-100 font-sans overflow-hidden">
+    <div className="p-6 min-h-full flex flex-col bg-[#05070c] text-zinc-100 font-sans">
       {/* Header */}
       <div className="mb-5 shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-cyan-950/50 pb-4">
         <div>
@@ -42,7 +128,7 @@ export function SecurityPolicies() {
       </div>
 
       {/* Grid of Rules */}
-      <div className="flex-1 bg-[#090d16] border border-cyan-950/70 rounded-lg overflow-y-auto custom-scrollbar p-4 shadow-md">
+      <div className="flex-1 bg-[#090d16] border border-cyan-950/70 rounded-lg p-4 shadow-md">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-4">
           {rules.map(rule => (
             <div 

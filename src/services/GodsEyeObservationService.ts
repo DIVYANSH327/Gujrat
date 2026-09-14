@@ -152,10 +152,10 @@ export class GodsEyeObservationService {
       speedEstimate: raw.speedEstimate || 48,
       lane: raw.lane || 1,
       direction: raw.direction || 'Eastbound',
-      sourceType: raw.sourceType || 'SIMULATED_DEMO',
-      analysisMode: raw.analysisMode || 'SIMULATED_DEMO',
-      imageReference: raw.imageReference || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800&auto=format&fit=crop&q=60',
-      thumbnailReference: raw.thumbnailReference || raw.imageReference || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800&auto=format&fit=crop&q=60',
+      sourceType: raw.sourceType || 'REAL_CAMERA',
+      analysisMode: raw.analysisMode || 'REAL_AI',
+      imageReference: raw.imageReference || `/api/cameras/${cameraId}/thumbnail`,
+      thumbnailReference: raw.thumbnailReference || raw.imageReference || `/api/cameras/${cameraId}/thumbnail`,
       evidenceReference: raw.evidenceReference,
       evidenceHash: raw.evidenceHash,
       isBestFrame,
@@ -713,7 +713,7 @@ export class GodsEyeObservationService {
         offsetMs: 0,
         speed: 48,
         direction: 'Eastbound',
-        image: 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?w=800&auto=format&fit=crop&q=60'
+        image: '/api/cameras/CAM-007/thumbnail'
       },
       {
         camId: 'CAM-014',
@@ -723,7 +723,7 @@ export class GodsEyeObservationService {
         offsetMs: 136000, // +2m 16s
         speed: 52,
         direction: 'Northbound',
-        image: 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=800&auto=format&fit=crop&q=60'
+        image: '/api/cameras/CAM-014/thumbnail'
       },
       {
         camId: 'CAM-023',
@@ -733,7 +733,7 @@ export class GodsEyeObservationService {
         offsetMs: 559000, // +9m 19s
         speed: 55,
         direction: 'Northbound',
-        image: 'https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&auto=format&fit=crop&q=60'
+        image: '/api/cameras/CAM-023/thumbnail'
       },
       {
         camId: 'CAM-031',
@@ -743,7 +743,7 @@ export class GodsEyeObservationService {
         offsetMs: 1102000, // +18m 22s
         speed: 60,
         direction: 'Northeast',
-        image: 'https://images.unsplash.com/photo-1542282088-72c9c27ed0cd?w=800&auto=format&fit=crop&q=60'
+        image: '/api/cameras/CAM-031/thumbnail'
       }
     ];
 

@@ -111,6 +111,38 @@ export interface Camera {
   sourceClassification?: SourceClassification;
 }
 
+// --- Camera Intelligence Profile Types (Section 3 & 5) ---
+export type CameraClass = 'AI_SMART' | 'ANPR' | 'NORMAL' | 'UNKNOWN' | 'OFFLINE';
+export type PreferredDetector = 'YOLO' | 'ANPR' | 'ADVANCED_VISION' | 'NONE';
+export type ProcessingPriority = 'P0' | 'P1' | 'P2' | 'P3' | 'P4';
+export type FrameQualityRating = 'HIGH' | 'MEDIUM' | 'LOW' | 'INSUFFICIENT';
+
+export interface CameraIntelligenceProfile {
+  cameraId: string;
+  cameraName: string;
+  status: 'ONLINE' | 'OFFLINE' | 'DEGRADED' | 'BUFFERING' | 'STALE';
+  cameraClass: CameraClass;
+  resolution: string;
+  fps: number;
+  supportsANPR: boolean;
+  supportsHSRP: boolean;
+  supportsAdvancedVision: boolean;
+  aiEnabled: boolean;
+  preferredDetector: PreferredDetector;
+  lastFrameTimestamp?: number | string;
+  lastFrameAge?: number;
+  frameQuality?: FrameQualityRating | number;
+  processingPriority: ProcessingPriority;
+  district?: string;
+  location?: string;
+  edgeNodeId?: string;
+  activeDetector?: PreferredDetector;
+  totalDetectionsToday?: number;
+  lastReadablePlate?: string;
+  lastViolationTimestamp?: string;
+  notes?: string;
+}
+
 export interface WatchlistTarget {
   id: string;
   name: string;
@@ -522,7 +554,257 @@ export interface SecurityRule {
   };
 }
 
-export type ViewMode = 'dashboard' | 'command_center' | 'missions' | 'incidents' | 'review_queue' | 'digital_twin' | 'system_brain' | 'scale_lab' | 'cameras' | 'youtube_demo' | 'real_ai_test_lab' | 'ai_mesh' | 'police_intel' | 'ai_training_lab' | 'federated' | 'sites' | 'search' | 'alerts' | 'watchlist' | 'tracking' | 'nodes' | 'policies' | 'challenge' | 'system' | 'challan_mode' | 'mobile_camera' | 'gov_deployment' | 'geospatial_map' | 'sentinel_grid';
+export type ViewMode = 'dashboard' | 'command_center' | 'missions' | 'incidents' | 'review_queue' | 'digital_twin' | 'system_brain' | 'scale_lab' | 'cameras' | 'youtube_demo' | 'real_ai_test_lab' | 'ai_mesh' | 'police_intel' | 'ai_training_lab' | 'federated' | 'sites' | 'search' | 'alerts' | 'watchlist' | 'tracking' | 'nodes' | 'policies' | 'challenge' | 'system' | 'challan_mode' | 'mobile_camera' | 'gov_deployment' | 'geospatial_map' | 'sentinel_grid' | 'night_audit' | 'raw_video_audit';
+
+// ============================================================
+// NIGHT AUDIT ENGINE TYPES (BSA 2023 & POLICE SURVEILLANCE SPEC)
+// ============================================================
+
+export type AuditSessionStatus = 'IDLE' | 'RUNNING' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
+
+export type CameraAuditStatus =
+  | 'AUDITED'
+  | 'PARTIALLY_AUDITED'
+  | 'NOT_AUDITED'
+  | 'CAMERA_OFFLINE'
+  | 'CAMERA_BUFFERING'
+  | 'AI_UNAVAILABLE'
+  | 'NO_VALID_FRAME';
+
+export type StreamHealthState =
+  | 'ONLINE'
+  | 'BUFFERING'
+  | 'CONNECTING'
+  | 'OFFLINE'
+  | 'NO_FRAME'
+  | 'STALE_FRAME'
+  | 'RECOVERED';
+
+export type HsrpAuditState =
+  | 'HSRP_COMPLIANT'
+  | 'HSRP_NON_COMPLIANT'
+  | 'HSRP_UNVERIFIED'
+  | 'PLATE_NOT_VISIBLE';
+
+export interface CameraGapRecord {
+  gapId: string;
+  startIso: string;
+  endIso?: string;
+  startTimestamp: number;
+  endTimestamp?: number;
+  durationMs?: number;
+  reason: string;
+  lastValidFrameSha256?: string;
+  recoveryFrameSha256?: string;
+}
+
+export interface CameraOutageRecord {
+  outageId: string;
+  cameraId: string;
+  cameraName: string;
+  startIso: string;
+  endIso?: string;
+  startTimestamp: number;
+  endTimestamp?: number;
+  durationMs?: number;
+  reason: string;
+  status: 'ACTIVE' | 'RESOLVED';
+}
+
+export interface NightAuditTimelineItem {
+  id: string;
+  cameraId: string;
+  timestampUtc: string;
+  timestampIst: string;
+  timestampMs: number;
+  eventType:
+    | 'VALID_FRAMES'
+    | 'PERSON_DETECTED'
+    | 'VEHICLE_DETECTED'
+    | 'PLATE_DETECTED'
+    | 'PLATE_READ'
+    | 'HSRP_VERIFIED'
+    | 'HSRP_NON_COMPLIANT'
+    | 'HSRP_UNVERIFIED'
+    | 'MULTIPLE_PERSONS'
+    | 'STREAM_GAP'
+    | 'RECOVERED'
+    | 'AI_UNAVAILABLE';
+  label: string;
+  description: string;
+  evidenceId?: string;
+  snapshotUrl?: string;
+  plateText?: string | null;
+  hsrpStatus?: HsrpAuditState;
+  severity: 'info' | 'low' | 'medium' | 'high' | 'critical';
+}
+
+export interface NightAuditEvidenceItem {
+  evidenceId: string;
+  auditId: string;
+  eventId: string;
+  cameraId: string;
+  cameraName: string;
+  district: string;
+  location: string;
+  captureTimestampUtc: string;
+  displayTimestampIst: string;
+  frameTimestamp: number;
+  originalFrameUrl: string;
+  thumbnailCropUrl?: string;
+  eventType: string;
+  vehicleInfo?: {
+    trackId?: string;
+    class?: string;
+    color?: string;
+    confidence?: number;
+  };
+  personInfo?: {
+    personId?: string;
+    confidence?: number;
+  };
+  plateInfo?: {
+    plateDetected: boolean;
+    plateText: string | null;
+    ocrConfidence?: number | null;
+  };
+  hsrpInfo?: {
+    status: HsrpAuditState;
+    reason: string;
+    laserBrandVerified?: boolean;
+    hologramVerified?: boolean;
+  };
+  aiProvider: string;
+  aiModel: string;
+  analysisLatencyMs: number;
+  evidenceQuality: 'HIGH' | 'MEDIUM' | 'LOW' | 'UNUSABLE';
+  sha256: string;
+  cropSha256?: string;
+  byteSize: number;
+  mimeType: string;
+  storageRef: string;
+}
+
+export interface CameraAuditMetric {
+  cameraId: string;
+  cameraName: string;
+  district: string;
+  location: string;
+  codec: string;
+  sourceInfo: string;
+  status: CameraAuditStatus;
+  streamState: StreamHealthState;
+  framesExpected: number;
+  framesReceived: number;
+  framesAnalyzed: number;
+  framesRejected: number;
+  coveragePercent: number;
+  firstFrameTimestamp: number | null;
+  lastFrameTimestamp: number | null;
+  gapCount: number;
+  totalGapDurationMs: number;
+  gaps: CameraGapRecord[];
+  eventsCount: number;
+  evidenceCount: number;
+  personsCount: number;
+  vehiclesCount: number;
+  platesDetectedCount: number;
+  platesReadCount: number;
+  hsrpVerifiedCount: number;
+  hsrpNonCompliantCount: number;
+  hsrpUnverifiedCount: number;
+  lastFrameSha256?: string;
+  lastFrameDimensions?: string;
+  lastFrameByteSize?: number;
+  lastAcquisitionLatencyMs?: number;
+  lastError?: string | null;
+  timeline: NightAuditTimelineItem[];
+}
+
+export interface NightAuditConfig {
+  startHour: number;
+  startMinute: number;
+  endHour: number;
+  endMinute: number;
+  sampleRateFps: number;
+  activeSceneFps: number;
+  timezone: string;
+  operator: string;
+  autoStartOnSchedule: boolean;
+}
+
+export interface NightAuditReport {
+  auditId: string;
+  title: string;
+  jurisdiction: string;
+  status: AuditSessionStatus;
+  startTimeUtc: string;
+  endTimeUtc: string;
+  timezone: string;
+  operator: string;
+  durationFormatted: string;
+  totalCameras: number;
+  auditedCameras: number;
+  partiallyAuditedCameras: number;
+  offlineCameras: number;
+  bufferingCameras: number;
+  averageCoveragePercent: number;
+  totalFramesExpected: number;
+  totalFramesReceived: number;
+  totalFramesAnalyzed: number;
+  totalFramesRejected: number;
+  aiSummary: {
+    preferredProvider: string;
+    activeProvider: string;
+    activeModel: string;
+    successfulAnalyses: number;
+    failedAnalyses: number;
+    unavailablePeriods: number;
+  };
+  personSummary: {
+    totalConfirmedPersons: number;
+  };
+  vehicleSummary: {
+    totalConfirmedVehicles: number;
+    classBreakdown: Record<string, number>;
+  };
+  plateSummary: {
+    platesDetected: number;
+    platesSuccessfullyRead: number;
+    unreadablePlates: number;
+  };
+  hsrpSummary: {
+    hsrpVerified: number;
+    hsrpNonCompliant: number;
+    hsrpUnverified: number;
+    plateNotVisible: number;
+  };
+  evidenceSummary: {
+    totalEvidenceSnapshots: number;
+    storageStatus: string;
+    sampleHashes: Array<{ evidenceId: string; sha256: string; cameraId: string }>;
+  };
+  cameraCoverageTable: Array<{
+    cameraId: string;
+    cameraName: string;
+    district: string;
+    expected: number;
+    received: number;
+    analyzed: number;
+    coverage: string;
+    gaps: number;
+    status: CameraAuditStatus;
+    streamState: StreamHealthState;
+  }>;
+  outagesLog: Array<{
+    cameraId: string;
+    cameraName: string;
+    start: string;
+    end: string;
+    duration: string;
+    reason: string;
+  }>;
+}
 
 // ============================================================
 // SENTINEL CAMERA GRID ARCHITECTURE TYPES (SCRB SANDBOX SPEC)

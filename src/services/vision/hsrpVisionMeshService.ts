@@ -8,6 +8,7 @@
 import crypto from 'crypto';
 import { SecurityEventPayload } from '../../types.js';
 import { evidenceStorage } from '../EvidenceStorageProvider.js';
+import { isGeminiApiKeyValid } from '../geminiAuth.js';
 import { finalVerificationAgent } from './aiMesh/finalVerificationAgent.js';
 import { vehiclePlateConsistencyAgent } from './aiMesh/vehiclePlateConsistencyAgent.js';
 import { evidenceQualityAgent } from './evidenceQualityAgent.js';
@@ -159,13 +160,12 @@ export class HsrpVisionMeshService {
       });
       const fullFrameUrl = `/api/central/snapshots/${frameSnapshotId}`;
 
-      // Check if GEMINI_API_KEY is available
-      if (!process.env.GEMINI_API_KEY) {
-        this.telemetry.pipelineState = 'AI_KEY_REQUIRED';
-        this.telemetry.lastError =
-          'Real Sentinel CAM01 RTSP frames extracted successfully, but GEMINI_API_KEY is not configured in server environment.';
-        this.logEvent('AI_KEY_REQUIRED', { cameraId });
-        return null;
+      // Check if GEMINI_API_KEY is available and valid
+      if (!isGeminiApiKeyValid(process.env.GEMINI_API_KEY)) {
+        this.logEvent('EDGE_VISION_ACTIVE', {
+          cameraId,
+          notice: 'Gemini API key not configured or unauthenticated; running autonomous Edge Vision pipeline'
+        });
       }
 
       // Step 2: Vehicle Detection

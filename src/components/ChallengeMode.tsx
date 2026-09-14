@@ -40,6 +40,7 @@ import {
 } from 'lucide-react';
 import { Camera, VehicleJourney, VehicleSighting, Alert, AuditRecord, WatchlistEntry, EvidenceRecord, SystemReadinessItem } from '../types';
 import { GodsEyeView } from './GodsEyeView';
+import { GodsEyeWorkspace } from './godseye/GodsEyeWorkspace';
 import { UnifiedVehicleInvestigation } from './UnifiedVehicleInvestigation';
 import { PROJECT_BRANDING } from '../branding';
 
@@ -833,19 +834,9 @@ export function ChallengeMode() {
         )}
 
         {activeTab === 'godseye' && (
-          <GodsEyeView 
-            cameras={cameras} 
-            alerts={alerts}
-            resetKey={demoResetKey}
-            onOpenEvidenceModal={handleOpenEvidence}
-            onSelectCameraId={(camId: string) => {
-              const cam = cameras.find(c => c.id === camId);
-              if (cam) {
-                setSelectedCamera(cam);
-                setActiveTab('map');
-              }
-            }}
-          />
+          <div className="h-[calc(100vh-140px)] w-full overflow-hidden">
+            <GodsEyeWorkspace />
+          </div>
         )}
 
         {activeTab === 'investigation' && (

@@ -1,9 +1,37 @@
 import { WatchlistTarget } from '../types';
-import { mockWatchlist } from '../mockData';
 
-export const WATCHLIST_STORAGE_KEY = 'synthetic_watchlist_targets';
-export const DRAFT_IMAGE_STORAGE_KEY = 'synthetic_watchlist_draft_image';
-export const DRAFT_FORM_STORAGE_KEY = 'synthetic_watchlist_draft_form';
+export const WATCHLIST_STORAGE_KEY = 'sentinel_watchlist_targets';
+export const DRAFT_IMAGE_STORAGE_KEY = 'sentinel_watchlist_draft_image';
+export const DRAFT_FORM_STORAGE_KEY = 'sentinel_watchlist_draft_form';
+
+const CANONICAL_INITIAL_WATCHLIST: WatchlistTarget[] = [
+  {
+    id: 'WL-GJ-001',
+    name: 'Suspect Commercial Transport',
+    imageUrl: '/api/cameras/CAM-001/thumbnail',
+    threatLevel: 'high',
+    dateAdded: '2025-02-10T08:00:00.000Z',
+    associatedPlate: 'GJ01AB1234',
+    syncStatus: 'SYNCHRONIZED',
+    alias: 'Commercial Transport',
+    vehiclePlate: 'GJ01AB1234',
+    attire: 'N/A',
+    severity: 'high'
+  },
+  {
+    id: 'WL-GJ-002',
+    name: 'Corridor Over-Speed Target',
+    imageUrl: '/api/cameras/CAM-002/thumbnail',
+    threatLevel: 'critical',
+    dateAdded: '2025-02-12T14:30:00.000Z',
+    associatedPlate: 'GJ05XY6789',
+    syncStatus: 'SYNCHRONIZED',
+    alias: 'Surat Express',
+    vehiclePlate: 'GJ05XY6789',
+    attire: 'N/A',
+    severity: 'critical'
+  }
+];
 
 export interface ITargetPersistence {
   saveTarget(target: WatchlistTarget): WatchlistTarget;
@@ -165,10 +193,10 @@ export class TargetPersistenceService implements ITargetPersistence {
   }
 
   /**
-   * Returns deterministic seed targets from mockWatchlist.
+   * Returns deterministic seed targets.
    */
   getInitialSeedData(): WatchlistTarget[] {
-    return JSON.parse(JSON.stringify(mockWatchlist)).map((t: WatchlistTarget) => ({
+    return JSON.parse(JSON.stringify(CANONICAL_INITIAL_WATCHLIST)).map((t: WatchlistTarget) => ({
       ...t,
       createdAt: t.dateAdded || new Date().toISOString(),
       updatedAt: t.dateAdded || new Date().toISOString(),

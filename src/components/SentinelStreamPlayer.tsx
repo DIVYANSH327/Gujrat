@@ -50,6 +50,7 @@ interface SentinelStreamPlayerProps {
   muted?: boolean;
   showControls?: boolean;
   showTelemetryOverlay?: boolean;
+  lowBandwidthMode?: boolean;
   aspectRatio?: '16/9' | '4/3' | 'auto';
   onTelemetryUpdate?: (telemetry: SentinelStreamTelemetry) => void;
   onClick?: () => void;
@@ -69,6 +70,7 @@ export const SentinelStreamPlayer: React.FC<SentinelStreamPlayerProps> = ({
   muted = true,
   showControls = true,
   showTelemetryOverlay = false,
+  lowBandwidthMode = false,
   aspectRatio = '16/9',
   onTelemetryUpdate,
   onClick,
@@ -86,6 +88,11 @@ export const SentinelStreamPlayer: React.FC<SentinelStreamPlayerProps> = ({
   const [reconnectCount, setReconnectCount] = useState<number>(0);
   const [nextRetryInSec, setNextRetryInSec] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Low bandwidth thumbnail state
+  const [thumbnailUrl, setThumbnailUrl] = useState<string>(`/api/sentinel/thumbnail/${cameraId}`);
+  const [lastThumbBytes, setLastThumbBytes] = useState<number>(750);
+  const thumbTimerRef = useRef<any>(null);
 
   // Real measured telemetry
   const [actualFps, setActualFps] = useState<number>(0);
@@ -359,11 +366,27 @@ export const SentinelStreamPlayer: React.FC<SentinelStreamPlayerProps> = ({
 
   // Mount / stream url change
   useEffect(() => {
-    initPlayback();
-    return () => {
+    if (lowBandwidthMode) {
       destroyPlayer();
-    };
-  }, [initPlayback, destroyPlayer]);
+      setPlayerState('LIVE');
+      setVideoDims({ width: 320, height: 180 });
+      setActualFps(0.5);
+
+      const refreshThumb = () => {
+        setThumbnailUrl(`/api/sentinel/thumbnail/${cameraId}?t=${Date.now()}`);
+        setTotalFrames((prev) => prev + 1);
+        lastFrameTimeRef.current = Date.now();
+      };
+      refreshThumb();
+      const interval = setInterval(refreshThumb, 3000);
+      return () => clearInterval(interval);
+    } else {
+      initPlayback();
+      return () => {
+        destroyPlayer();
+      };
+    }
+  }, [lowBandwidthMode, cameraId, initPlayback, destroyPlayer]);
 
   // Handle Fullscreen
   const toggleFullscreen = useCallback(() => {
@@ -416,15 +439,23 @@ export const SentinelStreamPlayer: React.FC<SentinelStreamPlayerProps> = ({
         isSelected ? 'ring-2 ring-blue-500 shadow-lg shadow-blue-500/20' : 'hover:border-slate-700'
       } ${className}`}
     >
-      {/* HTML Video Element */}
-      <video
-        ref={videoRef}
-        playsInline
-        muted={isMuted}
-        className="w-full h-full object-cover pointer-events-none"
-        onWaiting={() => setPlayerState('BUFFERING')}
-        onPlaying={() => setPlayerState('LIVE')}
-      />
+      {/* Visual Media Rendering (Video or Low-Bandwidth Thumbnail) */}
+      {lowBandwidthMode ? (
+        <img
+          src={thumbnailUrl}
+          alt={cameraName || cameraId}
+          className="w-full h-full object-cover pointer-events-none"
+        />
+      ) : (
+        <video
+          ref={videoRef}
+          playsInline
+          muted={isMuted}
+          className="w-full h-full object-cover pointer-events-none"
+          onWaiting={() => setPlayerState('BUFFERING')}
+          onPlaying={() => setPlayerState('LIVE')}
+        />
+      )}
 
       {/* Top Overlay Badge & Telemetry Bar */}
       <div className="absolute top-0 inset-x-0 p-2.5 bg-gradient-to-b from-slate-950/90 via-slate-950/40 to-transparent flex items-center justify-between z-10 pointer-events-auto">

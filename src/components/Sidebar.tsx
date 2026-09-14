@@ -31,7 +31,8 @@ import {
   ChevronRight,
   X,
   FileText,
-  Settings
+  Settings,
+  Moon
 } from 'lucide-react';
 import { ViewMode } from '../types';
 import { PROJECT_BRANDING } from '../branding';
@@ -143,6 +144,22 @@ export function Sidebar({
       id: 'OPERATIONS',
       title: 'OPERATIONS',
       items: [
+        { 
+          id: 'raw_video_audit', 
+          label: 'Raw Video Audit', 
+          sub: 'Corp8 Decoder Forensic',
+          icon: <Activity size={18} />,
+          badge: 'DECODER AUDIT',
+          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+        },
+        { 
+          id: 'night_audit', 
+          label: 'Night CCTV Audit', 
+          sub: 'Overnight Sentinel Audit',
+          icon: <Moon size={18} />,
+          badge: 'BSA 2023',
+          badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+        },
         { 
           id: 'alerts', 
           label: 'Alerts', 
