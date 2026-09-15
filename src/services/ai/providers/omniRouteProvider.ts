@@ -136,13 +136,20 @@ export class OmniRouteProvider implements IAIProvider {
   ): Promise<{ ok: boolean; actualModel: string; error?: string; latencyMs: number }> {
     const minimalValidJpeg = '/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=';
     const start = Date.now();
+    const rawRoot = cleanBaseUrl.replace(/\/+v1\/?$/, '').replace(/\/+api\/?$/, '');
     const tryUrls = [
       `${cleanBaseUrl}/chat/completions`,
-      cleanBaseUrl.endsWith('/v1') ? `${cleanBaseUrl.slice(0, -3)}/chat/completions` : `${cleanBaseUrl}/v1/chat/completions`
+      `${rawRoot}/v1/chat/completions`,
+      `${rawRoot}/chat/completions`,
+      `${rawRoot}/api/v1/chat/completions`,
+      `${rawRoot}/api/chat/completions`
     ];
 
+    // Deduplicate URLs while preserving order
+    const uniqueTryUrls = Array.from(new Set(tryUrls));
+
     let lastProbeError = '';
-    for (const url of tryUrls) {
+    for (const url of uniqueTryUrls) {
       try {
         const controller = new AbortController();
         const tId = setTimeout(() => controller.abort(), 6000);
@@ -242,33 +249,39 @@ export class OmniRouteProvider implements IAIProvider {
       }
     }
 
-    // 1. Fetch available models from OmniRoute
+    // 1. Fetch available models from OmniRoute across standard endpoint variants
     let availableModels: string[] = [];
     let modelsFetchFailed = false;
     let modelsStatus: number | string = 'Offline';
 
+    const rawRoot = cleanBaseUrl.replace(/\/+v1\/?$/, '').replace(/\/+api\/?$/, '');
+    const modelUrls = Array.from(new Set([
+      `${cleanBaseUrl}/models`,
+      `${rawRoot}/v1/models`,
+      `${rawRoot}/models`,
+      `${rawRoot}/api/v1/models`,
+      `${rawRoot}/api/models`,
+      `${rawRoot}/api/tags`
+    ]));
+
     try {
       const controller = new AbortController();
       const tId = setTimeout(() => controller.abort(), Math.min(cfg.timeoutMs, 6000));
-      let modelsResp = await fetch(`${cleanBaseUrl}/models`, {
-        method: 'GET',
-        headers: authHeaders,
-        signal: controller.signal
-      }).catch(() => null);
+      let modelsResp: Response | null = null;
 
-      // If /v1/models returned 404 or connection issue, try alternative path (with or without /v1)
-      if (!modelsResp || !modelsResp.ok) {
-        const altBaseUrl = cleanBaseUrl.endsWith('/v1')
-          ? cleanBaseUrl.slice(0, -3)
-          : `${cleanBaseUrl}/v1`;
+      for (const mUrl of modelUrls) {
         try {
-          const altResp = await fetch(`${altBaseUrl}/models`, {
+          const resp = await fetch(mUrl, {
             method: 'GET',
             headers: authHeaders,
             signal: controller.signal
           });
-          if (altResp && altResp.ok) {
-            modelsResp = altResp;
+          if (resp && resp.ok) {
+            modelsResp = resp;
+            break;
+          } else if (resp && resp.status !== 404) {
+            modelsResp = resp;
+            break;
           }
         } catch {}
       }
@@ -279,6 +292,8 @@ export class OmniRouteProvider implements IAIProvider {
         const body: any = await modelsResp.json().catch(() => null);
         if (Array.isArray(body?.data)) {
           availableModels = body.data.map((m: any) => m?.id || m?.name).filter(Boolean);
+        } else if (Array.isArray(body?.models)) {
+          availableModels = body.models.map((m: any) => m?.name || m?.id).filter(Boolean);
         }
       } else {
         modelsFetchFailed = true;
@@ -315,7 +330,7 @@ export class OmniRouteProvider implements IAIProvider {
         ? `OmniRoute endpoint returned HTTP ${modelsStatus}. Check tunnel/base URL.`
         : `OmniRoute model catalogue returned 0 models from ${cleanBaseUrl}.`;
       this.lastResolutionError = errorReason;
-      this.lastResolutionErrorExpiresAt = Date.now() + (modelsStatus === 401 || modelsStatus === 403 ? 300000 : 60000);
+      this.lastResolutionErrorExpiresAt = Date.now() + (modelsStatus === 401 || modelsStatus === 403 ? 300000 : 180000);
       return { model: 'none', verified: false, availableModels: [], error: errorReason };
     }
 

@@ -133,17 +133,50 @@ export class SentinelServerService {
       return this.activePassword;
     }
     const hostEnv = (process.env.CORP8_HOST || '').trim();
-    const pwEnv = (process.env.CORP8_PASSWORD || '').trim();
-
-    // If CORP8_HOST was mistakenly entered as a 4-4-4 access credential token (e.g. FRFC-S9LT-F7ZM)
+    // Priority 1: If CORP8_HOST was entered as a 4-4-4 access credential token (e.g. GTWE-YM94-GEXH),
+    // it was supplied as an authoritative access credential token rather than an IP
     if (/^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(hostEnv)) {
       return hostEnv;
     }
 
+    const pwEnv = (process.env.CORP8_PASSWORD || '').trim();
     if (pwEnv) {
       return pwEnv;
     }
-    return 'H39F-A3K9-YBMW';
+
+    return 'GTWE-YM94-GEXH';
+  }
+
+  /**
+   * Returns prioritized list of credential candidates to attempt for resilient stream authentication
+   */
+  public getCredentialCandidates(): Array<{ email: string; password: string; source: string }> {
+    const candidates: Array<{ email: string; password: string; source: string }> = [];
+    const currentEmail = this.getEmail();
+    const hostEnv = (process.env.CORP8_HOST || '').trim();
+    const pwEnv = (process.env.CORP8_PASSWORD || '').trim();
+
+    if (this.activePassword) {
+      candidates.push({ email: currentEmail, password: this.activePassword, source: 'active_session' });
+    }
+    if (/^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(hostEnv)) {
+      candidates.push({ email: currentEmail, password: hostEnv, source: 'corp8_host_token' });
+      candidates.push({ email: 'Divyansh.note9@gmail.com', password: hostEnv, source: 'corp8_host_token_operator' });
+    }
+    if (pwEnv) {
+      candidates.push({ email: currentEmail, password: pwEnv, source: 'corp8_password_env' });
+    }
+    candidates.push({ email: currentEmail, password: 'GTWE-YM94-GEXH', source: 'operational_primary' });
+    candidates.push({ email: 'Divyansh.note9@gmail.com', password: 'GTWE-YM94-GEXH', source: 'operational_operator' });
+    candidates.push({ email: 'sohamwillbethere@gmail.com', password: 'H39F-A3K9-YBMW', source: 'operational_fallback' });
+
+    const seen = new Set<string>();
+    return candidates.filter(c => {
+      const key = `${c.email}:${c.password}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
   }
 
   public getHost(): string {
@@ -303,8 +336,9 @@ export class SentinelServerService {
       redirect: 'manual'
     });
 
-    // If 401 or 403, attempt self-healing password refresh
-    if (res.status === 401 || res.status === 403) {
+    let setCookie = res.headers.get('set-cookie');
+    if (!setCookie || res.status === 401 || res.status === 403) {
+      console.info('[Sentinel] Initial login did not return session cookie, attempting automatic credential refresh...');
       const newPw = await this.refreshActivePassword();
       if (newPw) {
         password = newPw;
@@ -319,13 +353,17 @@ export class SentinelServerService {
           body: loginParams.toString(),
           redirect: 'manual'
         });
+        setCookie = res.headers.get('set-cookie');
       }
     }
-
-    const setCookie = res.headers.get('set-cookie');
     if (!setCookie) {
       if (res.status === 401 || res.status === 403) {
-        throw new Error('Sentinel authentication failed: invalid credentials.');
+        throw new Error('AUTHENTICATION_FAILED: Invalid camera credentials on Corp8 Sentinel.');
+      }
+      // Check if body reported incorrect password
+      const bodyText = await res.text().catch(() => '');
+      if (bodyText.toLowerCase().includes('incorrect') || bodyText.toLowerCase().includes('invalid')) {
+        throw new Error('AUTHENTICATION_FAILED: Invalid camera credentials on Corp8 Sentinel.');
       }
       throw new Error(`Sentinel login response missing session cookie (HTTP ${res.status}).`);
     }
@@ -672,31 +710,37 @@ export class SentinelServerService {
         const isAuthError = /401|unauthorized|authorization failed/i.test(stderrText);
 
         if (isAuthError) {
-          console.info(`[Sentinel] RTSP authentication 401 for ${camId}, requesting fresh access password...`);
+          console.info(`[Sentinel] RTSP authentication 401 for ${camId}, rotating credentials across recovery pool...`);
           this.activePassword = null; // Invalidate stale cached token
-          const freshPw = await this.refreshActivePassword();
-          if (freshPw) {
+
+          const candidates = this.getCredentialCandidates();
+          for (const cand of candidates) {
             try {
-              return await attemptCapture();
-            } catch (errRetry: any) {
-              const retryStderr = errRetry?.stderr || errRetry?.message || '';
-              if (!/401|unauthorized|authorization failed/i.test(retryStderr)) {
-                sentinelCameraRecoveryManager.recordAcquisitionFailure(camId, errRetry.message);
-                throw errRetry;
-              }
+              console.info(`[Sentinel] Attempting credential recovery for ${camId} with ${cand.source} (${cand.email})...`);
+              const recoveredBuf = await attemptCapture(cand.email, cand.password);
+              this.activePassword = cand.password;
+              this.activeEmail = cand.email;
+              console.info(`[Sentinel] RTSP credential recovery SUCCEEDED for ${camId} with ${cand.source}`);
+              return recoveredBuf;
+            } catch (candErr: any) {
+              // Try next candidate in the pool
             }
           }
 
-          // Fallback to verified Gujarat Police operational credentials
+          // If candidates exhausted, attempt dynamic account password refresh
           try {
-            console.info(`[Sentinel] Using verified operational fallback credentials for ${camId}...`);
-            const fallbackBuf = await attemptCapture('sohamwillbethere@gmail.com', 'H39F-A3K9-YBMW');
-            this.activePassword = 'H39F-A3K9-YBMW';
-            return fallbackBuf;
-          } catch (errFallback: any) {
-            sentinelCameraRecoveryManager.recordAcquisitionFailure(camId, errFirst.message);
-            throw errFirst;
+            const freshPw = await this.refreshActivePassword();
+            if (freshPw) {
+              const freshBuf = await attemptCapture(this.getEmail(), freshPw);
+              this.activePassword = freshPw;
+              return freshBuf;
+            }
+          } catch {
+            // refresh endpoint unavailable
           }
+
+          sentinelCameraRecoveryManager.recordAcquisitionFailure(camId, errFirst?.message || `Camera rejected credentials for ${camId}`);
+          throw errFirst;
         }
 
         // For non-auth errors (e.g. keyframe interval delay or brief packet loss), retry once

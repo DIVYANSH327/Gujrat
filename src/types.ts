@@ -554,7 +554,7 @@ export interface SecurityRule {
   };
 }
 
-export type ViewMode = 'dashboard' | 'command_center' | 'missions' | 'incidents' | 'review_queue' | 'digital_twin' | 'system_brain' | 'scale_lab' | 'cameras' | 'youtube_demo' | 'real_ai_test_lab' | 'ai_mesh' | 'police_intel' | 'ai_training_lab' | 'federated' | 'sites' | 'search' | 'alerts' | 'watchlist' | 'tracking' | 'nodes' | 'policies' | 'challenge' | 'system' | 'challan_mode' | 'mobile_camera' | 'gov_deployment' | 'geospatial_map' | 'sentinel_grid' | 'night_audit' | 'raw_video_audit';
+export type ViewMode = 'dashboard' | 'command_center' | 'missions' | 'incidents' | 'review_queue' | 'digital_twin' | 'system_brain' | 'scale_lab' | 'cameras' | 'youtube_demo' | 'real_ai_test_lab' | 'ai_mesh' | 'police_intel' | 'ai_training_lab' | 'federated' | 'sites' | 'search' | 'alerts' | 'watchlist' | 'tracking' | 'nodes' | 'policies' | 'challenge' | 'system' | 'challan_mode' | 'mobile_camera' | 'gov_deployment' | 'geospatial_map' | 'sentinel_grid' | 'night_audit' | 'raw_video_audit' | 'cyber_security';
 
 // ============================================================
 // NIGHT AUDIT ENGINE TYPES (BSA 2023 & POLICE SURVEILLANCE SPEC)

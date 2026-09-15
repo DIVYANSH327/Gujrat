@@ -161,6 +161,7 @@ export class SentinelCameraRecoveryManager {
     if (!node) return;
 
     const cleanMsg = errorMessage
+      .replace(/rtsp:\/\/[^:@]+:[^@]+@/gi, 'rtsp://***:***@')
       .replace(/\[tcp @ 0x[0-9a-f]+\]\s*/i, '')
       .replace(/\?timeout=\d+/g, '')
       .trim();

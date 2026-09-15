@@ -51,7 +51,7 @@ export class AIProviderRouter {
   private logWarnThrottled(tag: string, message: string) {
     const key = `${tag}:${message}`;
     const now = Date.now();
-    if (this.lastWarningLogMessage !== key || now - this.lastWarningLogTime > 60000) {
+    if (this.lastWarningLogMessage !== key || now - this.lastWarningLogTime > 300000) {
       console.info(`[${tag}] ${message}`);
       this.lastWarningLogMessage = key;
       this.lastWarningLogTime = now;
@@ -170,7 +170,7 @@ export class AIProviderRouter {
       } catch (err: any) {
         lastError = err;
         if (typeof (primary as any).markDegraded === 'function') {
-          (primary as any).markDegraded(err?.message || 'Inference failed', 60000);
+          (primary as any).markDegraded(err?.message || 'Inference failed', 180000);
         }
         this.logWarnThrottled('AI Router', `Primary provider ${primary.name} failed: ${err?.message || err}`);
       }

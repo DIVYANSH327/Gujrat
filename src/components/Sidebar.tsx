@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, 
   Eye, 
@@ -73,6 +73,25 @@ export function Sidebar({
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({
     'ADMIN / ADVANCED': true // Collapsed by default for clean officer experience
   });
+
+  // Close drawer on Escape key press
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  // Close drawer on route change
+  useEffect(() => {
+    if (isOpen && onClose) {
+      onClose();
+    }
+  }, [currentView]);
 
   const toggleGroup = (groupId: string) => {
     setCollapsedGroups(prev => ({
@@ -227,6 +246,14 @@ export function Sidebar({
           label: 'AI Agent Mesh', 
           sub: 'Distributed Intelligence',
           icon: <Cpu size={18} />
+        },
+        { 
+          id: 'cyber_security', 
+          label: 'Cyber Defense Mesh', 
+          sub: '10 Defensive Agents',
+          icon: <ShieldCheck size={18} />,
+          badge: 'DEFENSE',
+          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
         },
         { 
           id: 'nodes', 
@@ -447,7 +474,7 @@ export function Sidebar({
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => onViewChange(item.id)}
+                  onClick={() => handleSelectView(item.id)}
                   title={`${item.label} — ${item.sub}`}
                   className={`w-full aspect-square rounded-xl flex items-center justify-center transition cursor-pointer relative group ${
                     isActive
@@ -479,17 +506,25 @@ export function Sidebar({
         {isCollapsed ? collapsedSidebarContent : sidebarContent}
       </aside>
 
-      {/* Mobile Drawer Overlay (< lg) */}
+      {/* Navigation Drawer Overlay (Mobile & Desktop Overlay) */}
       {isOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          {/* Backdrop */}
+        <div 
+          className="fixed inset-0 z-50 flex"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Navigation Drawer"
+        >
+          {/* Translucent Backdrop: Clicking outside closes drawer */}
           <div 
             onClick={onClose} 
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity"
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity duration-200 cursor-pointer"
             aria-hidden="true"
           />
-          {/* Drawer Panel */}
-          <div className="relative w-72 max-w-[85vw] h-full shadow-2xl z-10 animate-in slide-in-from-left duration-200">
+          {/* Drawer Panel: Clicks inside do not close */}
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="relative w-72 max-w-[85vw] h-full shadow-2xl z-10 bg-white transform transition-transform duration-200 ease-out animate-in slide-in-from-left"
+          >
             {sidebarContent}
           </div>
         </div>

@@ -2,12 +2,12 @@
  * Copyright (c) 2026 DIVYANSH Shrivastava.
  * All rights reserved.
  * 
- * GoogleMapsIntelligenceViewer: Real Google Maps GIS Intelligence Core
- * Integrated with @vis.gl/react-google-maps and AdvancedMarkerElement.
- * Includes statutory internalUsageAttributionIds={"gmp_mcp_codeassist_v1_aistudio"}.
+ * GoogleMapsIntelligenceViewer: Professional Clean Light Police GIS Command Map
+ * Authoritative Sentinel CCTV Nodes, Verified Multi-Camera Observation Path,
+ * Solid Observed vs Dashed Predicted Trajectories, and Instant Camera Info Windows.
  */
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
   APIProvider, 
   Map, 
@@ -16,29 +16,30 @@ import {
   useMap 
 } from '@vis.gl/react-google-maps';
 import { 
+  Camera, 
+  MapPin, 
+  Layers, 
+  Maximize2, 
+  Minimize2, 
+  Compass, 
+  AlertTriangle, 
+  Eye, 
+  Radio, 
+  CheckCircle2, 
+  RefreshCw, 
+  Navigation, 
+  ShieldAlert, 
+  Sparkles,
+  Car,
+  Video
+} from 'lucide-react';
+import { 
   SentinelCameraLocation, 
   VerifiedVehicleSighting, 
   CorrelatedTargetAlert, 
-  WorkspaceFilterState 
+  WorkspaceFilterState,
+  DownstreamPrediction
 } from './types';
-import { 
-  Camera as CameraIcon, 
-  Video, 
-  AlertTriangle, 
-  Navigation, 
-  Maximize2, 
-  Layers, 
-  MapPin, 
-  Eye, 
-  Activity, 
-  CheckCircle2, 
-  X, 
-  Compass, 
-  RefreshCw,
-  ExternalLink,
-  ShieldAlert,
-  Car
-} from 'lucide-react';
 
 interface GoogleMapsIntelligenceViewerProps {
   cameras: SentinelCameraLocation[];
@@ -47,101 +48,173 @@ interface GoogleMapsIntelligenceViewerProps {
   filters: WorkspaceFilterState;
   selectedSightingId?: string;
   selectedCameraId?: string;
+  downstreamPrediction?: DownstreamPrediction | null;
   onSelectSighting: (sighting: VerifiedVehicleSighting) => void;
   onSelectCamera: (camera: SentinelCameraLocation) => void;
   onOpenLiveStream: (cameraId: string) => void;
   onAcknowledgeAlert?: (alertId: string) => void;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 // Default center coordinates: Gujarat Central (Ahmedabad)
 const GUJARAT_CENTER = { lat: 23.0225, lng: 72.5714 };
 
 /**
- * Hook-based Polyline component for robust Google Maps native polyline rendering
+ * Native Google Maps Polyline Component for Solid Observed & Dashed Predicted Paths
  */
-function TrajectoryPolyline({ 
-  points, 
-  visible = true 
-}: { 
-  points: { lat: number; lng: number }[]; 
-  visible?: boolean; 
+function TrajectoryPolylines({
+  observedPoints,
+  predictedPoints,
+  showPath = true
+}: {
+  observedPoints: { lat: number; lng: number }[];
+  predictedPoints: { lat: number; lng: number }[];
+  showPath?: boolean;
 }) {
   const map = useMap();
-  const polylineRef = useRef<google.maps.Polyline | null>(null);
+  const observedPolyRef = useRef<google.maps.Polyline | null>(null);
+  const predictedPolyRef = useRef<google.maps.Polyline | null>(null);
 
+  // 1. Solid Blue Line for OBSERVED Trajectory
   useEffect(() => {
     if (!map || !window.google || !window.google.maps) return;
 
-    if (!polylineRef.current) {
-      polylineRef.current = new google.maps.Polyline({
-        path: points,
+    if (!observedPolyRef.current) {
+      observedPolyRef.current = new google.maps.Polyline({
+        path: observedPoints,
         geodesic: true,
-        strokeColor: '#0284c7', // Sky-600 / Command blue
-        strokeOpacity: 0.9,
+        strokeColor: '#2563eb', // Blue-600 (Clean Command Center Blue)
+        strokeOpacity: 0.95,
         strokeWeight: 4,
         icons: [
           {
             icon: {
               path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
               scale: 3,
-              strokeColor: '#0284c7',
-              fillColor: '#38bdf8',
+              strokeColor: '#1d4ed8',
+              fillColor: '#3b82f6',
               fillOpacity: 1
             },
             offset: '50%',
-            repeat: '100px'
+            repeat: '120px'
           }
         ],
         map
       });
     } else {
-      polylineRef.current.setPath(points);
-      polylineRef.current.setVisible(visible && points.length > 1);
+      observedPolyRef.current.setPath(observedPoints);
+      observedPolyRef.current.setVisible(showPath && observedPoints.length > 1);
     }
 
     return () => {
-      if (polylineRef.current) {
-        polylineRef.current.setMap(null);
-        polylineRef.current = null;
+      if (observedPolyRef.current) {
+        observedPolyRef.current.setMap(null);
+        observedPolyRef.current = null;
       }
     };
-  }, [map, points, visible]);
+  }, [map, observedPoints, showPath]);
+
+  // 2. Dashed Amber Line for PREDICTED Trajectory
+  useEffect(() => {
+    if (!map || !window.google || !window.google.maps) return;
+
+    const dashedSymbol = {
+      path: 'M 0,-1 0,1',
+      strokeOpacity: 1,
+      strokeColor: '#d97706', // Amber-600
+      scale: 3
+    };
+
+    if (!predictedPolyRef.current) {
+      predictedPolyRef.current = new google.maps.Polyline({
+        path: predictedPoints,
+        geodesic: true,
+        strokeOpacity: 0,
+        strokeWeight: 3,
+        icons: [
+          {
+            icon: dashedSymbol,
+            offset: '0',
+            repeat: '14px'
+          }
+        ],
+        map
+      });
+    } else {
+      predictedPolyRef.current.setPath(predictedPoints);
+      predictedPolyRef.current.setVisible(showPath && predictedPoints.length > 1);
+    }
+
+    return () => {
+      if (predictedPolyRef.current) {
+        predictedPolyRef.current.setMap(null);
+        predictedPolyRef.current = null;
+      }
+    };
+  }, [map, predictedPoints, showPath]);
 
   return null;
 }
 
 /**
- * Controller component to handle programmatically focusing or fitting bounds
+ * Controller to handle Map Bounds and Centering
  */
 function MapBoundsController({
   sightings,
+  cameras,
+  selectedCamera,
   selectedSighting,
   triggerFit
 }: {
   sightings: VerifiedVehicleSighting[];
+  cameras: SentinelCameraLocation[];
+  selectedCamera?: SentinelCameraLocation | null;
   selectedSighting?: VerifiedVehicleSighting;
   triggerFit: number;
 }) {
   const map = useMap();
 
+  // Focus on Selected Camera
+  useEffect(() => {
+    if (!map || !selectedCamera || !selectedCamera.latitude || !selectedCamera.longitude) return;
+    map.panTo({ lat: selectedCamera.latitude, lng: selectedCamera.longitude });
+    map.setZoom(16);
+  }, [map, selectedCamera]);
+
+  // Focus on Selected Sighting
+  useEffect(() => {
+    if (!map || !selectedSighting || !selectedSighting.latitude || !selectedSighting.longitude) return;
+    map.panTo({ lat: selectedSighting.latitude, lng: selectedSighting.longitude });
+    map.setZoom(16);
+  }, [map, selectedSighting]);
+
+  // Fit Bounds across all active investigation points
   useEffect(() => {
     if (!map || !window.google || !window.google.maps) return;
 
-    if (selectedSighting && selectedSighting.latitude && selectedSighting.longitude) {
-      map.panTo({ lat: selectedSighting.latitude, lng: selectedSighting.longitude });
-      map.setZoom(15);
-      return;
+    const validSightingCoords = sightings.filter(s => s.latitude && s.longitude);
+    const validCameraCoords = cameras.filter(c => c.latitude && c.longitude && c.hasCoordinates);
+
+    const bounds = new google.maps.LatLngBounds();
+    let hasPoints = false;
+
+    if (validSightingCoords.length > 0) {
+      validSightingCoords.forEach(s => {
+        bounds.extend({ lat: s.latitude!, lng: s.longitude! });
+        hasPoints = true;
+      });
+    } else if (validCameraCoords.length > 0) {
+      validCameraCoords.forEach(c => {
+        bounds.extend({ lat: c.latitude!, lng: c.longitude! });
+        hasPoints = true;
+      });
     }
 
-    const validCoords = sightings.filter(s => s.latitude && s.longitude);
-    if (validCoords.length > 0) {
-      const bounds = new google.maps.LatLngBounds();
-      validCoords.forEach(s => {
-        bounds.extend({ lat: s.latitude!, lng: s.longitude! });
-      });
-      map.fitBounds(bounds, { top: 60, right: 60, bottom: 60, left: 60 });
+    if (hasPoints) {
+      map.fitBounds(bounds, { top: 70, right: 70, bottom: 70, left: 70 });
     }
-  }, [map, triggerFit, selectedSighting]);
+  }, [map, triggerFit]);
 
   return null;
 }
@@ -153,10 +226,13 @@ export function GoogleMapsIntelligenceViewer({
   filters,
   selectedSightingId,
   selectedCameraId,
+  downstreamPrediction,
   onSelectSighting,
   onSelectCamera,
   onOpenLiveStream,
-  onAcknowledgeAlert
+  onAcknowledgeAlert,
+  isFullscreen = false,
+  onToggleFullscreen
 }: GoogleMapsIntelligenceViewerProps) {
   const apiKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '').trim();
   const mapId = (import.meta.env.VITE_GOOGLE_MAP_ID || 'DEMO_MAP_ID').trim();
@@ -165,533 +241,502 @@ export function GoogleMapsIntelligenceViewer({
   const [activeCameraPopup, setActiveCameraPopup] = useState<SentinelCameraLocation | null>(null);
   const [activeSightingPopup, setActiveSightingPopup] = useState<VerifiedVehicleSighting | null>(null);
   const [activeAlertPopup, setActiveAlertPopup] = useState<CorrelatedTargetAlert | null>(null);
-  const [mapType, setMapType] = useState<'roadmap' | 'satellite' | 'hybrid'>('roadmap');
+  const [mapType, setMapType] = useState<'roadmap' | 'satellite'>('roadmap');
   const [triggerFitCount, setTriggerFitCount] = useState<number>(0);
+  const [showLayersMenu, setShowLayersMenu] = useState<boolean>(false);
   const [mapLoadError, setMapLoadError] = useState<boolean>(false);
+
+  // Local layer controls
+  const [layers, setLayers] = useState({
+    cameras: true,
+    sightings: true,
+    trajectory: true,
+    incidents: true,
+    traffic: false
+  });
 
   // Selected sighting object
   const activeSighting = useMemo(() => {
     return sightings.find(s => s.observationId === selectedSightingId);
   }, [sightings, selectedSightingId]);
 
-  // Filtered cameras with real coordinates
+  // Selected camera object
+  const activeCamera = useMemo(() => {
+    return cameras.find(c => c.cameraId === selectedCameraId) || null;
+  }, [cameras, selectedCameraId]);
+
+  // Filtered cameras with real coordinates only
   const validCameras = useMemo(() => {
-    if (!filters.showCameraLayer) return [];
+    if (!layers.cameras || !filters.showCameraLayer) return [];
     return cameras.filter(c => {
       if (!c.latitude || !c.longitude || !c.hasCoordinates) return false;
       if (filters.district !== 'all' && c.district.toLowerCase() !== filters.district.toLowerCase()) return false;
       return true;
     });
-  }, [cameras, filters.showCameraLayer, filters.district]);
+  }, [cameras, layers.cameras, filters.showCameraLayer, filters.district]);
 
-  // Valid chronological sighting path
-  const trajectoryPath = useMemo(() => {
-    if (!filters.showCorridorLayer) return [];
+  // Chronological observed trajectory points
+  const observedPath = useMemo(() => {
+    if (!layers.trajectory || !filters.showCorridorLayer) return [];
     return sightings
       .filter(s => s.latitude && s.longitude)
       .map(s => ({ lat: s.latitude!, lng: s.longitude! }));
-  }, [sightings, filters.showCorridorLayer]);
+  }, [sightings, layers.trajectory, filters.showCorridorLayer]);
+
+  // Predicted corridor points (from last observed to predicted next camera)
+  const predictedPath = useMemo(() => {
+    if (!layers.trajectory || !downstreamPrediction || observedPath.length === 0) return [];
+    const lastObserved = observedPath[observedPath.length - 1];
+    
+    // Find target camera coordinates for prediction
+    const targetCam = cameras.find(c => c.cameraId === downstreamPrediction.predictedCameraId);
+    if (targetCam && targetCam.latitude && targetCam.longitude) {
+      return [lastObserved, { lat: targetCam.latitude, lng: targetCam.longitude }];
+    }
+    return [];
+  }, [observedPath, downstreamPrediction, cameras, layers.trajectory]);
 
   // Alerts with real coordinates
   const validAlerts = useMemo(() => {
-    if (!filters.showAlertLayer) return [];
+    if (!layers.incidents || !filters.showAlertLayer) return [];
     return alerts.filter(a => a.latitude && a.longitude);
-  }, [alerts, filters.showAlertLayer]);
+  }, [alerts, layers.incidents, filters.showAlertLayer]);
 
-  const handleFitToTrajectory = () => {
+  const handleFitInvestigation = useCallback(() => {
     setTriggerFitCount(prev => prev + 1);
-  };
+  }, []);
 
-  // Render Configuration Required State if API key is missing (Never render a fake map)
-  const renderMissingApiKeyScreen = () => {
+  // Missing API Key screen (Professional white fallback)
+  if (!apiKey) {
     return (
-      <div className="relative w-full h-full bg-slate-950 overflow-hidden flex flex-col items-center justify-center p-6 text-slate-100 select-none">
-        <div className="relative z-10 max-w-lg w-full bg-slate-900 border border-slate-700 rounded-xl p-6 shadow-2xl">
-          <div className="w-12 h-12 bg-amber-500/10 border border-amber-500/30 rounded-xl flex items-center justify-center mx-auto mb-4 text-amber-400">
+      <div className="relative w-full h-full min-h-[500px] bg-slate-50 flex flex-col items-center justify-center p-6 text-slate-800 select-none border border-slate-200">
+        <div className="max-w-md w-full bg-white border border-slate-200 rounded-2xl p-6 shadow-md text-center space-y-4">
+          <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto border border-blue-100">
             <Compass className="w-6 h-6" />
           </div>
-          <h3 className="text-sm font-bold text-center text-slate-100 uppercase tracking-wider mb-1">
-            GOOGLE MAPS CONFIGURATION REQUIRED
-          </h3>
-          <p className="text-xs text-slate-400 text-center mb-5 leading-relaxed">
-            Gujarat Police Sentinel Grid God's Eye V2 operates strictly on authoritative Google Maps Platform GIS infrastructure. In accordance with operational standards, synthetic or placeholder maps are strictly disabled.
-          </p>
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+              GOOGLE MAPS PLATFORM CONFIGURATION
+            </h3>
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+              Gujarat Police Sentinel Command Center operates on Google Maps GIS infrastructure. Please configure your API credentials.
+            </p>
+          </div>
 
-          <div className="space-y-2 bg-slate-950 p-4 rounded-lg border border-slate-800 text-xs font-mono mb-4">
-            <div className="flex items-center justify-between text-rose-400 font-semibold">
-              <span>Missing:</span>
+          <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-left text-xs space-y-1.5 font-mono">
+            <div className="flex items-center justify-between text-rose-600 font-semibold">
+              <span>Required:</span>
               <span>VITE_GOOGLE_MAPS_API_KEY</span>
             </div>
-            <div className="flex items-center justify-between text-slate-400">
-              <span>Optional / Required:</span>
-              <span className={mapId ? 'text-emerald-400' : 'text-amber-300'}>
-                {mapId ? `VITE_GOOGLE_MAP_ID (${mapId})` : 'VITE_GOOGLE_MAP_ID (Recommended for Advanced Markers)'}
-              </span>
+            <div className="flex items-center justify-between text-slate-600">
+              <span>Authoritative Nodes:</span>
+              <span>{cameras.length} cameras ({validCameras.length} mapped)</span>
             </div>
-            <div className="flex items-center justify-between text-slate-400 pt-2 border-t border-slate-800/80">
-              <span>Authoritative Sentinel Cameras:</span>
-              <span className="text-slate-200 font-semibold">{cameras.length} loaded ({validCameras.length} mapped)</span>
-            </div>
-            <div className="flex items-center justify-between text-slate-400">
-              <span>Location Status:</span>
-              <span className="text-emerald-400">{validCameras.length} Verified GPS / {cameras.length - validCameras.length} Pending Survey</span>
-            </div>
-          </div>
-
-          <div className="text-[11px] text-slate-400 bg-slate-800/60 p-3 rounded border border-slate-700/60 space-y-1">
-            <span className="font-semibold text-slate-200 block">Operator / Developer Diagnostic:</span>
-            <p>1. Open your project environment file or settings.</p>
-            <p>2. Define <code className="text-sky-300 bg-slate-900 px-1 py-0.5 rounded">VITE_GOOGLE_MAPS_API_KEY=&lt;YOUR_API_KEY&gt;</code>.</p>
-            <p>3. Optionally set <code className="text-sky-300 bg-slate-900 px-1 py-0.5 rounded">VITE_GOOGLE_MAP_ID=&lt;YOUR_MAP_ID&gt;</code> to enable Google Maps Advanced Markers.</p>
           </div>
         </div>
       </div>
     );
-  };
-
-  // Render Unavailable State if Google Maps Platform fails to load
-  const renderMapUnavailableScreen = () => {
-    return (
-      <div className="relative w-full h-full bg-slate-950 overflow-hidden flex flex-col items-center justify-center p-6 text-slate-100 select-none">
-        <div className="relative z-10 max-w-lg w-full bg-slate-900 border border-rose-900/60 rounded-xl p-6 shadow-2xl">
-          <div className="w-12 h-12 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center justify-center mx-auto mb-4 text-rose-400">
-            <AlertTriangle className="w-6 h-6" />
-          </div>
-          <h3 className="text-sm font-bold text-center text-rose-300 uppercase tracking-wider mb-1">
-            GOOGLE MAPS UNAVAILABLE
-          </h3>
-          <p className="text-xs text-slate-400 text-center mb-5 leading-relaxed">
-            Google Maps Platform JavaScript API failed to initialize. Synthetic fallback maps are prohibited by system policy.
-          </p>
-
-          <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 text-xs font-mono text-rose-300 mb-4 space-y-1">
-            <div className="font-semibold text-slate-300">Failure Diagnostic:</div>
-            <div>• Google Maps API script error or connection timed out</div>
-            <div>• Verify API key billing status and HTTP referrer restrictions</div>
-            <div>• Ensure Maps JavaScript API is enabled in Google Cloud Console</div>
-          </div>
-
-          <button
-            onClick={() => setMapLoadError(false)}
-            className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium border border-slate-700 transition-colors flex items-center justify-center gap-2"
-          >
-            <RefreshCw className="w-3.5 h-3.5 text-sky-400" /> Retry Google Maps Connection
-          </button>
-        </div>
-      </div>
-    );
-  };
+  }
 
   return (
-    <div className="relative w-full h-full flex-1 bg-slate-950 overflow-hidden flex flex-col">
-      {/* Floating Tactical Map Control HUD */}
-      <div className="absolute top-3 left-3 z-20 flex flex-wrap items-center gap-2 bg-slate-900/90 backdrop-blur-md p-1.5 rounded-lg border border-slate-700/80 shadow-lg text-xs text-slate-200">
-        <div className="flex items-center gap-1 px-2 py-1 bg-slate-800 rounded font-semibold text-sky-400 border border-slate-700">
-          <Navigation className="w-3.5 h-3.5" />
-          <span>Gujarat Police GIS</span>
+    <div className="relative w-full h-full min-h-[520px] bg-slate-100 flex flex-col overflow-hidden select-none">
+      {/* Floating Top Control HUD (Clean White) */}
+      <div className="absolute top-3 left-3 z-20 flex flex-wrap items-center gap-2 bg-white/95 backdrop-blur-md p-1.5 rounded-xl border border-slate-200 shadow-md text-xs text-slate-800">
+        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-blue-700 rounded-lg font-bold border border-blue-100">
+          <Navigation className="w-3.5 h-3.5 text-blue-600" />
+          <span>Gujarat GIS Command</span>
         </div>
 
-        {/* View Mode Toggle */}
-        <div className="flex items-center bg-slate-800 rounded p-0.5 border border-slate-700">
+        {/* Roadmap / Satellite Toggle */}
+        <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200">
           <button
             onClick={() => setMapType('roadmap')}
-            className={`px-2.5 py-1 rounded transition-colors ${
-              mapType === 'roadmap' ? 'bg-sky-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-slate-200'
+            className={`px-2.5 py-1 rounded-md text-xs transition-all ${
+              mapType === 'roadmap'
+                ? 'bg-white text-blue-700 font-bold shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 font-medium'
             }`}
           >
             Roadmap
           </button>
           <button
             onClick={() => setMapType('satellite')}
-            className={`px-2.5 py-1 rounded transition-colors ${
-              mapType === 'satellite' ? 'bg-sky-600 text-white font-medium shadow-sm' : 'text-slate-400 hover:text-slate-200'
+            className={`px-2.5 py-1 rounded-md text-xs transition-all ${
+              mapType === 'satellite'
+                ? 'bg-white text-blue-700 font-bold shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 font-medium'
             }`}
           >
             Satellite
           </button>
         </div>
 
-        {/* Fit / Recenter Buttons */}
+        {/* Fit Investigation Button */}
         <button
-          onClick={handleFitToTrajectory}
-          title="Fit bounds to vehicle journey corridor"
-          className="flex items-center gap-1.5 px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded border border-slate-700 transition-colors"
+          onClick={handleFitInvestigation}
+          title="Fit bounds to all active cameras & vehicle sightings"
+          className="flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 font-medium rounded-lg border border-slate-200 transition-colors shadow-2xs"
         >
-          <Maximize2 className="w-3.5 h-3.5 text-sky-400" />
-          <span>Fit Corridor</span>
+          <Maximize2 className="w-3.5 h-3.5 text-blue-600" />
+          <span>Fit Investigation</span>
         </button>
 
-        {/* Active Target Indicator Badge */}
-        {sightings.length > 0 && (
-          <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-emerald-950/80 text-emerald-300 border border-emerald-700/60 rounded">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-            <span>{sightings.length} Chronological Sighting Points</span>
-          </div>
+        {/* Layer Dropdown Toggle */}
+        <div className="relative">
+          <button
+            onClick={() => setShowLayersMenu(!showLayersMenu)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-medium transition-colors ${
+              showLayersMenu
+                ? 'bg-blue-50 text-blue-700 border-blue-200 font-bold'
+                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5 text-slate-600" />
+            <span>Layers</span>
+          </button>
+
+          {/* Layer Menu Popover */}
+          {showLayersMenu && (
+            <div className="absolute top-full mt-1.5 left-0 w-48 bg-white border border-slate-200 rounded-xl shadow-xl p-2 z-30 space-y-1 text-xs">
+              <label className="flex items-center gap-2 p-1.5 rounded hover:bg-slate-50 cursor-pointer text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={layers.cameras}
+                  onChange={(e) => setLayers(l => ({ ...l, cameras: e.target.checked }))}
+                  className="rounded text-blue-600 focus:ring-blue-500"
+                />
+                <span>Sentinel Cameras</span>
+              </label>
+
+              <label className="flex items-center gap-2 p-1.5 rounded hover:bg-slate-50 cursor-pointer text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={layers.sightings}
+                  onChange={(e) => setLayers(l => ({ ...l, sightings: e.target.checked }))}
+                  className="rounded text-blue-600 focus:ring-blue-500"
+                />
+                <span>Vehicle Sightings</span>
+              </label>
+
+              <label className="flex items-center gap-2 p-1.5 rounded hover:bg-slate-50 cursor-pointer text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={layers.trajectory}
+                  onChange={(e) => setLayers(l => ({ ...l, trajectory: e.target.checked }))}
+                  className="rounded text-blue-600 focus:ring-blue-500"
+                />
+                <span>Investigation Path</span>
+              </label>
+
+              <label className="flex items-center gap-2 p-1.5 rounded hover:bg-slate-50 cursor-pointer text-slate-700">
+                <input
+                  type="checkbox"
+                  checked={layers.incidents}
+                  onChange={(e) => setLayers(l => ({ ...l, incidents: e.target.checked }))}
+                  className="rounded text-blue-600 focus:ring-blue-500"
+                />
+                <span>Incidents</span>
+              </label>
+            </div>
+          )}
+        </div>
+
+        {/* Fullscreen Toggle Button */}
+        {onToggleFullscreen && (
+          <button
+            onClick={onToggleFullscreen}
+            className="p-1.5 bg-white hover:bg-slate-50 text-slate-700 rounded-lg border border-slate-200 transition-colors"
+            title={isFullscreen ? "Exit Fullscreen" : "Expand Map"}
+          >
+            {isFullscreen ? <Minimize2 className="w-3.5 h-3.5 text-blue-600" /> : <Maximize2 className="w-3.5 h-3.5 text-slate-600" />}
+          </button>
         )}
       </div>
 
-      {/* Map Legend Overlay (Bottom-Left) */}
-      <div className="absolute bottom-4 left-4 z-20 hidden sm:flex flex-col gap-1.5 bg-slate-900/90 backdrop-blur-md p-2.5 rounded-lg border border-slate-700/80 shadow-xl text-[11px] text-slate-300">
-        <div className="font-semibold text-slate-100 flex items-center gap-1.5 pb-1 border-b border-slate-800">
-          <Layers className="w-3 h-3 text-sky-400" />
-          <span>Surveillance Layers</span>
+      {/* Floating Bottom-Left Clean Legend */}
+      <div className="absolute bottom-4 left-4 z-20 hidden sm:flex flex-col gap-1.5 bg-white/95 backdrop-blur-md p-3 rounded-xl border border-slate-200 shadow-lg text-[11px] text-slate-700">
+        <div className="font-bold text-slate-900 flex items-center gap-1.5 pb-1 border-b border-slate-100">
+          <Layers className="w-3.5 h-3.5 text-blue-600" />
+          <span>Surveillance GIS Legend</span>
         </div>
+
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-emerald-500/30" />
-          <span>Sentinel Camera (Live)</span>
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-xs ring-2 ring-emerald-100" />
+          <span>Live Camera</span>
         </div>
+
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-sky-500 ring-2 ring-sky-500/30 flex items-center justify-center text-[8px] font-bold text-white">
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-500 ring-2 ring-amber-100" />
+          <span>Degraded Node</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-rose-100" />
+          <span>Offline Node</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[9px] font-bold shadow-xs">
             1
           </div>
-          <span>Target Observation Sighting</span>
+          <span>Observed Sighting</span>
         </div>
+
         <div className="flex items-center gap-2">
-          <div className="w-3 h-0.5 bg-sky-500" />
-          <span>Corridor Trajectory Line</span>
+          <div className="w-5 h-0.5 bg-blue-600" />
+          <span className="font-medium text-blue-700">Observed Route</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-rose-500 ring-2 ring-rose-500/30" />
-          <span>Critical Alert Incident</span>
-        </div>
-      </div>
 
-      {/* Map Canvas Container */}
-      <div className="w-full h-full relative flex-1">
-        {!apiKey ? (
-          renderMissingApiKeyScreen()
-        ) : mapLoadError ? (
-          renderMapUnavailableScreen()
-        ) : (
-          <APIProvider 
-            apiKey={apiKey}
-            onError={() => {
-              console.warn('[Google Maps Platform] Loading error caught.');
-              setMapLoadError(true);
-            }}
-          >
-            <Map
-              defaultCenter={GUJARAT_CENTER}
-              defaultZoom={11}
-              mapId={mapId}
-              mapTypeId={mapType}
-              internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
-              disableDefaultUI={false}
-              zoomControl={true}
-              mapTypeControl={false}
-              streetViewControl={false}
-              fullscreenControl={false}
-              className="w-full h-full"
-            >
-              {/* Native Polyline for Sighting Journey */}
-              <TrajectoryPolyline points={trajectoryPath} visible={filters.showCorridorLayer} />
-
-              {/* Dynamic Bounds & Pan Controller */}
-              <MapBoundsController 
-                sightings={sightings} 
-                selectedSighting={activeSighting} 
-                triggerFit={triggerFitCount} 
-              />
-
-              {/* Fixed Sentinel Cameras (Advanced Markers) */}
-              {validCameras.map((cam) => {
-                const isSelected = selectedCameraId === cam.cameraId;
-                const isOnline = cam.status === 'LIVE';
-                const isDegraded = cam.status === 'DEGRADED';
-
-                return (
-                  <AdvancedMarker
-                    key={`cam-${cam.cameraId}`}
-                    position={{ lat: cam.latitude!, lng: cam.longitude! }}
-                    title={`${cam.name} (${cam.district})`}
-                    onClick={() => {
-                      onSelectCamera(cam);
-                      setActiveCameraPopup(cam);
-                      setActiveSightingPopup(null);
-                      setActiveAlertPopup(null);
-                    }}
-                  >
-                    <div 
-                      className={`relative flex items-center justify-center p-1.5 rounded-full shadow-lg cursor-pointer transition-all transform hover:scale-125 ${
-                        isSelected 
-                          ? 'bg-sky-500 ring-4 ring-sky-400/50 scale-125 z-30' 
-                          : isOnline 
-                          ? 'bg-slate-900 border-2 border-emerald-500 text-emerald-400 hover:border-emerald-300' 
-                          : isDegraded 
-                          ? 'bg-slate-900 border-2 border-amber-500 text-amber-400' 
-                          : 'bg-slate-900 border-2 border-slate-600 text-slate-500'
-                      }`}
-                    >
-                      <CameraIcon className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : ''}`} />
-                      {/* Real status indicator badge */}
-                      <span 
-                        className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ring-1 ring-slate-900 ${
-                          isOnline ? 'bg-emerald-400 animate-ping opacity-75' : isDegraded ? 'bg-amber-400' : 'bg-slate-500'
-                        }`} 
-                      />
-                      <span 
-                        className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ring-1 ring-slate-900 ${
-                          isOnline ? 'bg-emerald-400' : isDegraded ? 'bg-amber-400' : 'bg-slate-500'
-                        }`} 
-                      />
-                    </div>
-                  </AdvancedMarker>
-                );
-              })}
-
-              {/* Chronological Vehicle Sightings (Advanced Markers) */}
-              {sightings.map((sighting, idx) => {
-                if (!sighting.latitude || !sighting.longitude) return null;
-                const isSelected = selectedSightingId === sighting.observationId;
-                const seq = sighting.sequenceIndex !== undefined ? sighting.sequenceIndex : idx + 1;
-
-                return (
-                  <AdvancedMarker
-                    key={`sight-${sighting.observationId}`}
-                    position={{ lat: sighting.latitude, lng: sighting.longitude }}
-                    title={`Sighting #${seq}: ${sighting.rawPlateText} at ${sighting.cameraName}`}
-                    onClick={() => {
-                      onSelectSighting(sighting);
-                      setActiveSightingPopup(sighting);
-                      setActiveCameraPopup(null);
-                      setActiveAlertPopup(null);
-                    }}
-                  >
-                    <div 
-                      className={`relative flex items-center justify-center cursor-pointer transition-all transform ${
-                        isSelected 
-                          ? 'scale-125 z-40' 
-                          : 'hover:scale-110 z-20'
-                      }`}
-                    >
-                      {/* Outer pulse if active */}
-                      {isSelected && (
-                        <div className="absolute -inset-2 bg-sky-500/40 rounded-full animate-ping pointer-events-none" />
-                      )}
-
-                      <div className={`flex items-center gap-1 px-2 py-1 rounded-full shadow-2xl border ${
-                        isSelected 
-                          ? 'bg-sky-500 border-white text-white font-bold' 
-                          : 'bg-slate-900/95 border-sky-400 text-sky-300 hover:border-sky-300'
-                      }`}>
-                        <Car className="w-3.5 h-3.5" />
-                        <span className="text-xs font-mono font-bold">#{seq}</span>
-                      </div>
-                    </div>
-                  </AdvancedMarker>
-                );
-              })}
-
-              {/* Correlated Active Alerts (Advanced Markers) */}
-              {validAlerts.map((alert) => (
-                <AdvancedMarker
-                  key={`alert-${alert.alertId}`}
-                  position={{ lat: alert.latitude!, lng: alert.longitude! }}
-                  title={`Alert: ${alert.eventType} (${alert.vehiclePlate})`}
-                  onClick={() => {
-                    setActiveAlertPopup(alert);
-                    setActiveCameraPopup(null);
-                    setActiveSightingPopup(null);
-                  }}
-                >
-                  <div className="relative cursor-pointer transform hover:scale-125 transition-transform z-30">
-                    <div className="absolute -inset-2 bg-rose-500/40 rounded-full animate-ping pointer-events-none" />
-                    <div className="flex items-center justify-center w-7 h-7 bg-rose-600 text-white rounded-full shadow-2xl border-2 border-white">
-                      <AlertTriangle className="w-4 h-4" />
-                    </div>
-                  </div>
-                </AdvancedMarker>
-              ))}
-
-              {/* InfoWindow: Sentinel Camera Popup */}
-              {activeCameraPopup && activeCameraPopup.latitude && activeCameraPopup.longitude && (
-                <InfoWindow
-                  position={{ lat: activeCameraPopup.latitude, lng: activeCameraPopup.longitude }}
-                  onCloseClick={() => setActiveCameraPopup(null)}
-                >
-                  <div className="p-2.5 max-w-xs text-slate-800">
-                    <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-1.5 mb-2">
-                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 bg-slate-100 text-slate-700 rounded">
-                        {activeCameraPopup.cameraId}
-                      </span>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                        activeCameraPopup.status === 'LIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                      }`}>
-                        {activeCameraPopup.status}
-                      </span>
-                    </div>
-
-                    <h4 className="font-semibold text-sm text-slate-900 leading-snug mb-1">
-                      {activeCameraPopup.name}
-                    </h4>
-
-                    <p className="text-xs text-slate-600 mb-2 flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-slate-400" />
-                      <span>{activeCameraPopup.location}, {activeCameraPopup.district}</span>
-                    </p>
-
-                    <div className="text-[11px] bg-slate-50 p-2 rounded border border-slate-200 mb-2 space-y-1">
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">GPS Coords:</span>
-                        <span className="font-mono text-slate-800">{activeCameraPopup.latitude.toFixed(4)}, {activeCameraPopup.longitude?.toFixed(4)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Capabilities:</span>
-                        <span className="text-slate-700 font-medium">{activeCameraPopup.capabilities.join(', ')}</span>
-                      </div>
-                      {activeCameraPopup.health && (
-                        <div className="flex justify-between">
-                          <span className="text-slate-500">Telemetry:</span>
-                          <span className="text-slate-700 font-mono">{activeCameraPopup.health.fps} FPS · {activeCameraPopup.health.bitrateKbps} kbps</span>
-                        </div>
-                      )}
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        onOpenLiveStream(activeCameraPopup.cameraId);
-                        setActiveCameraPopup(null);
-                      }}
-                      className="w-full py-1.5 px-3 bg-sky-600 hover:bg-sky-700 text-white rounded text-xs font-semibold flex items-center justify-center gap-1.5 shadow-sm transition-colors"
-                    >
-                      <Video className="w-3.5 h-3.5" />
-                      <span>Launch Live Feed</span>
-                    </button>
-                  </div>
-                </InfoWindow>
-              )}
-
-              {/* InfoWindow: Vehicle Sighting Popup */}
-              {activeSightingPopup && activeSightingPopup.latitude && activeSightingPopup.longitude && (
-                <InfoWindow
-                  position={{ lat: activeSightingPopup.latitude, lng: activeSightingPopup.longitude }}
-                  onCloseClick={() => setActiveSightingPopup(null)}
-                >
-                  <div className="p-2.5 max-w-sm text-slate-800">
-                    <div className="flex items-center justify-between gap-2 border-b border-slate-200 pb-1.5 mb-2">
-                      <span className="text-xs font-mono font-bold px-2 py-0.5 bg-blue-50 text-blue-800 border border-blue-200 rounded">
-                        {activeSightingPopup.normalizedPlateText}
-                      </span>
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded">
-                        OCR: {(activeSightingPopup.ocrConfidence * 100).toFixed(0)}%
-                      </span>
-                    </div>
-
-                    {/* Sighting Snapshot if available */}
-                    {activeSightingPopup.thumbnailUrl && (
-                      <div className="w-full h-24 mb-2 rounded bg-slate-900 overflow-hidden relative">
-                        <img 
-                          src={activeSightingPopup.thumbnailUrl} 
-                          alt="Sighting Frame" 
-                          referrerPolicy="no-referrer"
-                          className="w-full h-full object-cover" 
-                        />
-                        <span className="absolute bottom-1 right-1 text-[9px] bg-slate-950/80 text-white px-1.5 py-0.5 rounded font-mono">
-                          BSA §63 Seal
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="text-xs space-y-1 mb-3">
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Camera Node:</span>
-                        <span className="font-medium text-slate-800">{activeSightingPopup.cameraName} ({activeSightingPopup.cameraId})</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Time Observed:</span>
-                        <span className="font-mono text-slate-800">{new Date(activeSightingPopup.timestamp).toLocaleTimeString('en-IN', { hour12: false })} IST</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Direction / Speed:</span>
-                        <span className="text-slate-800 font-medium">
-                          {activeSightingPopup.direction || 'Corridor transit'} {activeSightingPopup.speedKmh ? `· ${activeSightingPopup.speedKmh} km/h` : ''}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center text-[10px]">
-                        <span className="text-slate-500">Evidence SHA-256:</span>
-                        <span className="font-mono text-slate-600 truncate max-w-[150px]">{activeSightingPopup.originalFrameHash.slice(0, 16)}...</span>
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          onOpenLiveStream(activeSightingPopup.cameraId);
-                          setActiveSightingPopup(null);
-                        }}
-                        className="flex-1 py-1.5 px-2 bg-slate-800 hover:bg-slate-900 text-white rounded text-xs font-medium flex items-center justify-center gap-1 transition-colors"
-                      >
-                        <Video className="w-3.5 h-3.5 text-sky-400" />
-                        <span>Live Stream</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          onSelectSighting(activeSightingPopup);
-                          setActiveSightingPopup(null);
-                        }}
-                        className="flex-1 py-1.5 px-2 bg-sky-600 hover:bg-sky-500 text-white rounded text-xs font-semibold flex items-center justify-center gap-1 transition-colors"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>Focus Dossier</span>
-                      </button>
-                    </div>
-                  </div>
-                </InfoWindow>
-              )}
-
-              {/* InfoWindow: Alert Popup */}
-              {activeAlertPopup && activeAlertPopup.latitude && activeAlertPopup.longitude && (
-                <InfoWindow
-                  position={{ lat: activeAlertPopup.latitude, lng: activeAlertPopup.longitude }}
-                  onCloseClick={() => setActiveAlertPopup(null)}
-                >
-                  <div className="p-2.5 max-w-xs text-slate-800">
-                    <div className="flex items-center justify-between gap-2 border-b border-rose-200 pb-1.5 mb-2">
-                      <span className="text-[10px] font-bold px-2 py-0.5 bg-rose-100 text-rose-800 rounded uppercase">
-                        {activeAlertPopup.severity} ALERT
-                      </span>
-                      <span className="text-xs font-mono font-bold text-slate-900">
-                        {activeAlertPopup.vehiclePlate}
-                      </span>
-                    </div>
-
-                    <h5 className="font-semibold text-xs text-slate-900 mb-1">
-                      {activeAlertPopup.eventType.toUpperCase()}
-                    </h5>
-                    <p className="text-xs text-slate-600 mb-2 leading-tight">
-                      {activeAlertPopup.description}
-                    </p>
-
-                    <div className="text-[11px] bg-rose-50 p-2 rounded border border-rose-100 mb-3 space-y-1">
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Camera:</span>
-                        <span className="font-medium text-slate-800">{activeAlertPopup.cameraId}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">Timestamp:</span>
-                        <span className="font-mono text-slate-800">{new Date(activeAlertPopup.timestamp).toLocaleTimeString('en-IN', { hour12: false })} IST</span>
-                      </div>
-                    </div>
-
-                    {onAcknowledgeAlert && activeAlertPopup.status === 'new' && (
-                      <button
-                        onClick={() => {
-                          onAcknowledgeAlert(activeAlertPopup.alertId);
-                          setActiveAlertPopup(null);
-                        }}
-                        className="w-full py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded text-xs font-semibold transition-colors flex items-center justify-center gap-1.5"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Acknowledge Incident</span>
-                      </button>
-                    )}
-                  </div>
-                </InfoWindow>
-              )}
-            </Map>
-          </APIProvider>
+        {downstreamPrediction && (
+          <div className="flex items-center gap-2">
+            <div className="w-5 border-t-2 border-dashed border-amber-500" />
+            <span className="font-medium text-amber-700">Predicted Checkpoint</span>
+          </div>
         )}
+
+        <div className="flex items-center gap-2">
+          <div className="w-2.5 h-2.5 rotate-45 bg-rose-600" />
+          <span>Incident Point</span>
+        </div>
       </div>
+
+      {/* Main Google Maps Component */}
+      <APIProvider apiKey={apiKey}>
+        <Map
+          defaultCenter={GUJARAT_CENTER}
+          defaultZoom={11}
+          mapId={mapId || undefined}
+          mapTypeId={mapType}
+          disableDefaultUI={false}
+          zoomControl={true}
+          streetViewControl={false}
+          mapTypeControl={false}
+          fullscreenControl={false}
+          className="w-full h-full flex-1"
+        >
+          {/* Native Polyline Engine */}
+          <TrajectoryPolylines
+            observedPoints={observedPath}
+            predictedPoints={predictedPath}
+            showPath={layers.trajectory}
+          />
+
+          {/* Bounds / Focus Controller */}
+          <MapBoundsController
+            sightings={sightings}
+            cameras={cameras}
+            selectedCamera={activeCamera}
+            selectedSighting={activeSighting}
+            triggerFit={triggerFitCount}
+          />
+
+          {/* 1. Verified Camera Markers */}
+          {layers.cameras && validCameras.map((cam) => {
+            const isSelected = cam.cameraId === selectedCameraId;
+            const isDegraded = cam.status === 'DEGRADED';
+            const isOffline = cam.status === 'OFFLINE';
+
+            return (
+              <AdvancedMarker
+                key={`cam-marker-${cam.cameraId}`}
+                position={{ lat: cam.latitude!, lng: cam.longitude! }}
+                onClick={() => {
+                  onSelectCamera(cam);
+                  setActiveCameraPopup(cam);
+                }}
+                title={`${cam.name} (${cam.district})`}
+              >
+                <div
+                  className={`relative flex items-center justify-center rounded-xl p-1.5 transition-transform hover:scale-110 shadow-md cursor-pointer ${
+                    isSelected
+                      ? 'bg-blue-600 text-white ring-4 ring-blue-300 scale-110 z-30'
+                      : isOffline
+                      ? 'bg-rose-600 text-white'
+                      : isDegraded
+                      ? 'bg-amber-500 text-white'
+                      : 'bg-emerald-600 text-white ring-2 ring-white'
+                  }`}
+                >
+                  <Camera className="w-3.5 h-3.5" />
+
+                  {/* Pulsing Dot for Live Status */}
+                  {cam.status === 'LIVE' && !isSelected && (
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-300 ring-2 ring-white animate-ping" />
+                  )}
+                </div>
+              </AdvancedMarker>
+            );
+          })}
+
+          {/* 2. Vehicle Observation Sighting Markers */}
+          {layers.sightings && sightings.filter(s => s.latitude && s.longitude).map((sighting, idx) => {
+            const isSelected = sighting.observationId === selectedSightingId;
+
+            return (
+              <AdvancedMarker
+                key={`sighting-marker-${sighting.observationId || idx}`}
+                position={{ lat: sighting.latitude!, lng: sighting.longitude! }}
+                onClick={() => {
+                  onSelectSighting(sighting);
+                  setActiveSightingPopup(sighting);
+                }}
+                title={`Sighting ${idx + 1}: ${sighting.vehiclePlate} at ${sighting.cameraName}`}
+              >
+                <div
+                  className={`relative flex items-center justify-center rounded-full transition-transform hover:scale-110 shadow-lg cursor-pointer ${
+                    isSelected
+                      ? 'w-7 h-7 bg-blue-600 text-white ring-4 ring-blue-200 scale-125 z-40'
+                      : 'w-6 h-6 bg-blue-700 text-white ring-2 ring-white'
+                  }`}
+                >
+                  <span className="text-[10px] font-black">{idx + 1}</span>
+                </div>
+              </AdvancedMarker>
+            );
+          })}
+
+          {/* 3. Downstream Predicted Marker */}
+          {downstreamPrediction && downstreamPrediction.predictedCameraId && (() => {
+            const predCam = cameras.find(c => c.cameraId === downstreamPrediction.predictedCameraId);
+            if (!predCam || !predCam.latitude || !predCam.longitude) return null;
+
+            return (
+              <AdvancedMarker
+                position={{ lat: predCam.latitude, lng: predCam.longitude }}
+                title={`Predicted Checkpoint: ${predCam.name}`}
+              >
+                <div className="relative flex items-center justify-center w-7 h-7 rounded-full bg-amber-500 text-white ring-4 ring-amber-200/80 shadow-lg animate-pulse">
+                  <Sparkles className="w-3.5 h-3.5" />
+                </div>
+              </AdvancedMarker>
+            );
+          })()}
+
+          {/* 4. Critical Incident Markers */}
+          {layers.incidents && validAlerts.map((alert) => (
+            <AdvancedMarker
+              key={`alert-marker-${alert.alertId}`}
+              position={{ lat: alert.latitude!, lng: alert.longitude! }}
+              onClick={() => setActiveAlertPopup(alert)}
+            >
+              <div className="relative flex items-center justify-center w-6 h-6 rounded-lg bg-rose-600 text-white ring-2 ring-white shadow-lg animate-bounce">
+                <ShieldAlert className="w-3.5 h-3.5" />
+              </div>
+            </AdvancedMarker>
+          ))}
+
+          {/* Camera InfoWindow Popup (Clean White Card) */}
+          {activeCameraPopup && activeCameraPopup.latitude && activeCameraPopup.longitude && (
+            <InfoWindow
+              position={{ lat: activeCameraPopup.latitude, lng: activeCameraPopup.longitude }}
+              onCloseClick={() => setActiveCameraPopup(null)}
+            >
+              <div className="p-3 bg-white max-w-xs select-none space-y-2.5 font-sans">
+                {/* Header */}
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        activeCameraPopup.status === 'LIVE' ? 'bg-emerald-500' : 'bg-amber-500'
+                      }`}
+                    />
+                    <span className="text-xs font-bold font-mono text-slate-900">
+                      {activeCameraPopup.cameraId.toUpperCase()}
+                    </span>
+                  </div>
+
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                    {activeCameraPopup.status}
+                  </span>
+                </div>
+
+                {/* Location Info */}
+                <div>
+                  <h4 className="text-xs font-bold text-slate-900">
+                    {activeCameraPopup.name}
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    {activeCameraPopup.location} • {activeCameraPopup.district}
+                  </p>
+                </div>
+
+                {/* Telemetry Fields */}
+                <div className="bg-slate-50 rounded-lg p-2 border border-slate-100 text-[10px] space-y-1 font-mono text-slate-600">
+                  <div className="flex justify-between">
+                    <span>GPS:</span>
+                    <span className="text-slate-800 font-semibold">
+                      {activeCameraPopup.latitude.toFixed(5)}, {activeCameraPopup.longitude.toFixed(5)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Stream:</span>
+                    <span className={activeCameraPopup.status === 'LIVE' ? 'text-emerald-700 font-semibold' : 'text-amber-700'}>
+                      {activeCameraPopup.status === 'LIVE' ? 'Available (HLS/RTSP)' : 'Degraded'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-1.5 pt-1">
+                  <button
+                    onClick={() => {
+                      onSelectCamera(activeCameraPopup);
+                      onOpenLiveStream(activeCameraPopup.cameraId);
+                    }}
+                    className="flex-1 py-1.5 px-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-1 shadow-2xs"
+                  >
+                    <Eye className="w-3 h-3" />
+                    <span>View Camera</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      onSelectCamera(activeCameraPopup);
+                      setActiveCameraPopup(null);
+                    }}
+                    className="py-1.5 px-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium transition-colors"
+                  >
+                    Focus
+                  </button>
+                </div>
+              </div>
+            </InfoWindow>
+          )}
+
+          {/* Sighting InfoWindow Popup */}
+          {activeSightingPopup && activeSightingPopup.latitude && activeSightingPopup.longitude && (
+            <InfoWindow
+              position={{ lat: activeSightingPopup.latitude, lng: activeSightingPopup.longitude }}
+              onCloseClick={() => setActiveSightingPopup(null)}
+            >
+              <div className="p-3 bg-white max-w-xs select-none space-y-2 font-sans">
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
+                  <span className="text-xs font-black font-mono text-slate-900">
+                    {activeSightingPopup.vehiclePlate}
+                  </span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    OBSERVED
+                  </span>
+                </div>
+
+                <div className="text-xs space-y-0.5">
+                  <p className="font-bold text-slate-800">
+                    {activeSightingPopup.cameraName} ({activeSightingPopup.cameraId.toUpperCase()})
+                  </p>
+                  <p className="text-[11px] text-slate-500 font-mono">
+                    {new Date(activeSightingPopup.timestamp).toLocaleTimeString('en-IN', { hour12: false })} IST
+                  </p>
+                </div>
+
+                <div className="bg-slate-50 p-2 rounded text-[10px] font-mono text-slate-600 flex justify-between">
+                  <span>Confidence:</span>
+                  <span className="text-emerald-700 font-bold">{Math.round(activeSightingPopup.confidence * 100)}%</span>
+                </div>
+              </div>
+            </InfoWindow>
+          )}
+        </Map>
+      </APIProvider>
     </div>
   );
 }

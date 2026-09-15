@@ -12,7 +12,9 @@ import {
   Activity,
   Layers,
   Clock,
-  Radio
+  Radio,
+  Eye,
+  Shield
 } from 'lucide-react';
 
 export type SentinelPlayerState =
@@ -50,6 +52,7 @@ interface SentinelStreamPlayerProps {
   muted?: boolean;
   showControls?: boolean;
   showTelemetryOverlay?: boolean;
+  showAiOverlay?: boolean;
   lowBandwidthMode?: boolean;
   aspectRatio?: '16/9' | '4/3' | 'auto';
   onTelemetryUpdate?: (telemetry: SentinelStreamTelemetry) => void;
@@ -70,6 +73,7 @@ export const SentinelStreamPlayer: React.FC<SentinelStreamPlayerProps> = ({
   muted = true,
   showControls = true,
   showTelemetryOverlay = false,
+  showAiOverlay = true,
   lowBandwidthMode = false,
   aspectRatio = '16/9',
   onTelemetryUpdate,
@@ -85,6 +89,8 @@ export const SentinelStreamPlayer: React.FC<SentinelStreamPlayerProps> = ({
   const [isMuted, setIsMuted] = useState<boolean>(muted);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showTelemetry, setShowTelemetry] = useState<boolean>(showTelemetryOverlay);
+  const [isAiOverlayActive, setIsAiOverlayActive] = useState<boolean>(showAiOverlay);
+  const [aiDetections, setAiDetections] = useState<any[]>([]);
   const [reconnectCount, setReconnectCount] = useState<number>(0);
   const [nextRetryInSec, setNextRetryInSec] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -113,19 +119,35 @@ export const SentinelStreamPlayer: React.FC<SentinelStreamPlayerProps> = ({
 
   const resolvedStreamUrl = streamUrl || `/api/sentinel/stream/${cameraId}/index.m3u8`;
 
-  // Wall-clock sync (official Sentinel Section 1 & 3 specification)
-  const syncLivePosition = useCallback((v: HTMLVideoElement) => {
-    if (v.duration && isFinite(v.duration) && v.duration > 1) {
+  // Poll real YOLO detections for this camera (Decoupled from video playback)
+  useEffect(() => {
+    if (!isAiOverlayActive) return;
+    let isCancelled = false;
+
+    const fetchDetections = async () => {
       try {
-        const targetPos = (Date.now() / 1000) % v.duration;
-        if (Math.abs(v.currentTime - targetPos) > 2.5) {
-          v.currentTime = targetPos;
+        const res = await fetch(`/api/vision/fabric/status?cameraId=${cameraId}`);
+        if (res.ok && !isCancelled) {
+          const data = await res.json();
+          if (data && Array.isArray(data.recentDetections)) {
+            const forCam = data.recentDetections.filter(
+              (d: any) => d.cameraId?.toLowerCase() === cameraId.toLowerCase()
+            );
+            setAiDetections(forCam);
+          }
         }
       } catch {
-        // Ignored if video not ready
+        // Non-fatal polling error
       }
-    }
-  }, []);
+    };
+
+    fetchDetections();
+    const interval = setInterval(fetchDetections, 2000);
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+    };
+  }, [cameraId, isAiOverlayActive]);
 
   // Frame callback for real presentation timestamp
   const setupFrameCallback = useCallback(() => {
@@ -189,8 +211,10 @@ export const SentinelStreamPlayer: React.FC<SentinelStreamPlayerProps> = ({
     // If Hls.js is supported in browser
     if (Hls.isSupported()) {
       const hls = new Hls({
-        maxBufferLength: 6,
-        maxMaxBufferLength: 14,
+        liveSyncDurationCount: 2,
+        liveMaxLatencyDurationCount: 4,
+        maxBufferLength: 8,
+        maxMaxBufferLength: 16,
         backBufferLength: 10,
         manifestLoadingTimeOut: 15000,
         manifestLoadingMaxRetry: 4,
@@ -212,7 +236,6 @@ export const SentinelStreamPlayer: React.FC<SentinelStreamPlayerProps> = ({
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         video.loop = true;
-        syncLivePosition(video);
         if (autoPlay) {
           video.play().catch(() => {
             // Autoplay policy muted playback fallback
@@ -231,7 +254,7 @@ export const SentinelStreamPlayer: React.FC<SentinelStreamPlayerProps> = ({
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (!data.fatal) {
-          // Non-fatal join-time decode warnings or buffered GOP warnings (Section 3 DO NOT treat as fatal)
+          // Non-fatal join-time decode warnings or buffered GOP warnings
           return;
         }
 
@@ -249,12 +272,18 @@ export const SentinelStreamPlayer: React.FC<SentinelStreamPlayerProps> = ({
         }
       });
 
-      // Wall clock drift alignment loop (Section 3 DO: drive timing from PTS)
+      // Gentle drift alignment: only resync if fallen > 10s behind live edge
       wallClockSyncIntervalRef.current = setInterval(() => {
-        if (videoRef.current) {
-          syncLivePosition(videoRef.current);
+        if (videoRef.current && hlsRef.current) {
+          const liveSync = hlsRef.current.liveSyncPosition;
+          if (liveSync && Number.isFinite(liveSync) && videoRef.current.currentTime > 0) {
+            const drift = liveSync - videoRef.current.currentTime;
+            if (drift > 10) {
+              videoRef.current.currentTime = liveSync;
+            }
+          }
         }
-      }, 12000);
+      }, 8000);
 
       setupFrameCallback();
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -262,7 +291,6 @@ export const SentinelStreamPlayer: React.FC<SentinelStreamPlayerProps> = ({
       video.src = resolvedStreamUrl;
       video.loop = true;
       video.addEventListener('loadedmetadata', () => {
-        syncLivePosition(video);
         if (autoPlay) video.play().catch(() => {});
       });
       video.addEventListener('playing', () => {
@@ -278,7 +306,7 @@ export const SentinelStreamPlayer: React.FC<SentinelStreamPlayerProps> = ({
       setPlayerState('ERROR');
       setErrorMessage('Browser does not support HLS playback.');
     }
-  }, [resolvedStreamUrl, autoPlay, destroyPlayer, setupFrameCallback, syncLivePosition]);
+  }, [resolvedStreamUrl, autoPlay, destroyPlayer, setupFrameCallback]);
 
   // Exponential backoff reconnection (Section 3: 2s -> 4s -> 8s -> 16s -> 30s)
   const scheduleReconnect = useCallback(() => {
@@ -457,6 +485,52 @@ export const SentinelStreamPlayer: React.FC<SentinelStreamPlayerProps> = ({
         />
       )}
 
+      {/* Real YOLOv8 AI Vision Inference Bounding Boxes (Decoupled Asynchronous Overlay) */}
+      {isAiOverlayActive && aiDetections.length > 0 && playerState === 'LIVE' && (
+        <div className="absolute inset-0 pointer-events-none z-15 overflow-hidden">
+          {aiDetections.map((det: any, idx: number) => {
+            const bbox = det.bbox || { x: 0.2, y: 0.3, width: 0.2, height: 0.2 };
+            const left = `${Math.max(0, Math.min(95, bbox.x * 100))}%`;
+            const top = `${Math.max(0, Math.min(95, bbox.y * 100))}%`;
+            const width = `${Math.min(100 - bbox.x * 100, bbox.width * 100)}%`;
+            const height = `${Math.min(100 - bbox.y * 100, bbox.height * 100)}%`;
+
+            const isAlert = det.truthStatus === 'ALERT' || det.className === 'person';
+            const isAttention = det.className === 'motorcycle' || det.className === 'bus';
+            const borderCol = isAlert
+              ? 'border-red-500 shadow-red-500/50'
+              : isAttention
+              ? 'border-amber-400 shadow-amber-400/50'
+              : 'border-emerald-400 shadow-emerald-400/40';
+            const badgeBg = isAlert
+              ? 'bg-red-600 text-white border-red-400'
+              : isAttention
+              ? 'bg-amber-600 text-white border-amber-300'
+              : 'bg-emerald-600 text-white border-emerald-300';
+
+            const confPct = Math.round((det.confidence || 0.85) * 100);
+
+            return (
+              <div
+                key={det.id || `det-${idx}`}
+                style={{ left, top, width, height }}
+                className={`absolute border-2 rounded-xs shadow-sm transition-all duration-300 ${borderCol}`}
+              >
+                <div
+                  className={`absolute -top-5 left-0 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold flex items-center gap-1 border shadow-xs whitespace-nowrap leading-none ${badgeBg}`}
+                >
+                  <span className="capitalize">{det.className || 'object'}</span>
+                  <span>{confPct}%</span>
+                  {det.trackId && (
+                    <span className="opacity-80">#{det.trackId.replace(/^TRK-/, '')}</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Top Overlay Badge & Telemetry Bar */}
       <div className="absolute top-0 inset-x-0 p-2.5 bg-gradient-to-b from-slate-950/90 via-slate-950/40 to-transparent flex items-center justify-between z-10 pointer-events-auto">
         <div className="flex items-center gap-2 min-w-0">
@@ -622,6 +696,20 @@ export const SentinelStreamPlayer: React.FC<SentinelStreamPlayerProps> = ({
 
           {/* Quick Action Buttons */}
           <div className="flex items-center gap-1">
+            <button
+              type="button"
+              title={isAiOverlayActive ? "Hide AI Detection Overlay" : "Show AI Detection Overlay"}
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsAiOverlayActive((prev) => !prev);
+              }}
+              className={`p-1 rounded transition cursor-pointer ${
+                isAiOverlayActive ? 'bg-emerald-600/90 text-white' : 'bg-slate-900/80 hover:bg-slate-800 text-slate-400'
+              }`}
+            >
+              <Shield size={13} />
+            </button>
+
             <button
               type="button"
               title="Toggle Live Telemetry"

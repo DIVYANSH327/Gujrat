@@ -33,32 +33,38 @@ export interface VerifiedVehicleSighting {
   observationId: string;
   vehicleObservationId?: string;
   plateObservationId?: string;
+  vehiclePlate?: string;
+  rawPlateText?: string;
+  normalizedPlateText?: string;
   cameraId: string;
   cameraName: string;
   district: string;
   location: string;
   latitude?: number;
   longitude?: number;
-  hasCoordinates: boolean;
+  hasCoordinates?: boolean;
   timestamp: string;
-  frameTimestamp: number;
-  rawPlateText: string;
-  normalizedPlateText: string;
-  plateStatus: string;
-  ocrConfidence: number;
-  vehicleType: string;
-  vehicleColor: string;
+  frameTimestamp?: number;
+  plateStatus?: string;
+  ocrConfidence?: number;
+  vehicleType?: string;
+  vehicleColor?: string;
   vehicleMake?: string;
   direction?: string;
+  directionHeading?: string;
   speedKmh?: number;
+  speedKmph?: number;
   confidence: number;
-  evidenceId: string;
-  originalFrameHash: string;
-  sourceId: string;
-  sourceType: string;
-  verificationState: 'OBSERVED' | 'VERIFIED' | 'PREDICTED';
-  statutoryCompliance: string;
+  evidenceId?: string;
+  evidenceHash?: string;
+  originalFrameHash?: string;
+  sourceId?: string;
+  sourceType?: string;
+  truthStatus?: string;
+  verificationState?: 'OBSERVED' | 'VERIFIED' | 'PREDICTED';
+  statutoryCompliance?: string;
   thumbnailUrl?: string;
+  snapshotUrl?: string;
   sequenceIndex?: number;
 }
 
@@ -71,15 +77,16 @@ export interface CorrelatedTargetAlert {
   latitude?: number;
   longitude?: number;
   timestamp: string;
-  eventType: string;
+  alertType?: string;
+  eventType?: string;
   severity: 'critical' | 'high' | 'medium' | 'low';
-  status: 'new' | 'acknowledged' | 'in_progress' | 'closed';
+  status: 'new' | 'acknowledged' | 'in_progress' | 'closed' | 'ACTIVE';
   confidence: number;
   evidenceId?: string;
   vehiclePlate: string;
   vehicleType?: string;
-  description: string;
-  verificationState: string;
+  description?: string;
+  verificationState?: string;
   acknowledgedBy?: string;
 }
 
@@ -97,31 +104,46 @@ export interface CorridorTransitSegment {
 }
 
 export interface DownstreamPrediction {
-  targetCameraId: string;
-  cameraName: string;
-  district: string;
-  latitude: number;
-  longitude: number;
-  estimatedArrivalSec: number;
-  probabilityPercent: number;
-  corridorName: string;
+  targetCameraId?: string;
+  predictedCameraId?: string;
+  predictedJunction?: string;
+  cameraName?: string;
+  district?: string;
+  latitude?: number;
+  longitude?: number;
+  estimatedArrivalSec?: number;
+  estimatedArrivalWindow?: string;
+  probabilityPercent?: number;
+  confidence?: number;
+  corridorName?: string;
 }
 
 export interface TargetDossierSummary {
-  plateNormalized: string;
-  vehicleClass: string;
-  vehicleColor: string;
+  targetId?: string;
+  plateNormalized?: string;
+  vehicleClass?: string;
+  vehicleType?: string;
+  vehicleColor?: string;
+  color?: string;
   firstSeenAt?: string;
   firstCameraId?: string;
   firstLocation?: string;
   lastSeenAt?: string;
+  lastSeenTime?: string;
   lastCameraId?: string;
+  lastCameraName?: string;
   lastLocation?: string;
-  totalSightings: number;
-  distinctCameras: number;
+  lastDistrict?: string;
+  sightingCount?: number;
+  totalSightings?: number;
+  distinctCameras?: number;
   averageSpeedKmh?: number;
-  complianceCertNumber: string;
-  digitalSealHash: string;
+  confidence?: number;
+  truthStatus?: string;
+  activeAlerts?: number;
+  complianceCertNumber?: string;
+  certificateId?: string;
+  digitalSealHash?: string;
 }
 
 export interface WorkspaceFilterState {

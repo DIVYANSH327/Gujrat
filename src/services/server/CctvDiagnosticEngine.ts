@@ -502,7 +502,7 @@ export class CctvDiagnosticEngine {
             return;
           }
         }
-        reject(new Error(`FFmpeg exited with code ${code}: ${stderr.slice(-150).trim()}`));
+        reject(new Error(`FFmpeg exited with code ${code}: ${this.redactCredentials(stderr.slice(-150).trim())}`));
       });
       proc.on('error', err => {
         clearTimeout(timer);

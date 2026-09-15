@@ -35,6 +35,7 @@ import { SentinelCameraGridLab } from './components/SentinelCameraGridLab';
 import { SentinelHealthIndicator } from './components/SentinelHealthIndicator';
 import { NightAuditView } from './components/night-audit/NightAuditView';
 import { AlertNotificationToast } from './components/AlertNotificationToast';
+import { DefensiveCyberSecurityPanel } from './components/vision/DefensiveCyberSecurityPanel';
 import { ViewMode, DetectionEvent } from './types';
 import { PROJECT_BRANDING } from './branding';
 import { audioAlertService } from './services/AudioAlertService';
@@ -198,6 +199,12 @@ export default function App() {
         return <EdgeFleet />;
       case 'policies':
         return <SecurityPolicies />;
+      case 'cyber_security':
+        return (
+          <div className="p-6 max-w-7xl mx-auto">
+            <DefensiveCyberSecurityPanel />
+          </div>
+        );
       case 'system':
         return <SystemReadinessView />;
       case 'gov_deployment':
