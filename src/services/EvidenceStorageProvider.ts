@@ -182,8 +182,8 @@ export class LocalFilesystemEvidenceProvider implements IEvidenceStorageProvider
   }
 
   private initializeFromStorage(): void {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
+    try {
+      if (typeof window !== 'undefined' && 'localStorage' in window && window.localStorage) {
         const raw = window.localStorage.getItem('gp_cctv_evidence_records_v2');
         if (raw) {
           const list: ForensicEvidenceRecord[] = JSON.parse(raw);
@@ -191,20 +191,20 @@ export class LocalFilesystemEvidenceProvider implements IEvidenceStorageProvider
             this.records.set(item.evidenceId, normalizeEvidenceRecord(item, this.config));
           }
         }
-      } catch {
-        // Fallback to in-memory only
       }
+    } catch {
+      // Fallback to in-memory only
     }
   }
 
   protected saveToStorage(): void {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
+    try {
+      if (typeof window !== 'undefined' && 'localStorage' in window && window.localStorage) {
         const list = Array.from(this.records.values());
         window.localStorage.setItem('gp_cctv_evidence_records_v2', JSON.stringify(list));
-      } catch {
-        // LocalStorage quota or disabled
       }
+    } catch {
+      // LocalStorage quota or disabled
     }
   }
 
@@ -349,8 +349,12 @@ export class LocalFilesystemEvidenceProvider implements IEvidenceStorageProvider
 
   clear(): void {
     this.records.clear();
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.removeItem('gp_cctv_evidence_records_v2');
+    try {
+      if (typeof window !== 'undefined' && 'localStorage' in window && window.localStorage) {
+        window.localStorage.removeItem('gp_cctv_evidence_records_v2');
+      }
+    } catch {
+      // Ignore
     }
   }
 }

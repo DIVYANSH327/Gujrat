@@ -73,8 +73,16 @@ class MemoryStorage {
 const memoryStorageFallback = new MemoryStorage();
 
 function getStorage(): Storage | MemoryStorage {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    return window.localStorage;
+  try {
+    if (typeof window !== 'undefined' && typeof window.localStorage !== 'undefined') {
+      // Probe to check for iframe security sandbox exceptions
+      const probeKey = '__sentinel_probe__';
+      window.localStorage.setItem(probeKey, '1');
+      window.localStorage.removeItem(probeKey);
+      return window.localStorage;
+    }
+  } catch {
+    // Falls back silently to in-memory store in sandboxed iframes or private modes
   }
   return memoryStorageFallback;
 }

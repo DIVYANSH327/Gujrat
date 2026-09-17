@@ -14,6 +14,7 @@ import {
   Lock,
   Cpu,
   Globe,
+  MapPin,
   Building2,
   Tv,
   Car,
@@ -36,6 +37,8 @@ import {
 } from 'lucide-react';
 import { ViewMode } from '../types';
 import { PROJECT_BRANDING } from '../branding';
+import { useAuth } from '../context/AuthContext';
+import { getRequiredPermissionForView } from '../types/auth';
 
 interface SidebarProps {
   currentView: ViewMode;
@@ -69,6 +72,7 @@ export function Sidebar({
   isCollapsed = false,
   onToggleCollapse
 }: SidebarProps) {
+  const { officer, hasPermission } = useAuth();
   const [filterText, setFilterText] = useState('');
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({
     'ADMIN / ADVANCED': true // Collapsed by default for clean officer experience
@@ -108,7 +112,7 @@ export function Sidebar({
         { 
           id: 'command_center', 
           label: 'Dashboard', 
-          sub: 'Traffic & CCTV Overview',
+          sub: 'Operations & CCTV Overview',
           icon: <LayoutDashboard size={18} />
         },
         { 
@@ -120,10 +124,10 @@ export function Sidebar({
         { 
           id: 'sentinel_grid', 
           label: 'Sentinel Camera Grid', 
-          sub: 'SCRB Sandbox & Ingestion Lab',
+          sub: 'SCRB Ingestion & Stream Lab',
           icon: <Radio size={18} />,
-          badge: 'SCRB SANDBOX',
-          badgeColor: 'bg-purple-50 text-purple-700 border-purple-200'
+          badge: 'INGESTION LAB',
+          badgeColor: 'bg-blue-50 text-blue-700 border-blue-200'
         },
       ]
     },
@@ -134,16 +138,16 @@ export function Sidebar({
         { 
           id: 'search', 
           label: 'Vehicle Search', 
-          sub: 'Plate & Color Query',
+          sub: 'Plate, Color & Class Query',
           icon: <Search size={18} /> 
         },
         { 
-          id: 'watchlist', 
-          label: 'Person Watchlist', 
-          sub: 'Face & Target Review',
-          icon: <ScanFace size={18} />,
-          badge: 'BSA 2023',
-          badgeColor: 'bg-amber-50 text-amber-800 border-amber-200'
+          id: 'plate_intelligence_map', 
+          label: 'Plate Intelligence', 
+          sub: 'Universal Plate GIS & Hotspots',
+          icon: <Globe size={18} />,
+          badge: 'HSRP + GIS',
+          badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200'
         },
         { 
           id: 'challenge', 
@@ -155,7 +159,15 @@ export function Sidebar({
           id: 'geospatial_map', 
           label: 'Evidence Map', 
           sub: 'Verified GIS Coordinates',
-          icon: <Globe size={18} />
+          icon: <MapPin size={18} />
+        },
+        { 
+          id: 'watchlist', 
+          label: 'Person Watchlist', 
+          sub: 'Face & Target Review',
+          icon: <ScanFace size={18} />,
+          badge: 'BSA 2023',
+          badgeColor: 'bg-amber-50 text-amber-800 border-amber-200'
         },
       ]
     },
@@ -163,22 +175,6 @@ export function Sidebar({
       id: 'OPERATIONS',
       title: 'OPERATIONS',
       items: [
-        { 
-          id: 'raw_video_audit', 
-          label: 'Raw Video Audit', 
-          sub: 'Corp8 Decoder Forensic',
-          icon: <Activity size={18} />,
-          badge: 'DECODER AUDIT',
-          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
-        },
-        { 
-          id: 'night_audit', 
-          label: 'Night CCTV Audit', 
-          sub: 'Overnight Sentinel Audit',
-          icon: <Moon size={18} />,
-          badge: 'BSA 2023',
-          badgeColor: 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-        },
         { 
           id: 'alerts', 
           label: 'Alerts', 
@@ -198,6 +194,14 @@ export function Sidebar({
           label: 'Missions', 
           sub: 'Autonomous Tracking',
           icon: <Crosshair size={18} />
+        },
+        { 
+          id: 'night_audit', 
+          label: 'Night CCTV Audit', 
+          sub: 'Overnight Sentinel Audit',
+          icon: <Moon size={18} />,
+          badge: 'BSA 2023',
+          badgeColor: 'bg-amber-50 text-amber-700 border-amber-200'
         },
       ]
     },
@@ -220,6 +224,42 @@ export function Sidebar({
       ]
     },
     {
+      id: 'AI & INTELLIGENCE',
+      title: 'AI & INTELLIGENCE',
+      items: [
+        { 
+          id: 'real_ai_test_lab', 
+          label: 'AI Vision Lab', 
+          sub: 'YOLOv8 + Gemini 3.8 Flash',
+          icon: <Sparkles size={18} />,
+          badge: 'AI LAB',
+          badgeColor: 'bg-blue-50 text-blue-700 border-blue-200'
+        },
+        { 
+          id: 'raw_video_audit', 
+          label: 'HSRP Verification', 
+          sub: 'Laser PIN & Hologram Audit',
+          icon: <Activity size={18} />
+        },
+        { 
+          id: 'ai_mesh', 
+          label: 'AI Agent Mesh', 
+          sub: '13 Specialized Neural Agents',
+          icon: <Cpu size={18} />,
+          badge: 'ORCHESTRATOR',
+          badgeColor: 'bg-purple-50 text-purple-700 border-purple-200'
+        },
+        { 
+          id: 'mobile_patrol_cameras', 
+          label: 'Mobile Patrol Cameras', 
+          sub: 'Live Officer Dashcam & AI',
+          icon: <Smartphone size={18} />,
+          badge: 'PATROL',
+          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
+        },
+      ]
+    },
+    {
       id: 'SYSTEM',
       title: 'SYSTEM',
       items: [
@@ -232,28 +272,8 @@ export function Sidebar({
         { 
           id: 'system', 
           label: 'System Health', 
-          sub: 'Readiness & Diagnostic',
+          sub: 'Hardware & Diagnostics',
           icon: <Activity size={18} />
-        },
-      ]
-    },
-    {
-      id: 'ADMIN / ADVANCED',
-      title: 'ADMIN / ADVANCED',
-      items: [
-        { 
-          id: 'ai_mesh', 
-          label: 'AI Agent Mesh', 
-          sub: 'Distributed Intelligence',
-          icon: <Cpu size={18} />
-        },
-        { 
-          id: 'cyber_security', 
-          label: 'Cyber Defense Mesh', 
-          sub: '10 Defensive Agents',
-          icon: <ShieldCheck size={18} />,
-          badge: 'DEFENSE',
-          badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200'
         },
         { 
           id: 'nodes', 
@@ -275,35 +295,22 @@ export function Sidebar({
         },
         { 
           id: 'gov_deployment', 
-          label: 'Settings / On-Prem', 
-          sub: 'Air-Gap & NAS Config',
+          label: 'Settings', 
+          sub: 'Air-Gap & Resource Config',
           icon: <Settings size={18} />
-        },
-        { 
-          id: 'real_ai_test_lab', 
-          label: 'Real AI Vision Lab', 
-          sub: 'Gemini 3.8 Flash Engine',
-          icon: <Sparkles size={18} />,
-          badge: 'AI LAB',
-          badgeColor: 'bg-purple-50 text-purple-700 border-purple-200'
-        },
-        { 
-          id: 'mobile_camera', 
-          label: 'Mobile Patrol Cam', 
-          sub: 'Live Device Video Source',
-          icon: <Smartphone size={18} />
-        },
-        { 
-          id: 'youtube_demo', 
-          label: 'YouTube Demo', 
-          sub: 'Synthetic / Display Only',
-          icon: <Tv size={18} />,
-          badge: 'DEMO ONLY',
-          badgeColor: 'bg-slate-100 text-slate-500 border-slate-300'
         },
       ]
     }
   ];
+
+  // RBAC filter: restrict navigation groups and items based on officer role/permissions
+  const authorizedNavGroups = navGroups.map(group => ({
+    ...group,
+    items: group.items.filter(item => {
+      if (!officer || officer.role === 'ADMIN') return true;
+      return hasPermission(getRequiredPermissionForView(item.id));
+    })
+  })).filter(group => group.items.length > 0);
 
   const handleSelectView = (view: ViewMode) => {
     onViewChange(view);
@@ -366,7 +373,7 @@ export function Sidebar({
 
       {/* Grouped Navigation List */}
       <nav className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-4">
-        {navGroups.map((group) => {
+        {authorizedNavGroups.map((group) => {
           const matchingItems = group.items.filter(item => 
             !filterText || 
             item.label.toLowerCase().includes(filterText.toLowerCase()) || 
@@ -463,7 +470,7 @@ export function Sidebar({
       </div>
 
       <nav className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-3">
-        {navGroups.map((group) => (
+        {authorizedNavGroups.map((group) => (
           <div key={group.id} className="space-y-1.5">
             <div className="text-[9px] font-bold text-slate-400 text-center uppercase tracking-wider">
               {group.id.substring(0, 3)}

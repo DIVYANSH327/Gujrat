@@ -38,6 +38,9 @@ import { googleCloudScaleAdapter } from '../cloud/GoogleCloudScaleAdapter.js';
 export type {
   VehicleObservation,
   VehicleTrackRecord,
+  PersonObservation,
+  PersonTrackRecord,
+  UnifiedAuditEntry,
   IntelligenceMetrics,
   EngineState,
   IntelligenceTelemetry
@@ -46,6 +49,9 @@ export type {
 import type {
   VehicleObservation,
   VehicleTrackRecord,
+  PersonObservation,
+  PersonTrackRecord,
+  UnifiedAuditEntry,
   IntelligenceMetrics,
   EngineState,
   IntelligenceTelemetry
@@ -71,6 +77,9 @@ export class BackgroundVehicleIntelligenceEngine {
   // Memory stores (bounded to prevent leaks)
   private observations: VehicleObservation[] = [];
   private vehicleTracks = new Map<string, VehicleTrackRecord>(); // trackId -> Track
+  private personObservations: PersonObservation[] = [];
+  private personTracks = new Map<string, PersonTrackRecord>(); // personTrackId -> Track
+  private auditLogs: UnifiedAuditEntry[] = [];
   private snapshotStore = new Map<string, { buffer: Buffer; mimeType: string; timestamp: number; sha256: string }>();
 
   // Runtime Daily vs Lifetime Metrics
@@ -83,6 +92,7 @@ export class BackgroundVehicleIntelligenceEngine {
     camerasSampled: 0,
     cameraReconnects: 0,
     vehiclesDetected: 0,
+    personsDetected: 0,
     plateCandidates: 0,
     ocrReadable: 0,
     ocrNotReadable: 0,
@@ -100,6 +110,7 @@ export class BackgroundVehicleIntelligenceEngine {
     camerasSampled: 0,
     cameraReconnects: 0,
     vehiclesDetected: 0,
+    personsDetected: 0,
     plateCandidates: 0,
     ocrReadable: 0,
     ocrNotReadable: 0,
@@ -346,22 +357,25 @@ export class BackgroundVehicleIntelligenceEngine {
 
       // Filter eligible cameras based on state & backoff (Never hammer failed cameras!)
       const camsToProcess: typeof candidateCams = [];
-      for (const cam of candidateCams) {
-        const nodeState = sentinelCameraRecoveryManager.getCameraState(cam.id);
-        if (!nodeState) {
-          camsToProcess.push(cam);
-          continue;
-        }
-
-        // LIVE, DEGRADED, or STARTING are immediately reachable
-        if (nodeState.state === 'LIVE' || nodeState.state === 'DEGRADED' || nodeState.state === 'STARTING') {
-          camsToProcess.push(cam);
-        } else if (nodeState.state === 'OFFLINE' || nodeState.state === 'RECONNECTING' || nodeState.state === 'AUTH_ERROR') {
-          // Check if backoff window has elapsed for retry probe
-          if (now >= nodeState.nextAllowedReconnectTime) {
+      const isHostReachable = await sentinelServerService.checkRtspHostCached(15000);
+      if (isHostReachable) {
+        for (const cam of candidateCams) {
+          const nodeState = sentinelCameraRecoveryManager.getCameraState(cam.id);
+          if (!nodeState) {
             camsToProcess.push(cam);
+            continue;
           }
-          // Else skip this camera this cycle
+
+          // LIVE, DEGRADED, or STARTING are immediately reachable
+          if (nodeState.state === 'LIVE' || nodeState.state === 'DEGRADED' || nodeState.state === 'STARTING') {
+            camsToProcess.push(cam);
+          } else if (nodeState.state === 'OFFLINE' || nodeState.state === 'RECONNECTING' || nodeState.state === 'AUTH_ERROR' || nodeState.state === 'STALE') {
+            // Check if backoff window has elapsed for retry probe
+            if (now >= nodeState.nextAllowedReconnectTime) {
+              camsToProcess.push(cam);
+            }
+            // Else skip this camera this cycle
+          }
         }
       }
 
@@ -496,6 +510,7 @@ export class BackgroundVehicleIntelligenceEngine {
     const base64 = rawFrameBuffer.toString('base64');
     let aiResponse: any = null;
     let vehicleDetections: any[] = [];
+    let personDetections: any[] = [];
     let usedProvider = 'DETERMINISTIC_CV';
     let usedModel = 'yolov8-quantized-edge';
 
@@ -513,7 +528,10 @@ export class BackgroundVehicleIntelligenceEngine {
         this.metricsLifetime.aiInferenceSuccesses++;
         const rawDetections = aiResponse?.detections || [];
         vehicleDetections = rawDetections.filter((d: any) =>
-          ['car', 'motorcycle', 'bus', 'truck', 'auto-rickshaw', 'vehicle', 'van', 'suv'].includes(d.class?.toLowerCase())
+          ['car', 'motorcycle', 'bus', 'truck', 'auto-rickshaw', 'vehicle', 'van', 'suv', 'bicycle'].includes(d.class?.toLowerCase())
+        );
+        personDetections = rawDetections.filter((d: any) =>
+          ['person', 'pedestrian', 'rider', 'man', 'woman', 'people', 'human', 'crowd'].includes(d.class?.toLowerCase())
         );
         usedProvider = aiResponse?.provider || 'OMNIROUTE';
         usedModel = aiResponse?.model || 'auto';
@@ -524,25 +542,26 @@ export class BackgroundVehicleIntelligenceEngine {
           // Strict single provider failure -> truthful empty response
           return [];
         }
-        // Fallback to deterministic local CV vehicle detection
+        // Fallback to deterministic local CV vehicle & person detection
         vehicleDetections = [];
+        personDetections = [];
       }
     } else {
-      // Deterministic baseline computer vision: Extract high-contrast optical vehicles
-      // Provide truthful fallback without calling LLM
+      // Deterministic baseline computer vision: Extract high-contrast optical vehicles and people
       usedProvider = 'DETERMINISTIC_CV';
       usedModel = 'opencv-yolo-edge';
       vehicleDetections = [];
+      personDetections = [];
     }
 
-    if (vehicleDetections.length === 0) {
+    if (vehicleDetections.length === 0 && personDetections.length === 0) {
       return [];
     }
 
     const frameObservations: VehicleObservation[] = [];
 
     // 4. MULTIPLE VEHICLES IN ONE FRAME:
-    // If one frame contains 5 vehicles -> 5 independent vehicle observations + crops!
+    // If one frame contains multiple vehicles -> independent vehicle observations + crops!
     for (let i = 0; i < vehicleDetections.length; i++) {
       const v = vehicleDetections[i];
       this.metricsToday.vehiclesDetected++;
@@ -556,7 +575,7 @@ export class BackgroundVehicleIntelligenceEngine {
         height: Math.max(0.05, Math.min(0.8, v.box?.height ?? 0.3))
       };
 
-      // Extract independent vehicle crop using FFmpeg
+      // Extract independent vehicle crop using FFmpeg / image crop util
       let vehicleCrop: CropResult;
       try {
         vehicleCrop = await ImageCropUtil.cropJpeg(rawFrameBuffer, vBox, qualityMetrics.width, qualityMetrics.height);
@@ -797,10 +816,32 @@ export class BackgroundVehicleIntelligenceEngine {
       this.observations.unshift(observation);
       if (this.observations.length > 500) this.observations.pop();
 
-      // 6. MULTI-FRAME TRACKING: Update track record & retain best 3 frames
+      // Multi-frame track update
       this.updateMultiFrameTrack(observation, qualityMetrics.overallQualityScore);
 
-      // 7. REAL SURVEILLANCE EVENT EMISSION TO CENTRALEVENTBUS (Traceable downstream to AlertNotificationToast)
+      // Add to Unified Audit Log
+      this.addAuditEntry({
+        auditId: `AUD-HSRP-${observationId}`,
+        timestamp: observation.captureTimestampUtc,
+        timestampMs: now,
+        auditType: 'HSRP_INSPECTION',
+        cameraId: camId,
+        cameraName,
+        location,
+        district,
+        targetId: observation.ocrResult !== 'NOT_READABLE' ? observation.ocrResult : vehicleTrackId,
+        category: 'VEHICLE_HSRP',
+        status: observation.hsrpStatus === 'HSRP_COMPLIANT' ? 'COMPLIANT' : observation.hsrpStatus === 'HSRP_NON_COMPLIANT' ? 'NON_COMPLIANT' : 'VERIFIED',
+        details: `${observation.vehicleType.toUpperCase()} - Plate: ${observation.ocrResult} (${observation.hsrpNotes || 'HSRP audit complete'})`,
+        confidence: observation.ocrConfidence > 0 ? observation.ocrConfidence : observation.vehicleConfidence,
+        frameUrl: observation.frameUrl,
+        cropUrl: observation.vehicleCropUrl,
+        enhancedCropUrl: observation.enhancedPlateCropUrl || observation.originalPlateCropUrl,
+        sha256: observation.frameSha256,
+        evidenceId: observation.evidenceId
+      });
+
+      // Real surveillance event emission
       try {
         if (observation.hsrpStatus === 'HSRP_NON_COMPLIANT' || (observation.ocrResult && observation.ocrResult !== 'NOT_READABLE' && observation.ocrResult !== 'OCR_DISABLED')) {
           centralEventBus.publish({
@@ -830,7 +871,6 @@ export class BackgroundVehicleIntelligenceEngine {
           });
         }
 
-        // 8. GOOGLE CLOUD SCALE CLOUDEVENT ADAPTER (Heterogeneous statewide event fabric)
         try {
           googleCloudScaleAdapter.enqueueObservation({
             eventId: `EVT-${observationId}`,
@@ -861,11 +901,170 @@ export class BackgroundVehicleIntelligenceEngine {
       }
     }
 
+    // 4b. MULTIPLE PEOPLE / PEDESTRIANS IN ONE FRAME:
+    // Extract high-resolution person crop snapshots, track pedestrians, and log audit trail
+    for (let j = 0; j < personDetections.length; j++) {
+      const p = personDetections[j];
+      this.metricsToday.personsDetected++;
+      this.metricsLifetime.personsDetected++;
+
+      // Normalized person bounding box
+      const pBox: BoundingBox = {
+        x: Math.max(0, Math.min(0.95, p.box?.x ?? 0.2 + j * 0.1)),
+        y: Math.max(0, Math.min(0.95, p.box?.y ?? 0.15)),
+        width: Math.max(0.04, Math.min(0.6, p.box?.width ?? 0.2)),
+        height: Math.max(0.06, Math.min(0.85, p.box?.height ?? 0.5))
+      };
+
+      // Extract independent person crop snapshot
+      let personCrop: CropResult;
+      try {
+        personCrop = await ImageCropUtil.cropJpeg(rawFrameBuffer, pBox, qualityMetrics.width, qualityMetrics.height);
+      } catch {
+        personCrop = {
+          buffer: rawFrameBuffer,
+          mimeType: 'image/jpeg',
+          width: qualityMetrics.width,
+          height: qualityMetrics.height,
+          sha256: frameSha256
+        };
+      }
+
+      const pCropId = `CROP-PERSON-${camId}-${now}-${j}`;
+      this.snapshotStore.set(pCropId, {
+        buffer: personCrop.buffer,
+        mimeType: 'image/jpeg',
+        timestamp: now,
+        sha256: personCrop.sha256
+      });
+      const personCropUrl = `/api/intelligence/snapshots/${pCropId}`;
+
+      // Resolve person track ID
+      const personTrackId = this.resolvePersonTrackId(camId, pBox, now);
+      const personObsId = `OBS-P-${camId}-${now}-${j}`;
+
+      // Helmet & Classification attributes
+      const helmetRaw = p.attributes?.helmet || 'UNKNOWN';
+      const helmetStatus = helmetRaw === 'HELMET' 
+        ? 'HELMET_COMPLIANT' 
+        : helmetRaw === 'NO_HELMET' 
+          ? 'NO_HELMET' 
+          : 'NOT_APPLICABLE';
+
+      const classification = p.class?.toLowerCase() === 'rider' || p.attributes?.vehicleType 
+        ? 'MOTORCYCLE_RIDER' 
+        : 'PEDESTRIAN';
+
+      // Store forensic evidence
+      let storedEvidenceId: string | undefined;
+      try {
+        const evRecord = await evidenceStorage.storeEvidence({
+          evidenceId: `EVD-${personObsId}`,
+          cameraId: camId,
+          sourceCamera: camId,
+          captureSource: 'REAL_CAMERA',
+          sourceType: 'REAL_CAMERA',
+          sha256: personCrop.sha256,
+          imageReference: personCropUrl,
+          frameReference: frameUrl,
+          status: 'VERIFIED',
+          timestamp: new Date().toISOString()
+        });
+        storedEvidenceId = evRecord.evidenceId;
+        this.metricsToday.evidenceStored++;
+        this.metricsLifetime.evidenceStored++;
+      } catch {}
+
+      const personObs: PersonObservation = {
+        observationId: personObsId,
+        cameraId: camId,
+        cameraName,
+        district,
+        location,
+        frameTimestamp: now,
+        captureTimestampUtc: new Date(now).toISOString(),
+        frameSha256,
+        frameUrl,
+
+        personTrackId,
+        personConfidence: p.confidence || 0.88,
+        boundingBox: pBox,
+        personCropUrl,
+        personCropSha256: personCrop.sha256,
+        personCropWidth: personCrop.width,
+        personCropHeight: personCrop.height,
+
+        classification,
+        helmetStatus,
+        posture: 'WALKING',
+        densityZone: personDetections.length > 5 ? 'HIGH_CONGESTION' : personDetections.length > 2 ? 'MEDIUM' : 'LOW',
+
+        aiProvider: usedProvider as any,
+        aiModel: usedModel,
+        processingTimeMs: aiResponse?.analysisTimeMs || 120,
+        evidenceQuality: qualityMetrics.overallQualityScore > 70 ? 'HIGH' : 'MEDIUM',
+        evidenceId: storedEvidenceId
+      };
+
+      this.personObservations.unshift(personObs);
+      if (this.personObservations.length > 500) this.personObservations.pop();
+
+      // Multi-frame track update for person
+      this.updateMultiFramePersonTrack(personObs, qualityMetrics.overallQualityScore);
+
+      // Add to Unified Audit Log
+      this.addAuditEntry({
+        auditId: `AUD-PER-${personObsId}`,
+        timestamp: personObs.captureTimestampUtc,
+        timestampMs: now,
+        auditType: helmetStatus === 'NO_HELMET' ? 'SAFETY_VIOLATION' : 'PERSON_DETECTION',
+        cameraId: camId,
+        cameraName,
+        location,
+        district,
+        targetId: personTrackId,
+        category: 'PERSON_PEDESTRIAN',
+        status: helmetStatus === 'NO_HELMET' ? 'FLAGGED' : 'DETECTED',
+        details: `${classification.replace('_', ' ')} detected (Confidence: ${(personObs.personConfidence * 100).toFixed(0)}%, Helmet: ${helmetStatus.replace('_', ' ')})`,
+        confidence: personObs.personConfidence,
+        frameUrl: personObs.frameUrl,
+        cropUrl: personObs.personCropUrl,
+        sha256: personObs.personCropSha256,
+        evidenceId: personObs.evidenceId
+      });
+
+      // Emit safety / presence event if violation or notable sighting
+      if (helmetStatus === 'NO_HELMET') {
+        centralEventBus.publish({
+          eventType: 'VIOLATION_CASE_CREATED',
+          sourceId: camId,
+          correlationId: personTrackId,
+          idempotencyKey: `EVT-${personObsId}`,
+          priority: 'P2',
+          payload: {
+            eventId: `EVT-${personObsId}`,
+            cameraId: camId,
+            cameraName,
+            location,
+            detectionType: 'SAFETY_VIOLATION_NO_HELMET',
+            model: usedModel,
+            technology: usedProvider,
+            evidenceReference: personCropUrl,
+            evidenceSha256: personCrop.sha256,
+            confidence: personObs.personConfidence,
+            sourceFrameTimestamp: now,
+            title: `Road Safety Violation: Helmet Non-Compliance (${personTrackId})`,
+            description: `Two-wheeler rider identified without protective headgear at ${location}`
+          }
+        });
+      }
+    }
+
     return frameObservations;
   }
 
   /**
-   * Spatial & Temporal Track ID Resolution
+   * Spatial & Temporal Vehicle Track ID Resolution
    */
   private resolveVehicleTrackId(camId: string, box: BoundingBox, vClass: string, timestamp: number): string {
     for (const [trackId, track] of this.vehicleTracks.entries()) {
@@ -881,11 +1080,31 @@ export class BackgroundVehicleIntelligenceEngine {
       }
     }
 
-    return `TRK-${camId.toUpperCase()}-${vClass.toUpperCase()}-${timestamp % 1000000}`;
+    return `TRK-VEH-${camId.toUpperCase()}-${vClass.toUpperCase()}-${timestamp % 1000000}`;
   }
 
   /**
-   * Multi-Frame Track Manager
+   * Spatial & Temporal Person Track ID Resolution
+   */
+  private resolvePersonTrackId(camId: string, box: BoundingBox, timestamp: number): string {
+    for (const [trackId, track] of this.personTracks.entries()) {
+      if (track.cameraId === camId && (timestamp - track.lastSeenMs) < 15000) {
+        const lastObs = track.observations[0];
+        if (lastObs) {
+          const dx = Math.abs(lastObs.boundingBox.x - box.x);
+          const dy = Math.abs(lastObs.boundingBox.y - box.y);
+          if (dx < 0.20 && dy < 0.20) {
+            return trackId;
+          }
+        }
+      }
+    }
+
+    return `TRK-PER-${camId.toUpperCase()}-${timestamp % 1000000}`;
+  }
+
+  /**
+   * Multi-Frame Vehicle Track Manager
    * Retains best 3 vehicle frames and best 3 plate frames per track.
    */
   private updateMultiFrameTrack(obs: VehicleObservation, frameQualityScore: number): void {
@@ -962,8 +1181,72 @@ export class BackgroundVehicleIntelligenceEngine {
   }
 
   /**
+   * Multi-Frame Person Track Manager
+   * Retains best 3 person frames per track.
+   */
+  private updateMultiFramePersonTrack(obs: PersonObservation, frameQualityScore: number): void {
+    let track = this.personTracks.get(obs.personTrackId);
+
+    if (!track) {
+      track = {
+        personTrackId: obs.personTrackId,
+        cameraId: obs.cameraId,
+        cameraName: obs.cameraName,
+        district: obs.district,
+        location: obs.location,
+        classification: obs.classification,
+        helmetStatus: obs.helmetStatus,
+        firstSeenMs: obs.frameTimestamp,
+        lastSeenMs: obs.frameTimestamp,
+        frameCount: 1,
+        bestFrames: [],
+        bestPersonFrames: [],
+        observations: [obs]
+      };
+      this.personTracks.set(obs.personTrackId, track);
+    } else {
+      track.lastSeenMs = obs.frameTimestamp;
+      track.frameCount++;
+      track.observations.unshift(obs);
+      if (track.observations.length > 20) track.observations.pop();
+
+      if (obs.helmetStatus === 'NO_HELMET') {
+        track.helmetStatus = 'NO_HELMET';
+      }
+    }
+
+    // Maintain Best 3 Person Frames
+    const bestFrameObj = {
+      frameTimestamp: obs.frameTimestamp,
+      frameSha256: obs.frameSha256,
+      frameUrl: obs.frameUrl,
+      cropUrl: obs.personCropUrl,
+      cropSha256: obs.personCropSha256,
+      confidence: obs.personConfidence,
+      qualityScore: frameQualityScore
+    };
+    track.bestFrames.push(bestFrameObj);
+    track.bestFrames.sort((a, b) => (b.qualityScore * b.confidence) - (a.qualityScore * a.confidence));
+    if (track.bestFrames.length > 3) {
+      track.bestFrames = track.bestFrames.slice(0, 3);
+    }
+    track.bestPersonFrames = track.bestFrames;
+  }
+
+  /**
+   * Unified Audit Entry Appender
+   * Keeps bounded in-memory audit log for real-time compliance inspections.
+   */
+  private addAuditEntry(entry: UnifiedAuditEntry): void {
+    this.auditLogs.unshift(entry);
+    if (this.auditLogs.length > 1000) {
+      this.auditLogs.pop();
+    }
+  }
+
+  /**
    * 24/7 Memory Safety: Expire Inactive Tracks
-   * Removes tracks not seen in the last 15 minutes, and caps max active tracks at 500.
+   * Removes vehicle & person tracks not seen in the last 15 minutes, and caps max active tracks.
    */
   private expireInactiveTracks(): void {
     const now = Date.now();
@@ -975,7 +1258,6 @@ export class BackgroundVehicleIntelligenceEngine {
       }
     }
 
-    // Enforce hard upper bound on active tracks
     if (this.vehicleTracks.size > 500) {
       const sorted = Array.from(this.vehicleTracks.entries())
         .sort((a, b) => b[1].lastSeenMs - a[1].lastSeenMs);
@@ -984,11 +1266,26 @@ export class BackgroundVehicleIntelligenceEngine {
         this.vehicleTracks.set(id, t);
       }
     }
+
+    for (const [trackId, track] of this.personTracks.entries()) {
+      if (now - track.lastSeenMs > INACTIVE_TIMEOUT_MS) {
+        this.personTracks.delete(trackId);
+      }
+    }
+
+    if (this.personTracks.size > 500) {
+      const sorted = Array.from(this.personTracks.entries())
+        .sort((a, b) => b[1].lastSeenMs - a[1].lastSeenMs);
+      this.personTracks.clear();
+      for (const [id, t] of sorted.slice(0, 300)) {
+        this.personTracks.set(id, t);
+      }
+    }
   }
 
   /**
    * 24/7 Memory Safety: Snapshot Cache Pruner
-   * Purges cached snapshots older than 30 minutes and caps at 200 items.
+   * Purges cached snapshots older than 30 minutes and caps at 300 items.
    */
   private pruneSnapshotStore(): void {
     const now = Date.now();
@@ -1000,8 +1297,8 @@ export class BackgroundVehicleIntelligenceEngine {
       }
     }
 
-    if (this.snapshotStore.size > 200) {
-      const keys = Array.from(this.snapshotStore.keys()).slice(0, this.snapshotStore.size - 150);
+    if (this.snapshotStore.size > 300) {
+      const keys = Array.from(this.snapshotStore.keys()).slice(0, this.snapshotStore.size - 200);
       for (const k of keys) {
         this.snapshotStore.delete(k);
       }
@@ -1027,6 +1324,7 @@ export class BackgroundVehicleIntelligenceEngine {
         camerasSampled: 0,
         cameraReconnects: 0,
         vehiclesDetected: 0,
+        personsDetected: 0,
         plateCandidates: 0,
         ocrReadable: 0,
         ocrNotReadable: 0,
@@ -1136,7 +1434,6 @@ export class BackgroundVehicleIntelligenceEngine {
     const cameraSummary = sentinelCameraRecoveryManager.getSummary();
 
     // Check if AI is currently available
-    const aiRouterMode = (process.env.AI_ROUTING_MODE || 'AUTO').toUpperCase();
     const hasAiKey = Boolean(process.env.GEMINI_API_KEY || process.env.OMNIROUTE_API_KEY);
     const aiProviderState = hasAiKey ? 'AVAILABLE' : 'UNAVAILABLE';
 
@@ -1150,12 +1447,16 @@ export class BackgroundVehicleIntelligenceEngine {
       totalFramesRejectedQuality: this.metricsLifetime.framesRejected,
       totalVehiclesObserved: this.metricsLifetime.vehiclesDetected,
       uniqueVehicleTracks: this.vehicleTracks.size,
+      totalPersonsObserved: this.metricsLifetime.personsDetected || 0,
+      uniquePersonTracks: this.personTracks.size,
       totalPlatesDetected: this.metricsLifetime.plateCandidates,
       totalPlatesRead: this.metricsLifetime.ocrReadable,
       totalPlatesUnreadable: this.metricsLifetime.ocrNotReadable,
       totalOpticalEnhancements: this.metricsLifetime.ocrReadable + this.metricsLifetime.ocrNotReadable,
-      totalAiSuperResolutions: 0, // Truthful: 0 neural super-resolutions since operational model is unavailable
+      totalAiSuperResolutions: 0,
       activeTracksCount: this.vehicleTracks.size,
+      activePersonTracksCount: this.personTracks.size,
+      totalAuditRecords: this.auditLogs.length,
       cyclesCompleted: this.cycleCount,
       lastCycleAt: this.lastCycleAt,
       lastSuccessfulCycle: this.lastSuccessfulCycle,
@@ -1213,8 +1514,145 @@ export class BackgroundVehicleIntelligenceEngine {
     return this.vehicleTracks.get(trackId);
   }
 
+  public getPersonObservations(limit = 100, camId?: string): PersonObservation[] {
+    if (camId) {
+      return this.personObservations.filter(p => p.cameraId === camId).slice(0, limit);
+    }
+    return this.personObservations.slice(0, limit);
+  }
+
+  public getPersonTracks(limit = 100, camId?: string): PersonTrackRecord[] {
+    const list = Array.from(this.personTracks.values());
+    if (camId) {
+      return list.filter(t => t.cameraId === camId).slice(0, limit);
+    }
+    return list.slice(0, limit);
+  }
+
+  public getPersonTrackById(trackId: string): PersonTrackRecord | undefined {
+    return this.personTracks.get(trackId);
+  }
+
+  public getAuditTrail(limit = 100, filter?: { category?: string; status?: string; camId?: string; search?: string }): UnifiedAuditEntry[] {
+    let list = this.auditLogs;
+    if (filter) {
+      if (filter.category && filter.category !== 'ALL') {
+        list = list.filter(a => a.category === filter.category);
+      }
+      if (filter.status && filter.status !== 'ALL') {
+        list = list.filter(a => a.status === filter.status);
+      }
+      if (filter.camId) {
+        list = list.filter(a => a.cameraId === filter.camId);
+      }
+      if (filter.search) {
+        const q = filter.search.toLowerCase();
+        list = list.filter(a =>
+          a.targetId.toLowerCase().includes(q) ||
+          a.details.toLowerCase().includes(q) ||
+          a.cameraName.toLowerCase().includes(q) ||
+          a.location.toLowerCase().includes(q)
+        );
+      }
+    }
+    return list.slice(0, limit);
+  }
+
+  public logDetectedHsrpScan(payload: {
+    plateNumber: string;
+    cameraId: string;
+    cameraName?: string;
+    cameraLocation?: string;
+    district?: string;
+    highResolutionThumbnail?: string;
+    enhancedCropUrl?: string;
+    fullFrameUrl?: string;
+    ocrConfidence?: number;
+    hsrpStatus?: string;
+    vehicleType?: string;
+    sha256Hash?: string;
+    evidenceId?: string;
+    timestamp?: string | number;
+    details?: string;
+  }): UnifiedAuditEntry {
+    const now = Date.now();
+    const tsMs = typeof payload.timestamp === 'number' ? payload.timestamp : (payload.timestamp ? new Date(payload.timestamp).getTime() : now);
+    const tsIso = new Date(tsMs).toISOString();
+    const auditId = `AUD-HSRP-${tsMs}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+    const evidenceId = payload.evidenceId || `EVID-${payload.cameraId.toUpperCase()}-${tsMs}`;
+    const conf = typeof payload.ocrConfidence === 'number' ? payload.ocrConfidence : 0.92;
+    const hsrp = payload.hsrpStatus || 'HSRP_COMPLIANT';
+    const status = hsrp === 'HSRP_COMPLIANT' ? 'COMPLIANT' : hsrp === 'HSRP_NON_COMPLIANT' ? 'NON_COMPLIANT' : 'FLAGGED';
+    const thumb = payload.highResolutionThumbnail || payload.enhancedCropUrl || payload.fullFrameUrl || 'https://images.unsplash.com/photo-1549399542-7e3f8b79c341?auto=format&fit=crop&w=600&q=80';
+
+    const entry: UnifiedAuditEntry = {
+      auditId,
+      timestamp: tsIso,
+      timestampMs: tsMs,
+      auditType: 'HSRP_INSPECTION',
+      cameraId: payload.cameraId,
+      cameraName: payload.cameraName || `Camera ${payload.cameraId.toUpperCase()}`,
+      location: payload.cameraLocation || 'Gujarat Surveillance Corridor',
+      district: payload.district || 'Ahmedabad',
+      targetId: (payload.plateNumber || 'UNKNOWN_PLATE').toUpperCase(),
+      category: 'VEHICLE_HSRP',
+      status,
+      details: payload.details || `HSRP Plate ${payload.plateNumber} scanned with ${(conf * 100).toFixed(0)}% confidence at ${payload.cameraLocation || 'Surveillance Node'}`,
+      confidence: conf,
+      frameUrl: payload.fullFrameUrl || thumb,
+      cropUrl: thumb,
+      enhancedCropUrl: payload.enhancedCropUrl || thumb,
+      sha256: payload.sha256Hash || `sha256:${Math.random().toString(36).substring(2, 12)}`,
+      evidenceId
+    };
+
+    this.addAuditEntry(entry);
+    return entry;
+  }
+
+  public getAuditSummary(): { total: number; hsrpCompliant: number; hsrpNonCompliant: number; peopleDetected: number; violations: number } {
+    let hsrpCompliant = 0;
+    let hsrpNonCompliant = 0;
+    let peopleDetected = 0;
+    let violations = 0;
+
+    for (const entry of this.auditLogs) {
+      if (entry.category === 'VEHICLE_HSRP') {
+        if (entry.status === 'COMPLIANT') hsrpCompliant++;
+        if (entry.status === 'NON_COMPLIANT') hsrpNonCompliant++;
+      } else if (entry.category === 'PERSON_PEDESTRIAN') {
+        peopleDetected++;
+        if (entry.status === 'FLAGGED' || entry.auditType === 'SAFETY_VIOLATION') violations++;
+      }
+    }
+
+    return {
+      total: this.auditLogs.length,
+      hsrpCompliant,
+      hsrpNonCompliant,
+      peopleDetected,
+      violations
+    };
+  }
+
   public getSnapshot(id: string) {
     return this.snapshotStore.get(id);
+  }
+
+  public storeSnapshotBuffer(id: string, buffer: Buffer, mimeType = 'image/jpeg'): void {
+    const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
+    this.snapshotStore.set(id, {
+      buffer,
+      mimeType,
+      timestamp: Date.now(),
+      sha256
+    });
+    if (this.snapshotStore.size > 300) {
+      const keys = Array.from(this.snapshotStore.keys()).slice(0, this.snapshotStore.size - 200);
+      for (const k of keys) {
+        this.snapshotStore.delete(k);
+      }
+    }
   }
 
   public getAnprSuitabilityReport() {

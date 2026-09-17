@@ -1,0 +1,64 @@
+{
+  "entities": {
+    "users": {
+      "title": "users",
+      "description": "Registered law enforcement officers and system users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Officer UID" },
+        "email": { "type": "string", "description": "Official email address" },
+        "displayName": { "type": "string", "description": "Full name of the officer" },
+        "badgeNumber": { "type": "string", "description": "Official police badge number" },
+        "role": { "type": "string", "description": "Officer role authorization level" },
+        "unit": { "type": "string", "description": "Police division or unit" },
+        "createdAt": { "type": "string", "description": "ISO timestamp of registration" }
+      },
+      "required": ["id", "email", "role"]
+    },
+    "challans": {
+      "title": "challans",
+      "description": "E-Challan traffic and penal infraction notices",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique Challan ID" },
+        "vehicleNumber": { "type": "string", "description": "Vehicle license plate number" },
+        "violationType": { "type": "string", "description": "Classified traffic violation type" },
+        "amount": { "type": "number", "description": "Fine amount in INR" },
+        "status": { "type": "string", "description": "Payment or case status" },
+        "timestamp": { "type": "string", "description": "Time of infraction detection" },
+        "location": { "type": "string", "description": "Camera junction location" },
+        "cameraId": { "type": "string", "description": "Capturing camera sensor ID" }
+      },
+      "required": ["id", "vehicleNumber", "violationType", "status"]
+    },
+    "alerts": {
+      "title": "alerts",
+      "description": "Vision intelligence alerts and ANPR watchlist hits",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Alert identification key" },
+        "cameraId": { "type": "string", "description": "Reporting CCTV feed ID" },
+        "alertType": { "type": "string", "description": "Classification category" },
+        "severity": { "type": "string", "description": "Criticality level" },
+        "description": { "type": "string", "description": "Incident synopsis" },
+        "timestamp": { "type": "string", "description": "Timestamp of alert trigger" },
+        "status": { "type": "string", "description": "Triage status" }
+      },
+      "required": ["id", "alertType", "severity", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/users" },
+      "description": "Officer credentials and profile records"
+    },
+    "/challans/{challanId}": {
+      "schema": { "$ref": "#/entities/challans" },
+      "description": "State E-Challan notices and evidence records"
+    },
+    "/alerts/{alertId}": {
+      "schema": { "$ref": "#/entities/alerts" },
+      "description": "Real-time AI camera detection alarms"
+    }
+  }
+}

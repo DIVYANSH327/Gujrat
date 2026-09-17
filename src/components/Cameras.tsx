@@ -30,11 +30,12 @@ import { StatusBadge, ActionButton } from './ui/OfficerPrimitives';
 interface CamerasProps {
   onAutoCapture?: (imageUrl: string, mode: string) => void;
   onNavigate?: (view: ViewMode) => void;
+  initialSelectedCameraId?: string | null;
 }
 
 const discoveryService = new EdgeDiscoveryService(false);
 
-export function Cameras({ onNavigate }: CamerasProps) {
+export function Cameras({ onNavigate, initialSelectedCameraId }: CamerasProps) {
   const [cameras, setCameras] = useState<Camera[]>(() => discoveryService.getAllCameras());
   const [discoveredDevices, setDiscoveredDevices] = useState<DiscoveredVideoDevice[]>([]);
   const [selectedCamera, setSelectedCamera] = useState<Camera | null>(null);
@@ -54,6 +55,18 @@ export function Cameras({ onNavigate }: CamerasProps) {
 
   // Mobile camera status
   const [mobileState, setMobileState] = useState(mobileBrowserCameraSource.getConnectionState());
+
+  // Auto-select camera if initialSelectedCameraId was requested (Two-Tier handoff)
+  useEffect(() => {
+    if (initialSelectedCameraId && cameras.length > 0) {
+      const match = cameras.find(
+        (c) => c.id?.toLowerCase() === initialSelectedCameraId.toLowerCase()
+      );
+      if (match) {
+        setSelectedCamera(match);
+      }
+    }
+  }, [initialSelectedCameraId, cameras]);
 
   useEffect(() => {
     const loaded = discoveryService.getAllCameras();
@@ -256,21 +269,34 @@ export function Cameras({ onNavigate }: CamerasProps) {
               key={cam.id}
               className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
             >
-              {/* Card Header & Thumbnail */}
+              {/* Card Header & Thumbnail (Tier 1 Lightweight Polling) */}
               <div>
-                <div className="relative aspect-video bg-slate-900 overflow-hidden">
+                <div className="relative aspect-video bg-slate-900 overflow-hidden group/thumb">
                   <img
-                    src="https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=600&auto=format&fit=crop&q=80"
+                    src={
+                      cam.id?.toLowerCase().startsWith('cam')
+                        ? `/api/sentinel/thumbnail/${cam.id.toLowerCase()}`
+                        : 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=600&auto=format&fit=crop&q=80'
+                    }
                     alt={cam.name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover/thumb:scale-105"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src =
+                        'https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=600&auto=format&fit=crop&q=80';
+                    }}
                   />
-                  {/* Status Badge */}
-                  <div className="absolute top-2.5 left-2.5">
+                  {/* Status Badge & Tier 1 Indicator */}
+                  <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5">
                     <StatusBadge
                       status={isOnline ? 'LIVE' : 'OFFLINE'}
                       label={isOnline ? '● LIVE' : '○ OFFLINE'}
                       size="sm"
                     />
+                    {isOnline && (
+                      <span className="px-1.5 py-0.5 rounded-md bg-slate-900/80 text-[10px] font-mono font-bold text-emerald-400 border border-emerald-500/30">
+                        TIER 1
+                      </span>
+                    )}
                   </div>
 
                   {/* Alert Count Pill */}
@@ -280,9 +306,14 @@ export function Cameras({ onNavigate }: CamerasProps) {
                     </div>
                   )}
 
-                  {/* Bottom overlay with Camera ID */}
-                  <div className="absolute bottom-2 left-2 bg-slate-900/85 text-white px-2.5 py-0.5 rounded text-xs font-mono font-bold">
-                    {cam.id}
+                  {/* Bottom overlay with Camera ID & resolution */}
+                  <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-slate-900/85 text-white px-2.5 py-0.5 rounded text-xs font-mono font-bold">
+                    <span>{cam.id}</span>
+                    {cam.resolution && (
+                      <span className="text-[10px] text-slate-300 font-normal">
+                        • {cam.resolution}
+                      </span>
+                    )}
                   </div>
                 </div>
 

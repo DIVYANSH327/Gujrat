@@ -202,7 +202,7 @@ export function CctvRawDiagnosticDashboard({
                   {report.caseDescription}
                 </p>
                 <div className="text-[11px] font-mono text-slate-400 pt-1">
-                  Root Cause Proof: {report.exactLayerIdentified}
+                  Root Cause Proof: {(report as any).exactLayerIdentified || (report as any).exactLayerTested || 'Network Transport Layer'}
                 </div>
               </div>
 

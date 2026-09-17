@@ -21,6 +21,7 @@ import { CctvSiteRegistryView } from './components/CctvSiteRegistryView';
 import { PoliceDataIntelligence } from './components/PoliceDataIntelligence';
 import { ChallanModeDashboard } from './components/challan/ChallanModeDashboard';
 import { MobileCameraTest } from './components/MobileCameraTest';
+import { MobilePatrolCamerasView } from './components/MobilePatrolCamerasView';
 import { RealAIVisionTestLab } from './components/RealAIVisionTestLab';
 import { AiTrainingLab } from './components/AiTrainingLab';
 import { AboutModal } from './components/AboutModal';
@@ -31,14 +32,20 @@ import { HumanReviewQueueView } from './components/HumanReviewQueueView';
 import { DigitalTwinScaleView } from './components/DigitalTwinScaleView';
 import { GovernmentDeploymentView } from './components/GovernmentDeploymentView';
 import { GeospatialMapView } from './components/geospatial/GeospatialMapView';
+import { PlateIntelligenceMapView } from './components/geospatial/PlateIntelligenceMapView';
 import { SentinelCameraGridLab } from './components/SentinelCameraGridLab';
 import { SentinelHealthIndicator } from './components/SentinelHealthIndicator';
 import { NightAuditView } from './components/night-audit/NightAuditView';
+import { HsrpVerificationPanel } from './components/HsrpVerificationPanel';
 import { AlertNotificationToast } from './components/AlertNotificationToast';
 import { DefensiveCyberSecurityPanel } from './components/vision/DefensiveCyberSecurityPanel';
 import { ViewMode, DetectionEvent } from './types';
 import { PROJECT_BRANDING } from './branding';
 import { audioAlertService } from './services/AudioAlertService';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import { SentinelLoginScreen } from './components/auth/SentinelLoginScreen';
+import { OfficerProfileMenu } from './components/auth/OfficerProfileMenu';
+import { getRequiredPermissionForView } from './types/auth';
 import { 
   Shield, 
   Volume2, 
@@ -54,7 +61,8 @@ import {
   PanelLeftClose
 } from 'lucide-react';
 
-export default function App() {
+function SentinelCommandApp() {
+  const { officer, status, hasPermission } = useAuth();
   const [currentView, setCurrentView] = useState<ViewMode>('command_center');
   const [selectedMissionId, setSelectedMissionId] = useState<string>('');
   const [selectedIncidentId, setSelectedIncidentId] = useState<string>('');
@@ -65,6 +73,7 @@ export default function App() {
   const [time, setTime] = useState(new Date());
   const [detections, setDetections] = useState<DetectionEvent[]>([]);
   const [isAudioMuted, setIsAudioMuted] = useState(() => audioAlertService.isMuted());
+  const [selectedCameraForView, setSelectedCameraForView] = useState<string | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
@@ -109,6 +118,29 @@ export default function App() {
   };
 
   const renderView = () => {
+    if (officer && officer.role !== 'ADMIN') {
+      const requiredPermission = getRequiredPermissionForView(currentView);
+      if (!hasPermission(requiredPermission)) {
+        return (
+          <div className="p-8 max-w-xl mx-auto flex flex-col items-center justify-center min-h-[60vh] text-center">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mb-4 shadow-sm">
+              <Shield size={32} />
+            </div>
+            <h2 className="text-xl font-bold text-slate-900">Operational Access Restricted</h2>
+            <p className="text-sm text-slate-600 mt-2 leading-relaxed">
+              Your assigned role (<span className="font-bold text-slate-900">{officer.role}</span>) does not possess clearance for the requested operational sector (<code className="px-1.5 py-0.5 bg-slate-100 rounded text-xs text-blue-700">{requiredPermission}</code>).
+            </p>
+            <button
+              onClick={() => setCurrentView('command_center')}
+              className="mt-6 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition cursor-pointer shadow-sm"
+            >
+              Return to Dashboard
+            </button>
+          </div>
+        );
+      }
+    }
+
     switch (currentView) {
       case 'command_center':
         return (
@@ -182,9 +214,17 @@ export default function App() {
       case 'search':
         return <AISearch detections={detections} onNavigateToGodsEye={() => setCurrentView('challenge')} />;
       case 'cameras':
-        return <Cameras onAutoCapture={handleAutoCapture} onNavigate={setCurrentView} />;
+        return (
+          <Cameras
+            onAutoCapture={handleAutoCapture}
+            onNavigate={setCurrentView}
+            initialSelectedCameraId={selectedCameraForView}
+          />
+        );
       case 'mobile_camera':
         return <MobileCameraTest onNavigate={setCurrentView} />;
+      case 'mobile_patrol_cameras':
+        return <MobilePatrolCamerasView onNavigate={setCurrentView} />;
       case 'real_ai_test_lab':
         return <RealAIVisionTestLab onNavigate={setCurrentView} />;
       case 'youtube_demo':
@@ -212,24 +252,36 @@ export default function App() {
       case 'sentinel_grid':
         return (
           <SentinelCameraGridLab
-            onNavigate={(view) => setCurrentView(view)}
+            onNavigate={(view, camId) => {
+              if (camId) setSelectedCameraForView(camId);
+              setCurrentView(view);
+            }}
             onImportCameraToLive={(cam) => {
+              setSelectedCameraForView(cam.id);
               setCurrentView('cameras');
             }}
           />
         );
       case 'raw_video_audit':
         return (
-          <SentinelCameraGridLab
-            initialTab="diagnostics"
-            onNavigate={(view) => setCurrentView(view)}
-            onImportCameraToLive={(cam) => {
-              setCurrentView('cameras');
+          <HsrpVerificationPanel
+            selectedCameraId={selectedCameraForView}
+            onNavigate={(view, camId) => {
+              if (camId) setSelectedCameraForView(camId);
+              setCurrentView(view);
             }}
           />
         );
       case 'night_audit':
         return <NightAuditView />;
+      case 'plate_intelligence_map':
+        return (
+          <PlateIntelligenceMapView
+            onSelectCameraId={() => {
+              setCurrentView('cameras');
+            }}
+          />
+        );
       case 'geospatial_map':
         return (
           <GeospatialMapView
@@ -249,6 +301,11 @@ export default function App() {
 
   // Indian Standard Time format (UTC+5:30)
   const istTimeStr = time.toLocaleTimeString('en-IN', { hour12: true, timeZone: 'Asia/Kolkata' });
+
+  // Guard: if officer is not authenticated, render the police command center login screen
+  if (status !== 'AUTHENTICATED' || !officer) {
+    return <SentinelLoginScreen />;
+  }
 
   return (
     <div className="flex flex-col h-screen bg-slate-100 text-slate-900 font-sans overflow-hidden select-none">
@@ -358,24 +415,11 @@ export default function App() {
             <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-rose-500 ring-2 ring-white animate-pulse" />
           </button>
 
-          {/* Officer Profile Badge */}
-          <div 
-            onClick={() => setIsAboutOpen(true)}
-            className="flex items-center gap-2.5 pl-2 border-l border-slate-200 cursor-pointer group select-none"
-            title="Officer Profile & System Credentials"
-          >
-            <div className="w-9 h-9 rounded-xl bg-slate-100 border border-slate-300 flex items-center justify-center text-slate-700 group-hover:border-blue-400 group-hover:text-blue-600 transition-colors font-bold text-xs">
-              VJ
-            </div>
-            <div className="hidden lg:flex flex-col text-left leading-tight">
-              <span className="text-xs font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                Insp. V. K. Jadeja
-              </span>
-              <span className="text-[11px] text-slate-500 font-medium">
-                HQ Control Room
-              </span>
-            </div>
-          </div>
+          {/* Officer Profile & Sign-Out Menu */}
+          <OfficerProfileMenu 
+            onOpenSecurity={() => setCurrentView('policies')}
+            onOpenAudit={() => setCurrentView('police_intel')}
+          />
         </div>
       </header>
 
@@ -449,5 +493,13 @@ export default function App() {
       {/* In-App About & System Info Modal */}
       <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <SentinelCommandApp />
+    </AuthProvider>
   );
 }

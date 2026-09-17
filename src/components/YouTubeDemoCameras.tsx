@@ -567,7 +567,7 @@ export const YouTubeDemoCameras: React.FC<YouTubeDemoCamerasProps> = ({ onNaviga
                 cameraId={activeSource.id}
                 title={activeSource.name}
                 locationLabel={activeSource.locationLabel}
-                district={activeSource.district}
+                district={(activeSource as any).district || 'Gujarat'}
                 aspectRatio="16/9"
                 className="w-full"
               />

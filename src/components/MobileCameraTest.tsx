@@ -39,6 +39,7 @@ import {
 import { mobilePatrolService } from '../services/MobilePatrolService';
 import { AudioAlertService } from '../services/AudioAlertService';
 import { MobilePatrolJudicialModal } from './MobilePatrolJudicialModal';
+import { MobilePatrolWorkspace } from './mobilePatrol/MobilePatrolWorkspace';
 
 interface MobileCameraTestProps {
   onNavigate?: (view: ViewMode) => void;
@@ -59,6 +60,9 @@ export function MobileCameraTest({ onNavigate }: MobileCameraTestProps) {
   const isProcessingRef = useRef<boolean>(false);
   const isPatrolActiveRef = useRef<boolean>(false);
   const lastSnapshotTimeByPlate = useRef<Record<string, number>>({});
+
+  // Workspace Mode (New 4K/ANPR Edge Node Workspace vs Legacy Diagnostic Lens)
+  const [activeWorkspaceMode, setActiveWorkspaceMode] = useState<'MOBILE_PATROL_NODE' | 'LEGACY_DASHCAM'>('MOBILE_PATROL_NODE');
 
   // Core state
   const [cameraState, setCameraState] = useState<'STARTING' | 'LIVE' | 'ERROR' | 'OFFLINE'>('OFFLINE');
@@ -644,9 +648,49 @@ export function MobileCameraTest({ onNavigate }: MobileCameraTestProps) {
 
   }, [detections, isVirtualFeed, diagnostics.videoWidth]);
 
+  if (activeWorkspaceMode === 'MOBILE_PATROL_NODE') {
+    return (
+      <div className="flex flex-col min-h-screen bg-slate-100">
+        {/* Top Switcher Banner */}
+        <div className="bg-slate-900 border-b border-slate-800 px-4 py-1.5 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2 text-slate-300">
+            <span className="font-mono font-bold text-white">SENTINEL MOBILE PATROL AI VISION NODE</span>
+            <span className="hidden sm:inline text-slate-500">|</span>
+            <span className="hidden sm:inline text-slate-400">4K / ANPR Edge Perception + Event-Only Evidence System</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setActiveWorkspaceMode('LEGACY_DASHCAM')}
+              className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-mono text-[11px] transition-colors border border-slate-700"
+            >
+              Hardware Lens Benchmark
+            </button>
+          </div>
+        </div>
+
+        {/* Master Workspace */}
+        <div className="flex-1">
+          <MobilePatrolWorkspace onNavigate={onNavigate} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-950 p-2 sm:p-4 text-white flex flex-col font-sans relative">
       
+      {/* Top Switcher */}
+      <div className="mb-2 px-3 py-1.5 bg-slate-900 rounded-xl border border-slate-800 flex items-center justify-between text-xs font-mono">
+        <span className="text-slate-400">HARDWARE LENS BENCHMARK & CAMERA CALIBRATION</span>
+        <button
+          onClick={() => setActiveWorkspaceMode('MOBILE_PATROL_NODE')}
+          className="px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-colors"
+        >
+          ← Return to Mobile Patrol Vision Node
+        </button>
+      </div>
+
       {/* Visual Camera Flash Animation */}
       {screenFlash && (
         <div className="absolute inset-0 z-50 bg-white opacity-80 pointer-events-none transition-opacity duration-150" />

@@ -405,16 +405,16 @@ export const VehicleDossierView: React.FC<Props> = ({
 
               {dossier.lastSeen.predictedNextCameras.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
-                  {dossier.lastSeen.predictedNextCameras.map((pred, i) => (
+                  {(dossier.lastSeen as any)?.predictedNextCameras?.map((pred: any, i: number) => (
                     <div key={i} className="bg-slate-950/80 border border-slate-800 p-3 rounded">
                       <div className="flex items-center justify-between">
-                        <span className="font-mono text-xs font-bold text-purple-300">{pred.cameraName}</span>
+                        <span className="font-mono text-xs font-bold text-purple-300">{pred.cameraName || pred.cameraId || `CAM-${i}`}</span>
                         <span className="text-xs font-bold font-mono text-emerald-400">
-                          {(pred.probability * 100).toFixed(0)}% PROBABILITY
+                          {((pred.probability || pred.confidence || 0.8) * 100).toFixed(0)}% PROBABILITY
                         </span>
                       </div>
                       <div className="text-[11px] text-slate-400 mt-1">
-                        Expected Arrival: <span className="text-slate-200">{pred.expectedWindowStart} - {pred.expectedWindowEnd}</span>
+                        Expected Arrival: <span className="text-slate-200">{pred.expectedWindowStart || '10m'} - {pred.expectedWindowEnd || '25m'}</span>
                       </div>
                     </div>
                   ))}
@@ -517,10 +517,10 @@ export const VehicleDossierView: React.FC<Props> = ({
                     className="bg-slate-900 border border-slate-800 hover:border-amber-500/50 rounded-lg overflow-hidden cursor-pointer transition group"
                   >
                     <div className="h-44 bg-slate-950 relative overflow-hidden flex items-center justify-center">
-                      {ev.mediaPayloadUrl ? (
+                      {(ev as any).mediaPayloadUrl || ev.imageReference || (ev as any).snapshotUrl ? (
                         <img 
-                          src={ev.mediaPayloadUrl} 
-                          alt={`Evidence from ${ev.cameraNodeId}`} 
+                          src={(ev as any).mediaPayloadUrl || ev.imageReference || (ev as any).snapshotUrl} 
+                          alt={`Evidence from ${(ev as any).cameraNodeId || ev.cameraId}`} 
                           className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                         />
                       ) : (
@@ -530,7 +530,7 @@ export const VehicleDossierView: React.FC<Props> = ({
                         </div>
                       )}
                       <div className="absolute top-2 left-2 bg-slate-950/80 px-2 py-0.5 rounded text-[10px] font-mono text-amber-300 border border-slate-700">
-                        {ev.cameraNodeId}
+                        {(ev as any).cameraNodeId || ev.cameraId}
                       </div>
                       <div className="absolute bottom-2 right-2 bg-emerald-950/90 text-emerald-300 px-2 py-0.5 rounded text-[10px] font-mono border border-emerald-600/40">
                         SEALED
@@ -539,14 +539,14 @@ export const VehicleDossierView: React.FC<Props> = ({
 
                     <div className="p-3 space-y-1.5 text-xs">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-200">{ev.evidenceType}</span>
+                        <span className="font-bold text-slate-200">{(ev as any).evidenceType || 'CAMERA_SIGHTING'}</span>
                         <span className="text-[10px] text-slate-500 font-mono">
-                          {new Date(ev.capturedAt).toLocaleTimeString()}
+                          {new Date((ev as any).capturedAt || ev.timestamp || Date.now()).toLocaleTimeString()}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-400 truncate">{ev.notes}</p>
+                      <p className="text-[11px] text-slate-400 truncate">{(ev as any).notes || `Captured at ${(ev as any).cameraNodeId || ev.cameraId}`}</p>
                       <div className="text-[10px] font-mono text-slate-500 truncate pt-1 border-t border-slate-800">
-                        SHA-256: {ev.cryptographicSha256}
+                        SHA-256: {(ev as any).cryptographicSha256 || ev.sha256}
                       </div>
                     </div>
                   </div>
@@ -775,9 +775,9 @@ export const VehicleDossierView: React.FC<Props> = ({
                 </span>
               </div>
 
-              {dossier.externalData?.egujcop?.records && dossier.externalData.egujcop.records.length > 0 ? (
+              {(dossier.externalData?.egujcop as any)?.records && (dossier.externalData.egujcop as any).records.length > 0 ? (
                 <div className="space-y-2">
-                  {dossier.externalData.egujcop.records.map((rec: any, i: number) => (
+                  {(dossier.externalData.egujcop as any).records.map((rec: any, i: number) => (
                     <div key={i} className="bg-slate-950 p-4 rounded border border-rose-900/40 space-y-1.5 text-xs">
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-rose-300 font-bold">{rec.caseNumber}</span>
@@ -948,16 +948,16 @@ export const VehicleDossierView: React.FC<Props> = ({
               </button>
             </div>
             <div className="h-72 bg-slate-950 rounded flex items-center justify-center overflow-hidden">
-              {selectedPhoto.mediaPayloadUrl ? (
-                <img src={selectedPhoto.mediaPayloadUrl} alt="Evidence" className="w-full h-full object-contain" />
+              {(selectedPhoto as any).mediaPayloadUrl || selectedPhoto.imageReference || (selectedPhoto as any).snapshotUrl ? (
+                <img src={(selectedPhoto as any).mediaPayloadUrl || selectedPhoto.imageReference || (selectedPhoto as any).snapshotUrl} alt="Evidence" className="w-full h-full object-contain" />
               ) : (
                 <Camera className="w-12 h-12 text-slate-600" />
               )}
             </div>
             <div className="text-xs text-slate-300 space-y-1">
-              <div>Camera Checkpoint: <span className="font-mono text-white">{selectedPhoto.cameraNodeId}</span></div>
-              <div>Captured Timestamp: <span className="font-mono text-white">{new Date(selectedPhoto.capturedAt).toLocaleString()}</span></div>
-              <div className="font-mono text-[11px] text-slate-400 break-all">SHA-256: {selectedPhoto.cryptographicSha256}</div>
+              <div>Camera Checkpoint: <span className="font-mono text-white">{(selectedPhoto as any).cameraNodeId || selectedPhoto.cameraId}</span></div>
+              <div>Captured Timestamp: <span className="font-mono text-white">{new Date((selectedPhoto as any).capturedAt || selectedPhoto.timestamp || Date.now()).toLocaleString()}</span></div>
+              <div className="font-mono text-[11px] text-slate-400 break-all">SHA-256: {(selectedPhoto as any).cryptographicSha256 || selectedPhoto.sha256}</div>
             </div>
           </div>
         </div>

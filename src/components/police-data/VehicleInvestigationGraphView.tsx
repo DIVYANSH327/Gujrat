@@ -148,7 +148,7 @@ export const VehicleInvestigationGraphView: React.FC<Props> = ({ dossier }) => {
     });
   }
 
-  if (dossier.externalData?.egujcop?.records && dossier.externalData.egujcop.records.length > 0) {
+  if ((dossier.externalData?.egujcop as any)?.records && (dossier.externalData.egujcop as any).records.length > 0) {
     const egujNodeId = 'NODE-EGUJCOP';
     nodes.push({
       id: egujNodeId,

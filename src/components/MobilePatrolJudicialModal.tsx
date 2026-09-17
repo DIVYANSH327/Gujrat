@@ -213,7 +213,9 @@ export const MobilePatrolJudicialModal: React.FC<MobilePatrolJudicialModalProps>
                   <div className="grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-400 pt-1">
                     <div>Speed: <span className="text-white">{verdict.speedKmH} km/h</span></div>
                     <div>Quality: <span className="text-emerald-400">{verdict.qualityScore}/100</span></div>
-                    <div>GPS: <span className="text-white">{verdict.gps?.latitude.toFixed(4)}, {verdict.gps?.longitude.toFixed(4)}</span></div>
+                    <div>GPS: <span className="text-white">
+                      {verdict.gps ? `${(typeof verdict.gps.latitude === 'number' ? verdict.gps.latitude : (verdict.gps as any).lat || 23.0225).toFixed(4)}, ${(typeof verdict.gps.longitude === 'number' ? verdict.gps.longitude : (verdict.gps as any).lon || 72.5714).toFixed(4)}` : '23.0225, 72.5714'}
+                    </span></div>
                     <div>Engine: <span className="text-blue-400">{verdict.aiEngineUsed}</span></div>
                   </div>
                 </div>

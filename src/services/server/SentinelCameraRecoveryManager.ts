@@ -169,6 +169,10 @@ export class SentinelCameraRecoveryManager {
     node.consecutiveFailures++;
     node.lastErrorMessage = cleanMsg;
 
+    const backoffIndex = Math.min(node.consecutiveFailures - 1, this.backoffSteps.length - 1);
+    const baseDelay = this.backoffSteps[backoffIndex];
+    node.nextAllowedReconnectTime = Date.now() + baseDelay;
+
     const isAuth = cleanMsg.toLowerCase().includes('auth') || cleanMsg.toLowerCase().includes('401');
     const newState: CameraLifecycleState = isAuth 
       ? 'AUTH_ERROR' 
@@ -180,13 +184,19 @@ export class SentinelCameraRecoveryManager {
       node.state = newState;
       node.lastStateChange = new Date().toISOString();
 
+      const eventType = newState === 'AUTH_ERROR' ? 'CAMERA_AUTH_ERROR' : newState === 'OFFLINE' ? 'CAMERA_OFFLINE' : 'CAMERA_STALE';
+      const severity = newState === 'OFFLINE' ? 'ERROR' : newState === 'AUTH_ERROR' ? 'WARNING' : 'INFO';
+      const logText = newState === 'STALE'
+        ? `Camera ${camId} standby/reconnecting (consecutive checks: ${node.consecutiveFailures})`
+        : `Camera ${camId} state shifted to ${newState}: ${cleanMsg}`;
+
       applicationLifecycleManager.emitRecoveryEvent(
         'SENTINEL_SERVICES',
-        newState === 'AUTH_ERROR' ? 'CAMERA_AUTH_ERROR' : newState === 'OFFLINE' ? 'CAMERA_OFFLINE' : 'CAMERA_STALE',
-        newState === 'OFFLINE' ? 'ERROR' : 'WARNING',
-        `Camera ${camId} state shifted to ${newState}: ${cleanMsg}`,
+        eventType,
+        severity,
+        logText,
         newState,
-        { cameraId: camId, consecutiveFailures: node.consecutiveFailures }
+        { cameraId: camId, consecutiveFailures: node.consecutiveFailures, reason: cleanMsg }
       );
     }
   }

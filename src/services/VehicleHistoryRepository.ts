@@ -47,8 +47,8 @@ export class VehicleHistoryRepository implements IVehicleHistoryRepository {
    */
   private initializeRepository(): void {
     let loaded = false;
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
+    try {
+      if (typeof window !== 'undefined' && 'localStorage' in window && window.localStorage) {
         const stored = window.localStorage.getItem(STORAGE_KEY);
         if (stored) {
           const parsed: VehicleSighting[] = JSON.parse(stored);
@@ -64,9 +64,9 @@ export class VehicleHistoryRepository implements IVehicleHistoryRepository {
             loaded = true;
           }
         }
-      } catch {
-        // Fallback to in-memory seeding
       }
+    } catch {
+      // Fallback to in-memory seeding if localStorage is restricted
     }
 
     if (!loaded || this.sightings.size === 0) {
@@ -75,16 +75,16 @@ export class VehicleHistoryRepository implements IVehicleHistoryRepository {
   }
 
   private persistToStorage(): void {
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
+    try {
+      if (typeof window !== 'undefined' && 'localStorage' in window && window.localStorage) {
         const allSightings: VehicleSighting[] = [];
         for (const list of this.sightings.values()) {
           allSightings.push(...list);
         }
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(allSightings));
-      } catch {
-        // Ignore quota/storage exceptions
       }
+    } catch {
+      // Ignore quota or restricted storage in iframe
     }
   }
 
@@ -574,8 +574,12 @@ export class VehicleHistoryRepository implements IVehicleHistoryRepository {
   public async deleteDemoData(): Promise<void> {
     this.sightings.clear();
     this.evidenceRecords.clear();
-    if (typeof window !== 'undefined' && window.localStorage) {
-      window.localStorage.removeItem(STORAGE_KEY);
+    try {
+      if (typeof window !== 'undefined' && 'localStorage' in window && window.localStorage) {
+        window.localStorage.removeItem(STORAGE_KEY);
+      }
+    } catch {
+      // Ignore
     }
   }
 

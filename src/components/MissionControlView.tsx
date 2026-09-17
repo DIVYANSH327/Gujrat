@@ -291,7 +291,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   <div className="flex items-center gap-2.5">
                     {step.status === 'COMPLETED' ? (
                       <CheckCircle2 size={16} className="text-emerald-600" />
-                    ) : step.status === 'IN_PROGRESS' ? (
+                    ) : step.status === 'RUNNING' ? (
                       <Radio size={16} className="text-blue-600 animate-pulse" />
                     ) : (
                       <Clock size={16} className="text-slate-400" />
@@ -300,7 +300,7 @@ export const MissionControlView: React.FC<MissionControlViewProps> = ({
                   </div>
                   <span className={`font-mono font-bold text-[11px] ${
                     step.status === 'COMPLETED' ? 'text-emerald-700' :
-                    step.status === 'IN_PROGRESS' ? 'text-blue-700' : 'text-slate-500'
+                    step.status === 'RUNNING' ? 'text-blue-700' : 'text-slate-500'
                   }`}>
                     {step.status}
                   </span>

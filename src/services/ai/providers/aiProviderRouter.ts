@@ -170,9 +170,13 @@ export class AIProviderRouter {
       } catch (err: any) {
         lastError = err;
         if (typeof (primary as any).markDegraded === 'function') {
-          (primary as any).markDegraded(err?.message || 'Inference failed', 180000);
+          (primary as any).markDegraded(err?.message || 'Inference failed', 300000);
         }
-        this.logWarnThrottled('AI Router', `Primary provider ${primary.name} failed: ${err?.message || err}`);
+        if (fallback && fallback.isConfigured()) {
+          this.logWarnThrottled('AI Router', `Provider ${primary.name} unavailable (${err?.message || 'offline'}). Routing to active fallback provider ${fallback.name}.`);
+        } else {
+          this.logWarnThrottled('AI Router', `Primary provider ${primary.name} failed: ${err?.message || err}`);
+        }
       }
     } else {
       const msg = `Primary provider ${primary.name} is not configured/authenticated.`;

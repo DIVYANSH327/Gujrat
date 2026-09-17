@@ -93,8 +93,8 @@ export const GeospatialMapView: React.FC<GeospatialMapViewProps> = ({
         latitude: obs.location?.latitude || obs.gps?.latitude,
         longitude: obs.location?.longitude || obs.gps?.longitude,
         locationAccuracyMeters: obs.locationAccuracyMeters,
-        plateText: obs.plateNormalized || obs.plateText
-      });
+        ocrText: obs.plateNormalized || obs.plateText
+      } as any);
     }
   };
 

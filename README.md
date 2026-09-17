@@ -1,4 +1,18 @@
-# Gujarat Police CCTV & AI Intelligence Platform
+# Gujarat Police CCTV & AI Intelligence Platform — Sentinel Grid
+
+> [!WARNING]
+> **PROPRIETARY AND CONFIDENTIAL SOURCE CODE — STRICTLY PROHIBITED FOR UNAUTHORIZED USE**
+>
+> Copyright © 2026 Gujarat Police State Crime Records Bureau (SCRB) & Authorized Law Enforcement Agencies. All Rights Reserved.
+>
+> This repository, including its computer vision models, neural inference pipelines, real-time CCTV stream proxies, evidence hashing architectures, and operational interfaces, constitutes proprietary and confidential software.
+>
+> **STRICT PROHIBITIONS:**
+> - Any unauthorized copying, cloning, scraping, decompilation, redistribution, public hosting, commercial reuse, or derivative exploitation of this code or any portion thereof is strictly forbidden.
+> - Accessing, intercepting, decoding, or relaying any law enforcement surveillance streams or endpoints without explicit written SCRB authorization is illegal and will be prosecuted under the Information Technology Act and applicable national and international cyber statutes.
+> - Refer to `LICENSE` in the root directory for full legal terms.
+
+---
 
 ## Authorship
 

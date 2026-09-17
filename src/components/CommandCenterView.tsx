@@ -148,7 +148,9 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({
           vehicleType: latest.metadata?.vehicleClass || 'Vehicle',
           cameraId: latest.cameraId || 'CAM-UNKNOWN',
           sourceType: latest.metadata?.sourceType || 'UNKNOWN_SOURCE',
-          location: latest.metadata?.gps ? 'GPS ' + latest.metadata.gps.latitude.toFixed(3) : 'Ahmedabad',
+          location: latest.metadata?.gps 
+            ? ('GPS ' + (typeof latest.metadata.gps.latitude === 'number' ? latest.metadata.gps.latitude.toFixed(3) : typeof latest.metadata.gps.lat === 'number' ? latest.metadata.gps.lat.toFixed(3) : 'Ahmedabad')) 
+            : 'Ahmedabad',
           timestamp: new Date(latest.timestamp).toLocaleTimeString(),
           confidence: latest.confidence ? Math.round(latest.confidence * 100) : 90,
           evidenceUrl: latest.snapshotReference || 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=800&auto=format&fit=crop&q=80'

@@ -107,15 +107,15 @@ export function UnifiedVehicleInvestigation({
           const fallbackJourney = await vehicleJourneyService.buildJourney(searchResults[0].normalizedPlate);
           setJourney(fallbackJourney);
         } else {
-          setJourney(domainJourney || {
+          setJourney(domainJourney || ({
             vehicleNumber: normalized,
             totalSightings: 0,
             camerasVisited: 0,
             durationMinutes: 0,
-            startTime: '',
-            endTime: '',
+            firstSeen: '',
+            lastSeen: '',
             sightings: []
-          });
+          } as any));
         }
       }
     } catch (err) {
@@ -410,7 +410,7 @@ export function UnifiedVehicleInvestigation({
 
                             <div className="text-xs text-zinc-300 font-medium flex items-center gap-1.5">
                               <MapPin size={13} className="text-cyan-400 shrink-0" />
-                              <span>{sighting.locationDescription || `Corridor Node ${sighting.cameraId}`}</span>
+                              <span>{(sighting as any).locationDescription || (sighting as any).locationLabel || `Corridor Node ${sighting.cameraId}`}</span>
                             </div>
 
                             <div className="p-2 rounded bg-[#060810] border border-cyan-950/60 text-[11px] font-mono flex flex-wrap items-center justify-between gap-2">
@@ -729,7 +729,18 @@ export function UnifiedVehicleInvestigation({
             </div>
 
             <VehicleDossierView
-              targetPlate={activePlate}
+              dossier={{
+                dossierId: `DOS-${activePlate}`,
+                vehicleNumber: activePlate,
+                normalizedPlate: activePlate,
+                firstSeen: journey?.firstSeen || new Date().toISOString(),
+                lastSeen: journey?.lastSeen || new Date().toISOString(),
+                sightings: (journey?.sightings || []) as any,
+                totalSightings: journey?.totalSightings || 0,
+                camerasVisited: journey?.camerasVisited || 0,
+                riskScore: 35,
+                flags: ['ANALYTICS_REVIEW']
+              } as any}
               onClose={() => setShowV21Dossier(false)}
             />
           </div>

@@ -660,7 +660,7 @@ export class CctvDiagnosticEngine {
 
     const email = encodeURIComponent(sentinelServerService.getEmail());
     const password = encodeURIComponent(sentinelServerService.getPassword());
-    const rtspHost = sentinelServerService.getHost() || '103.250.160.189';
+    const rtspHost = sentinelServerService.getHost();
     const rtspPort = process.env.CORP8_RTSP_PORT || '8554';
     const rtspUrl = `rtsp://${email}:${password}@${rtspHost}:${rtspPort}/stream/${cameraId}`;
 

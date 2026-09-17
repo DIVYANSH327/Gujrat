@@ -40,7 +40,7 @@ interface Props {
 }
 
 export const ChallanModeDashboard: React.FC<Props> = ({ onNavigate }) => {
-  const [officerContext] = useState<AuthorizedDispatchContext>({
+  const [officerContext] = useState<any>({
     officerId: 'POLICE-OFFICER-742',
     officerName: 'Insp. Vikram Patel',
     badgeNumber: 'GJ-TRF-742',

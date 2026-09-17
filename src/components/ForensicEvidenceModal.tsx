@@ -57,7 +57,7 @@ export const ForensicEvidenceModal: React.FC<ForensicEvidenceModalProps> = ({
 
   // Normalize fields across EvidenceRecord and legacy EvidenceItem
   const evidenceId = evidence.evidenceId || evidence.id || 'EVD-UNKNOWN';
-  const eventId = evidence.eventId || 'EVT-UNKNOWN';
+  const eventId = (evidence as any).eventId || 'EVT-UNKNOWN';
   const cameraId = evidence.cameraId || 'CAM-UNKNOWN';
   const capturedAt = evidence.capturedAt || (evidence.timestamp ? new Date(evidence.timestamp).toISOString() : new Date().toISOString());
   const sha256 = evidence.sha256 || evidence.sha256Hash || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';

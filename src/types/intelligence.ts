@@ -48,7 +48,95 @@ export interface VehicleObservation {
   evidenceId?: string;
 }
 
+export interface PersonObservation {
+  observationId: string;
+  cameraId: string;
+  cameraName: string;
+  district: string;
+  location: string;
+  frameTimestamp: number;
+  captureTimestampUtc: string;
+  frameSha256: string;
+  frameUrl: string;
+
+  // Person Extraction
+  personTrackId: string;
+  personConfidence: number;
+  boundingBox: BoundingBox;
+  personCropUrl: string;
+  personCropSha256: string;
+  personCropWidth: number;
+  personCropHeight: number;
+
+  // Attributes & Safety Classification
+  classification: 'PEDESTRIAN' | 'MOTORCYCLE_RIDER' | 'BICYCLIST' | 'CROWD_MEMBER' | 'SECURITY_GUARD';
+  helmetStatus?: 'HELMET_COMPLIANT' | 'NO_HELMET' | 'NOT_APPLICABLE' | 'UNCERTAIN';
+  posture?: 'STANDING' | 'WALKING' | 'RUNNING' | 'RIDING' | 'UNKNOWN';
+  densityZone?: 'LOW' | 'MEDIUM' | 'HIGH_CONGESTION';
+
+  // Forensic Evidence
+  aiProvider: string;
+  aiModel: string;
+  processingTimeMs: number;
+  evidenceQuality: 'HIGH' | 'MEDIUM' | 'LOW';
+  evidenceId?: string;
+}
+
+export interface PersonTrackRecord {
+  personTrackId: string;
+  cameraId: string;
+  cameraName: string;
+  district: string;
+  location?: string;
+  firstSeenMs: number;
+  lastSeenMs: number;
+  frameCount: number;
+  classification: string;
+  helmetStatus?: string;
+  bestFrames: Array<{
+    frameTimestamp: number;
+    frameSha256: string;
+    frameUrl: string;
+    cropUrl: string;
+    cropSha256: string;
+    confidence: number;
+    qualityScore: number;
+  }>;
+  bestPersonFrames?: Array<{
+    frameTimestamp: number;
+    frameSha256: string;
+    frameUrl: string;
+    cropUrl: string;
+    cropSha256: string;
+    confidence: number;
+    qualityScore: number;
+  }>;
+  observations: PersonObservation[];
+}
+
+export interface UnifiedAuditEntry {
+  auditId: string;
+  timestamp: string;
+  timestampMs: number;
+  auditType: 'HSRP_INSPECTION' | 'PERSON_DETECTION' | 'VEHICLE_SIGHTING' | 'SAFETY_VIOLATION';
+  cameraId: string;
+  cameraName: string;
+  location: string;
+  district: string;
+  targetId: string; // vehicle plate or person track ID
+  category: 'VEHICLE_HSRP' | 'PERSON_PEDESTRIAN';
+  status: 'COMPLIANT' | 'NON_COMPLIANT' | 'DETECTED' | 'VERIFIED' | 'FLAGGED';
+  details: string;
+  confidence: number;
+  frameUrl: string;
+  cropUrl?: string;
+  enhancedCropUrl?: string;
+  sha256: string;
+  evidenceId?: string;
+}
+
 export interface VehicleTrackRecord {
+
   vehicleTrackId: string;
   cameraId: string;
   cameraName: string;
@@ -97,6 +185,7 @@ export interface IntelligenceMetrics {
   camerasSampled: number;
   cameraReconnects: number;
   vehiclesDetected: number;
+  personsDetected: number;
   plateCandidates: number;
   ocrReadable: number;
   ocrNotReadable: number;
@@ -117,13 +206,17 @@ export interface IntelligenceTelemetry {
   totalFramesSampled: number;
   totalFramesRejectedQuality: number;
   totalVehiclesObserved: number;
+  totalPersonsObserved: number;
   uniqueVehicleTracks: number;
+  uniquePersonTracks: number;
   totalPlatesDetected: number;
   totalPlatesRead: number;
   totalPlatesUnreadable: number;
   totalOpticalEnhancements: number;
   totalAiSuperResolutions: number;
   activeTracksCount: number;
+  activePersonTracksCount: number;
+  totalAuditRecords: number;
   cyclesCompleted: number;
   lastCycleAt: string;
   lastSuccessfulCycle: number;
@@ -131,6 +224,7 @@ export interface IntelligenceTelemetry {
   queueSize: number;
   stuckThresholdMs: number;
   sampleIntervalMs: number;
+
   metrics: {
     today: IntelligenceMetrics;
     lifetime: IntelligenceMetrics;
