@@ -117,6 +117,10 @@ export type PreferredDetector = 'YOLO' | 'ANPR' | 'ADVANCED_VISION' | 'NONE';
 export type ProcessingPriority = 'P0' | 'P1' | 'P2' | 'P3' | 'P4';
 export type FrameQualityRating = 'HIGH' | 'MEDIUM' | 'LOW' | 'INSUFFICIENT';
 
+export type IntelligenceSource = 'NATIVE_ANPR' | 'NVR_ANPR' | 'SENTINEL_YOLO' | 'EDGE_AI' | 'VIDEO_ONLY' | 'UNKNOWN';
+export type PlateRecognitionSource = 'CAMERA' | 'NVR' | 'SENTINEL' | 'NONE' | 'UNKNOWN';
+export type NativeAnprStatus = 'VERIFIED_ACTIVE' | 'ANPR_EVENT_UNAVAILABLE' | 'NOT_SUPPORTED' | 'UNKNOWN';
+
 export interface CameraIntelligenceProfile {
   cameraId: string;
   cameraName: string;
@@ -141,6 +145,116 @@ export interface CameraIntelligenceProfile {
   lastReadablePlate?: string;
   lastViolationTimestamp?: string;
   notes?: string;
+  intelligenceSource?: IntelligenceSource;
+  plateRecognitionSource?: PlateRecognitionSource;
+  nativeAnprStatus?: NativeAnprStatus;
+  probedResolution?: string;
+  probedFps?: number;
+  probedCodec?: string;
+}
+
+export interface SentinelEvidenceCaptureResult {
+  captureId: string;
+  cameraId: string;
+  cameraName: string;
+  district: string;
+  location: string;
+  timestamp: string;
+  frameTimestampMs: number;
+  resolution: string;
+  probedFps: number;
+  codec: string;
+  sourceType: 'MAIN_STREAM_RTSP_TCP' | 'SUB_STREAM' | 'NVR_SNAPSHOT' | 'EVIDENCE_BUFFER';
+  frameUrl: string;
+  frameSha256: string;
+  frameSizeBytes: number;
+  qualityMetrics: {
+    sharpnessScore: number;
+    blurCategory: string;
+    brightnessScore: number;
+    exposureCategory: string;
+    contrastScore: number;
+    overallQualityScore: number;
+    evidenceIntegrityScore: number;
+  };
+  intelligenceSource: IntelligenceSource;
+  plateRecognitionSource: PlateRecognitionSource;
+  nativeAnprStatus: NativeAnprStatus;
+  hasVehicle: boolean;
+  vehicleCandidates: Array<{
+    candidateId: string;
+    vehicleType: string;
+    confidence: number;
+    box: { x: number; y: number; width: number; height: number };
+    vehicleCropUrl: string;
+    vehicleCropSha256: string;
+    plateDetected: boolean;
+    plateCropUrl?: string;
+    plateCropSha256?: string;
+    enhancedPlateCropUrl?: string;
+    enhancedPlateCropSha256?: string;
+    enhancementType?: string;
+    ocrResult: string;
+    ocrConfidence: number;
+    ocrReadabilityStatus: 'READABLE' | 'NOT_READABLE' | 'UNCERTAIN' | 'NO_PLATE';
+    isHsrpCompliant?: boolean;
+    hsrpStatus?: string;
+  }>;
+  bsaSection63Certificate: {
+    certificateId: string;
+    actReference: string;
+    hashAlgorithm: 'SHA-256';
+    originalFrameHash: string;
+    sourceDeviceUid: string;
+    captureTimestampUtc: string;
+    custodyChainStatus: 'CRYPTOGRAPHICALLY_VERIFIED';
+    verificationSignature: string;
+  };
+}
+
+export interface DemoRecordingSession {
+  recordingId: string;
+  cameraId: string;
+  cameraName: string;
+  durationSeconds: number;
+  startedAt: string;
+  status: 'RECORDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+  filePath?: string;
+  fileSizeBytes?: number;
+  completedAt?: string;
+  label: 'DEMO RECORDING (SERVER-SIDE POST-PROCESSING)';
+  isLiveInference: false;
+  error?: string;
+  result?: DemoRecordingResult;
+}
+
+export interface DemoRecordingResult {
+  recordingId: string;
+  cameraId: string;
+  durationSeconds: number;
+  fileSizeBytes: number;
+  sampledFramesCount: number;
+  bestFramesCount: number;
+  label: 'DEMO RECORDING (SERVER-SIDE POST-PROCESSING)';
+  isLiveInference: false;
+  summary: {
+    totalVehiclesDetected: number;
+    readablePlatesCount: number;
+    unreadablePlatesCount: number;
+    averageFrameSharpness: number;
+  };
+  candidates: Array<{
+    frameTimestampMs: number;
+    frameSha256: string;
+    frameUrl: string;
+    sharpnessScore: number;
+    vehicleType: string;
+    vehicleCropUrl: string;
+    plateCropUrl?: string;
+    ocrText: string;
+    ocrStatus: 'READABLE' | 'NOT_READABLE' | 'UNCERTAIN';
+    confidence: number;
+  }>;
 }
 
 export interface WatchlistTarget {
@@ -554,7 +668,7 @@ export interface SecurityRule {
   };
 }
 
-export type ViewMode = 'dashboard' | 'command_center' | 'missions' | 'incidents' | 'review_queue' | 'digital_twin' | 'system_brain' | 'scale_lab' | 'cameras' | 'youtube_demo' | 'real_ai_test_lab' | 'ai_mesh' | 'police_intel' | 'ai_training_lab' | 'federated' | 'sites' | 'search' | 'alerts' | 'watchlist' | 'tracking' | 'nodes' | 'policies' | 'challenge' | 'system' | 'challan_mode' | 'mobile_camera' | 'mobile_patrol_cameras' | 'gov_deployment' | 'geospatial_map' | 'plate_intelligence_map' | 'sentinel_grid' | 'night_audit' | 'raw_video_audit' | 'cyber_security';
+export type ViewMode = 'dashboard' | 'command_center' | 'missions' | 'incidents' | 'review_queue' | 'digital_twin' | 'system_brain' | 'scale_lab' | 'cameras' | 'youtube_demo' | 'real_ai_test_lab' | 'ai_mesh' | 'police_intel' | 'ai_training_lab' | 'federated' | 'sites' | 'search' | 'alerts' | 'watchlist' | 'tracking' | 'nodes' | 'policies' | 'challenge' | 'system' | 'challan_mode' | 'mobile_camera' | 'gov_deployment' | 'geospatial_map' | 'plate_intelligence_map' | 'sentinel_grid' | 'night_audit' | 'raw_video_audit' | 'cyber_security' | 'gcp_vision_hub';
 
 // ============================================================
 // NIGHT AUDIT ENGINE TYPES (BSA 2023 & POLICE SURVEILLANCE SPEC)
@@ -853,6 +967,33 @@ export interface SentinelComplianceCheckItem {
   passed: boolean;
   notes: string;
   timestamp?: string;
+}
+
+// ============================================================
+// STREAM OPTIMIZATION & GOP SYNCHRONIZATION ARCHITECTURE
+// ============================================================
+
+export type GopSyncState = 'DISABLED' | 'WAITING' | 'SYNCHRONIZED' | 'TIMEOUT_FALLBACK';
+
+export interface StreamOptimizationConfig {
+  gopSyncEnabled: boolean;
+  gopSyncTimeoutMs: number; // Default 3000ms
+}
+
+export interface CameraOptimizationTelemetry {
+  cameraId: string;
+  gopSyncEnabled: boolean;
+  gopSyncState: GopSyncState;
+  gopSyncWaitMs: number;
+  gopSyncTimeoutCount: number;
+  gopSyncFallbackCount: number;
+  cameraConnectedAt: number | null;
+  firstValidFrameTimestamp: number | null;
+  aiStartedTimestamp: number | null;
+  aiStartLatencyMs: number | null;
+  gopSynchronizedTimestamp: number | null;
+  gopWaitLatencyMs: number | null;
+  operationalMode: 'LIVE_AI_PRIORITY' | 'STANDARD_KEYFRAME';
 }
 
 // ============================================================
@@ -2249,6 +2390,19 @@ export * from './types/operationalCommandTypes';
 export * from './types/facePersonIntelligenceTypes';
 export type { AIAgentJob } from './ai-agents/types';
 export * from './services/ai/RealAIEvidencePipeline';
+
+/**
+ * Authoritative Real-Time AI Inference Lifecycle State
+ * Never defaults to NO_DETECTIONS.
+ */
+export type AIStatus =
+  | 'WAITING_FOR_FRAME'
+  | 'STARTING'
+  | 'PROCESSING'
+  | 'NO_DETECTIONS'
+  | 'DETECTIONS_FOUND'
+  | 'ERROR';
+
 
 
 

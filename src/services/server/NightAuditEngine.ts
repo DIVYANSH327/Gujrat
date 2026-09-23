@@ -615,25 +615,32 @@ export class NightAuditEngine {
     camera.framesAnalyzed++;
     const cleanBase64 = frameBuffer.toString('base64');
 
+    let detections: any[] = [];
+    let persons: any[] = [];
+    let vehicles: any[] = [];
+    let aiResponse: any = null;
+
     try {
-      const aiResponse = await aiProviderRouter.routeFrameAnalysis({
-        frameBase64: cleanBase64,
-        frameTimestamp: captureTimestamp / 1000,
-        sourceId: camera.cameraId,
-        helmetThreshold: 0.85
-      });
+      if (aiProviderRouter.getPrimaryProviderType() !== 'NONE') {
+        aiResponse = await aiProviderRouter.routeFrameAnalysis({
+          frameBase64: cleanBase64,
+          frameTimestamp: captureTimestamp / 1000,
+          sourceId: camera.cameraId,
+          helmetThreshold: 0.85
+        });
 
-      this.aiSuccessCount++;
-      this.lastAiProviderUsed = aiResponse.provider || 'OMNIROUTE';
-      this.lastAiModelUsed = aiResponse.model || 'auto';
+        this.aiSuccessCount++;
+        this.lastAiProviderUsed = aiResponse.provider || 'OMNIROUTE';
+        this.lastAiModelUsed = aiResponse.model || 'auto';
 
-      // Process truthful detections
-      const detections = aiResponse.detections || [];
-      const persons = detections.filter(d => d.class === 'person');
-      const vehicles = detections.filter(d => ['car', 'motorcycle', 'bus', 'truck', 'auto-rickshaw', 'bicycle', 'vehicle'].includes(d.class));
+        // Process truthful detections
+        detections = aiResponse.detections || [];
+        persons = detections.filter(d => d.class === 'person');
+        vehicles = detections.filter(d => ['car', 'motorcycle', 'bus', 'truck', 'auto-rickshaw', 'bicycle', 'vehicle'].includes(d.class));
 
-      camera.personsCount += persons.length;
-      camera.vehiclesCount += vehicles.length;
+        camera.personsCount += persons.length;
+        camera.vehiclesCount += vehicles.length;
+      }
 
       // Handle Confirmed Persons
       if (persons.length > 0) {

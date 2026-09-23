@@ -34,6 +34,9 @@ import { cameraIntelligenceProfileService } from '../CameraIntelligenceProfileSe
 import { aiTechnologySwitchService } from '../AiTechnologySwitchService.js';
 import { centralEventBus } from '../CentralEventBus.js';
 import { googleCloudScaleAdapter } from '../cloud/GoogleCloudScaleAdapter.js';
+import { YoloVisionEngine } from '../vision/fabric/engines/YoloVisionEngine.js';
+import { localPlateOcrService } from '../vision/LocalPlateOcrService.js';
+import { GodsEyeObservationService } from '../GodsEyeObservationService.js';
 
 export type {
   VehicleObservation,
@@ -58,6 +61,7 @@ import type {
 } from '../../types/intelligence.js';
 
 export class BackgroundVehicleIntelligenceEngine {
+  private yoloEngine = new YoloVisionEngine();
   private isRunning = false;
   private engineState: EngineState = 'ENGINE_STOPPED';
   private startedAt = new Date().toISOString();
@@ -299,7 +303,7 @@ export class BackgroundVehicleIntelligenceEngine {
       );
       console.info('[BackgroundIntelligence] Background engine recovered successfully.');
     } catch (err: any) {
-      console.error('[BackgroundIntelligence] Recovery cycle failed:', err?.message);
+      console.warn('[BackgroundIntelligence] Recovery cycle notice:', err?.message);
     } finally {
       if (this.isRunning) {
         this.loopTimer = setTimeout(() => {
@@ -505,19 +509,62 @@ export class BackgroundVehicleIntelligenceEngine {
     this.metricsToday.framesProcessed++;
     this.metricsLifetime.framesProcessed++;
 
-    // 3. PERSON / VEHICLE DETECTION (Server-side AI router)
-    // AI failure must NEVER stop CCTV acquisition or cause fake vehicle records!
-    const base64 = rawFrameBuffer.toString('base64');
+    // 3. PERSON / VEHICLE DETECTION (YOLOv8 ONNX Edge Engine + Fallback AI Router)
     let aiResponse: any = null;
     let vehicleDetections: any[] = [];
     let personDetections: any[] = [];
-    let usedProvider = 'DETERMINISTIC_CV';
-    let usedModel = 'yolov8-quantized-edge';
+    let usedProvider = 'YOLOv8_ONNX_LOCAL';
+    let usedModel = 'yolov8n.onnx';
 
-    const shouldCallAI = switches.omniRouteEnabled || switches.geminiEnabled || switches.routingMode !== 'DETERMINISTIC_BASELINE';
-
-    if (shouldCallAI) {
+    // Priority 1: Real Local YOLOv8 ONNX inference on decoded video frame
+    if (switches.yoloEnabled) {
       try {
+        const isYoloReady = await this.yoloEngine.isAvailable();
+        if (isYoloReady) {
+          const obs = await this.yoloEngine.analyzeFrame({
+            frameBuffer: rawFrameBuffer,
+            cameraId: camId,
+            timestamp: now,
+            captureIso: new Date(now).toISOString(),
+            mimeType: 'image/jpeg',
+            sha256: frameSha256
+          });
+          const detectedVehicles = (obs.detections || []).filter((d: any) =>
+            ['car', 'motorcycle', 'bus', 'truck', 'bicycle'].includes(d.className?.toLowerCase())
+          );
+          const detectedPersons = (obs.detections || []).filter((d: any) =>
+            ['person'].includes(d.className?.toLowerCase())
+          );
+          if (detectedVehicles.length > 0 || detectedPersons.length > 0) {
+            vehicleDetections = detectedVehicles.map((d: any, idx: number) => ({
+              id: `VEH-YOLO-${idx + 1}`,
+              class: d.className,
+              box: d.bbox,
+              confidence: d.confidence
+            }));
+            personDetections = detectedPersons.map((d: any, idx: number) => ({
+              id: `PER-YOLO-${idx + 1}`,
+              class: d.className,
+              box: d.bbox,
+              confidence: d.confidence
+            }));
+            usedProvider = 'YOLOv8_ONNX_LOCAL';
+            usedModel = 'yolov8n.onnx';
+            this.metricsToday.aiInferenceSuccesses++;
+            this.metricsLifetime.aiInferenceSuccesses++;
+          }
+        }
+      } catch (yoloErr: any) {
+        console.warn(`[BackgroundIntelligence] YOLO local inference notice: ${yoloErr.message}`);
+      }
+    }
+
+    // Priority 2: Secondary fallback to cloud/server AI router if YOLO found no objects and AI enabled
+    const hasAvailableProvider = aiProviderRouter.getPrimaryProviderType() !== 'NONE';
+    const shouldCallAI = (switches.omniRouteEnabled || switches.geminiEnabled || switches.routingMode !== 'DETERMINISTIC_BASELINE') && hasAvailableProvider;
+    if (vehicleDetections.length === 0 && personDetections.length === 0 && shouldCallAI) {
+      try {
+        const base64 = rawFrameBuffer.toString('base64');
         aiResponse = await aiProviderRouter.routeFrameAnalysis({
           frameBase64: base64,
           frameTimestamp: now / 1000,
@@ -538,20 +585,7 @@ export class BackgroundVehicleIntelligenceEngine {
       } catch (aiErr: any) {
         this.metricsToday.aiInferenceFailures++;
         this.metricsLifetime.aiInferenceFailures++;
-        if (switches.routingMode === 'OMNIROUTE_PREFERENCE' || switches.routingMode === 'GEMINI_PREFERENCE') {
-          // Strict single provider failure -> truthful empty response
-          return [];
-        }
-        // Fallback to deterministic local CV vehicle & person detection
-        vehicleDetections = [];
-        personDetections = [];
       }
-    } else {
-      // Deterministic baseline computer vision: Extract high-contrast optical vehicles and people
-      usedProvider = 'DETERMINISTIC_CV';
-      usedModel = 'opencv-yolo-edge';
-      vehicleDetections = [];
-      personDetections = [];
     }
 
     if (vehicleDetections.length === 0 && personDetections.length === 0) {
@@ -598,9 +632,8 @@ export class BackgroundVehicleIntelligenceEngine {
       });
       const vehicleCropUrl = `/api/intelligence/snapshots/${vCropId}`;
 
-      // 5. PLATE DETECTION & INDEPENDENT EXTRACTION
+      // 5. PLATE DETECTION & INDEPENDENT EXTRACTION VIA LOCAL OCR
       const anprAllowed = switches.anprEnabled && routingDecision.supportsANPR;
-      const hasPlate = anprAllowed && Boolean(v.plate && v.plate.trim().length > 0 && v.plate.trim().toUpperCase() !== 'UNKNOWN');
       let plateText = !switches.ocrEnabled ? 'OCR_DISABLED' : 'NOT_READABLE';
       let ocrConfidence = 0.0;
       let ocrStatus: 'READABLE' | 'NOT_READABLE' | 'UNCERTAIN' | 'NO_PLATE' = 'NO_PLATE';
@@ -614,74 +647,71 @@ export class BackgroundVehicleIntelligenceEngine {
       let hsrpState: 'HSRP_COMPLIANT' | 'HSRP_NON_COMPLIANT' | 'HSRP_UNVERIFIED' | 'PLATE_NOT_VISIBLE' = 'PLATE_NOT_VISIBLE';
       let hsrpNotes = 'Plate not located in vehicle bounding box';
 
-      if (hasPlate && switches.ocrEnabled) {
+      if (anprAllowed && switches.ocrEnabled) {
         this.metricsToday.plateCandidates++;
         this.metricsLifetime.plateCandidates++;
-        const rawPlate = v.plate!.trim().toUpperCase();
-        
-        // Strict anti-hallucination check
-        const isValidIndianPlate = /^[A-Z]{2}[0-9]{1,2}[A-Z]{0,3}[0-9]{3,4}$/.test(rawPlate.replace(/\s+/g, ''));
-        if (isValidIndianPlate && (v.plateConfidence || 0) >= 0.70) {
-          plateText = rawPlate;
-          ocrConfidence = v.plateConfidence || 0.88;
-          ocrStatus = 'READABLE';
-          this.metricsToday.ocrReadable++;
-          this.metricsLifetime.ocrReadable++;
-        } else if (rawPlate.length >= 4 && (v.plateConfidence || 0) >= 0.50) {
-          plateText = rawPlate;
-          ocrConfidence = v.plateConfidence || 0.60;
-          ocrStatus = 'UNCERTAIN';
-          this.metricsToday.ocrReadable++;
-          this.metricsLifetime.ocrReadable++;
-        } else {
-          plateText = 'NOT_READABLE';
-          ocrConfidence = 0.0;
-          ocrStatus = 'NOT_READABLE';
-          this.metricsToday.ocrNotReadable++;
-          this.metricsLifetime.ocrNotReadable++;
-        }
 
-        // Plate Bounding Box (inside vehicle region)
+        // Plate Bounding Box (inside lower vehicle bumper region)
         const plateBox: BoundingBox = {
-          x: vBox.x + vBox.width * 0.25,
-          y: vBox.y + vBox.height * 0.70,
-          width: vBox.width * 0.50,
-          height: vBox.height * 0.25
+          x: vBox.x + vBox.width * 0.15,
+          y: vBox.y + vBox.height * 0.60,
+          width: vBox.width * 0.70,
+          height: vBox.height * 0.35
         };
 
-        // Extract Original Raw Plate Crop
         try {
-          const rawPlateCrop = await ImageCropUtil.cropJpeg(rawFrameBuffer, plateBox, qualityMetrics.width, qualityMetrics.height);
-          origPlateCropSha256 = rawPlateCrop.sha256;
+          // Authentic optical character recognition on localized plate crop
+          const ocrResult = await localPlateOcrService.extractPlateFromCrop(
+            rawFrameBuffer,
+            plateBox,
+            qualityMetrics.width,
+            qualityMetrics.height
+          );
+
+          origPlateCropSha256 = ocrResult.rawCropSha256;
           const rawPlateCropId = `CROP-PLATE-RAW-${camId}-${now}-${i}`;
           this.snapshotStore.set(rawPlateCropId, {
-            buffer: rawPlateCrop.buffer,
+            buffer: ocrResult.rawCropBuffer,
             mimeType: 'image/jpeg',
             timestamp: now,
-            sha256: rawPlateCrop.sha256
+            sha256: ocrResult.rawCropSha256
           });
           origPlateCropUrl = `/api/intelligence/snapshots/${rawPlateCropId}`;
 
-          // Deterministic OPTICAL_ENHANCEMENT (Lanczos 2x, unsharp mask, contrast equalization)
-          const opticalEnh = await ImageCropUtil.enhanceCrop(rawPlateCrop.buffer, 2);
-          enhPlateCropSha256 = opticalEnh.sha256;
+          enhPlateCropSha256 = ocrResult.enhancedCropSha256;
           enhType = 'OPTICAL_ENHANCEMENT';
           enhMethod = 'Lanczos 2x Interpolation + Unsharp Mask High-Pass + Histogram Equalization';
 
           const enhPlateCropId = `CROP-PLATE-ENH-${camId}-${now}-${i}`;
           this.snapshotStore.set(enhPlateCropId, {
-            buffer: opticalEnh.buffer,
+            buffer: ocrResult.enhancedCropBuffer,
             mimeType: 'image/jpeg',
             timestamp: now,
-            sha256: opticalEnh.sha256
+            sha256: ocrResult.enhancedCropSha256
           });
           enhPlateCropUrl = `/api/intelligence/snapshots/${enhPlateCropId}`;
 
-          // Plate quality calculation
+          ocrConfidence = ocrResult.confidence;
+          ocrStatus = ocrResult.status;
+
+          if (ocrResult.isReadable && ocrResult.plateText) {
+            plateText = ocrResult.plateText;
+            this.metricsToday.ocrReadable++;
+            this.metricsLifetime.ocrReadable++;
+          } else if (ocrResult.status === 'UNCERTAIN' && ocrResult.plateText) {
+            plateText = ocrResult.plateText;
+            this.metricsToday.ocrReadable++;
+            this.metricsLifetime.ocrReadable++;
+          } else {
+            plateText = 'NOT_READABLE';
+            this.metricsToday.ocrNotReadable++;
+            this.metricsLifetime.ocrNotReadable++;
+          }
+
           plateQuality = Math.min(100, Math.round(
             (Math.min(100, qualityMetrics.sharpnessScore / 10) * 0.4) +
             (qualityMetrics.contrastScore * 0.4) +
-            (rawPlateCrop.width >= 120 ? 20 : 10)
+            (ocrResult.cropDimensions.width >= 120 ? 20 : 10)
           ));
 
           // HSRP Verification (if switch is enabled)
@@ -691,14 +721,14 @@ export class BackgroundVehicleIntelligenceEngine {
                 candidateId: `CAND-${camId}-${now}-${i}`,
                 vehicleTrackId: `TRK-${camId}-${v.id || i}`,
                 bbox: { x: 0.1, y: 0.1, width: 0.8, height: 0.8 },
-                widthPx: rawPlateCrop.width,
-                heightPx: rawPlateCrop.height,
+                widthPx: ocrResult.cropDimensions.width,
+                heightPx: ocrResult.cropDimensions.height,
                 confidence: ocrConfidence,
-                cropBuffer: rawPlateCrop.buffer,
-                cropSha256: rawPlateCrop.sha256,
+                cropBuffer: ocrResult.rawCropBuffer,
+                cropSha256: ocrResult.rawCropSha256,
                 frameId: `FRM-${camId}-${now}`,
                 frameTimestamp: now,
-                isAdequateSize: rawPlateCrop.width >= 80
+                isAdequateSize: ocrResult.cropDimensions.width >= 80
               });
 
               if (hsrpAnalysis.data.result === 'CONSISTENT') {
@@ -709,7 +739,7 @@ export class BackgroundVehicleIntelligenceEngine {
                 hsrpNotes = hsrpAnalysis.data.reason || 'Missing mandatory hologram/laser PIN under CMVR Rule 50.';
               } else {
                 hsrpState = 'HSRP_UNVERIFIED';
-                hsrpNotes = 'Resolution insufficient for sub-millimeter hologram verification.';
+                hsrpNotes = ocrResult.unreadableReason ? `Plate ${ocrResult.unreadableReason.toLowerCase().replace('_', ' ')}` : 'Optical verification inconclusive.';
               }
             } catch {
               hsrpState = 'HSRP_UNVERIFIED';
@@ -723,7 +753,7 @@ export class BackgroundVehicleIntelligenceEngine {
         } catch (cropErr: any) {
           console.warn(`[BackgroundIntelligence] Plate crop error on ${camId}:`, cropErr?.message);
         }
-      } else if (hasPlate && !switches.ocrEnabled) {
+      } else if (!switches.ocrEnabled) {
         plateText = 'OCR_DISABLED';
         ocrStatus = 'NO_PLATE';
       } else {
@@ -783,12 +813,12 @@ export class BackgroundVehicleIntelligenceEngine {
         vehicleCropWidth: vehicleCrop.width,
         vehicleCropHeight: vehicleCrop.height,
 
-        plateDetected: hasPlate,
-        plateBoundingBox: hasPlate ? {
-          x: vBox.x + vBox.width * 0.25,
-          y: vBox.y + vBox.height * 0.70,
-          width: vBox.width * 0.50,
-          height: vBox.height * 0.25
+        plateDetected: ocrStatus !== 'NO_PLATE',
+        plateBoundingBox: ocrStatus !== 'NO_PLATE' ? {
+          x: vBox.x + vBox.width * 0.15,
+          y: vBox.y + vBox.height * 0.60,
+          width: vBox.width * 0.70,
+          height: vBox.height * 0.35
         } : undefined,
         originalPlateCropUrl: origPlateCropUrl,
         originalPlateCropSha256: origPlateCropSha256,
@@ -818,6 +848,31 @@ export class BackgroundVehicleIntelligenceEngine {
 
       // Multi-frame track update
       this.updateMultiFrameTrack(observation, qualityMetrics.overallQualityScore);
+
+      // Record authentic observation in GodsEye Observation Store
+      try {
+        GodsEyeObservationService.getInstance().recordObservation({
+          observationId: observation.observationId,
+          eventId: `EVT-${observationId}`,
+          cameraId: camId,
+          cameraName,
+          trackId: vehicleTrackId,
+          vehicleClass: (observation.vehicleType as any) || 'car',
+          plateText: observation.ocrResult !== 'NOT_READABLE' && observation.ocrResult !== 'OCR_DISABLED' ? observation.ocrResult : undefined,
+          plateConfidence: observation.ocrConfidence > 0 ? observation.ocrConfidence : undefined,
+          plateStatus: observation.ocrResult !== 'NOT_READABLE' && observation.ocrResult !== 'OCR_DISABLED' ? 'PLATE_READ' : 'PLATE_NOT_READ',
+          vehicleConfidence: observation.vehicleConfidence,
+          timestamp: new Date(now).toISOString(),
+          imageReference: observation.frameUrl,
+          thumbnailReference: observation.vehicleCropUrl || observation.frameUrl,
+          evidenceReference: observation.evidenceId,
+          evidenceHash: observation.frameSha256,
+          sourceType: 'REAL_CAMERA',
+          analysisMode: 'REAL_AI'
+        });
+      } catch (geErr: any) {
+        console.warn(`[BackgroundIntelligence] GodsEye recording notice:`, geErr?.message);
+      }
 
       // Add to Unified Audit Log
       this.addAuditEntry({
@@ -1639,19 +1694,12 @@ export class BackgroundVehicleIntelligenceEngine {
     return this.snapshotStore.get(id);
   }
 
-  public storeSnapshotBuffer(id: string, buffer: Buffer, mimeType = 'image/jpeg'): void {
-    const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');
-    this.snapshotStore.set(id, {
-      buffer,
-      mimeType,
-      timestamp: Date.now(),
-      sha256
-    });
-    if (this.snapshotStore.size > 300) {
-      const keys = Array.from(this.snapshotStore.keys()).slice(0, this.snapshotStore.size - 200);
-      for (const k of keys) {
-        this.snapshotStore.delete(k);
-      }
+  public storeSnapshot(id: string, item: { buffer: Buffer; mimeType: string; timestamp: number; sha256: string }) {
+    this.snapshotStore.set(id, item);
+    // Bounded in-memory retention: max 500 snapshot items
+    if (this.snapshotStore.size > 500) {
+      const firstKey = this.snapshotStore.keys().next().value;
+      if (firstKey) this.snapshotStore.delete(firstKey);
     }
   }
 

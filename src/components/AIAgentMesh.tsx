@@ -38,6 +38,7 @@ import { SystemHardwareTelemetry, ResourceMode, WorkloadPolicy } from '../servic
 import { SystemPerformancePanel } from './vision/SystemPerformancePanel';
 import { AgentWorkflowDiagram } from './vision/AgentWorkflowDiagram';
 import { useAuth } from '../context/AuthContext';
+import { sentinelFetchJson } from '../services/resilience/SentinelHttpClient';
 
 interface AgentRecord {
   id: string;
@@ -79,27 +80,23 @@ export const AIAgentMesh: React.FC<AIAgentMeshProps> = ({
   // Fetch telemetry & agent list from server
   const fetchTelemetryAndAgents = async () => {
     try {
-      const [resTelem, resAgents] = await Promise.all([
-        fetch('/api/system/telemetry'),
-        fetch('/api/ai/agents')
+      const [dataTelem, dataAgents] = await Promise.all([
+        sentinelFetchJson<any>('/api/system/telemetry', { caller: 'AIAgentMesh' }),
+        sentinelFetchJson<any>('/api/ai/agents', { caller: 'AIAgentMesh' })
       ]);
 
-      if (resTelem.ok) {
-        const dataTelem = await resTelem.json();
+      if (dataTelem) {
         setTelemetry(dataTelem);
       }
 
-      if (resAgents.ok) {
-        const dataAgents = await resAgents.json();
-        if (dataAgents.agents && Array.isArray(dataAgents.agents)) {
-          setAgents(dataAgents.agents);
-          // Auto select first agent if none selected
-          if (!selectedAgent && dataAgents.agents.length > 0) {
-            setSelectedAgent(dataAgents.agents[0]);
-          } else if (selectedAgent) {
-            const updated = dataAgents.agents.find((a: AgentRecord) => a.id === selectedAgent.id);
-            if (updated) setSelectedAgent(updated);
-          }
+      if (dataAgents && dataAgents.agents && Array.isArray(dataAgents.agents)) {
+        setAgents(dataAgents.agents);
+        // Auto select first agent if none selected
+        if (!selectedAgent && dataAgents.agents.length > 0) {
+          setSelectedAgent(dataAgents.agents[0]);
+        } else if (selectedAgent) {
+          const updated = dataAgents.agents.find((a: AgentRecord) => a.id === selectedAgent.id);
+          if (updated) setSelectedAgent(updated);
         }
       }
     } catch (err) {
@@ -109,7 +106,7 @@ export const AIAgentMesh: React.FC<AIAgentMeshProps> = ({
 
   useEffect(() => {
     fetchTelemetryAndAgents();
-    const interval = setInterval(fetchTelemetryAndAgents, 3000);
+    const interval = setInterval(fetchTelemetryAndAgents, 30000);
     return () => clearInterval(interval);
   }, []);
 

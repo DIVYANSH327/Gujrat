@@ -51,7 +51,7 @@ export const MobilePatrolMeshTab: React.FC<MobilePatrolMeshTabProps> = ({
 
   useEffect(() => {
     fetchJudgments();
-    const interval = setInterval(fetchJudgments, 4000);
+    const interval = setInterval(fetchJudgments, 25000);
     return () => clearInterval(interval);
   }, []);
 

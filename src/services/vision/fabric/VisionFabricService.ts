@@ -55,7 +55,8 @@ export class VisionFabricService extends EventEmitter {
 
   private constructor() {
     super();
-    this.seedAllCamerasDetections();
+    // In accordance with Section 8 truthfulness invariants:
+    // Detections are populated exclusively from live YOLOv8 ONNX inference.
   }
 
   public static getInstance(): VisionFabricService {
@@ -122,18 +123,14 @@ export class VisionFabricService extends EventEmitter {
       sha256
     });
 
-    // If YOLO returned detections, store and enhance them
-    if (observation.detections && observation.detections.length > 0) {
-      this.objectsDetected += observation.detections.length;
-      this.cameraDetections.set(camKey, observation.detections);
+    // Record genuine YOLO detections from inference
+    const genuineDetections = observation.detections || [];
+    this.cameraDetections.set(camKey, genuineDetections);
 
+    if (genuineDetections.length > 0) {
+      this.objectsDetected += genuineDetections.length;
       // Trigger AI Agent to clear/enhance images and verify HSRP/Person
-      this.enhanceAndVerifyDetections(camKey, observation.detections, captureIso);
-    } else if (!this.cameraDetections.has(camKey)) {
-      // Ensure camera has active bounding boxes
-      const fallbackDets = this.generateCameraDetections(camKey);
-      this.cameraDetections.set(camKey, fallbackDets);
-      this.enhanceAndVerifyDetections(camKey, fallbackDets, captureIso);
+      this.enhanceAndVerifyDetections(camKey, genuineDetections, captureIso);
     }
 
     this.cameraObservations.set(camKey, observation);
@@ -187,13 +184,8 @@ export class VisionFabricService extends EventEmitter {
 
     const activeTracks = yoloTracker.getActiveTracks(camKey);
 
-    // Retrieve camera-specific detections
-    let detections = this.cameraDetections.get(camKey);
-    if (!detections || detections.length === 0) {
-      detections = this.generateCameraDetections(camKey);
-      this.cameraDetections.set(camKey, detections);
-    }
-
+    // Retrieve genuine camera-specific detections
+    const detections = this.cameraDetections.get(camKey) || [];
     const latestObs = this.cameraObservations.get(camKey) || null;
 
     return {
@@ -235,9 +227,6 @@ export class VisionFabricService extends EventEmitter {
    */
   public getDetectionsForCamera(cameraId: string): VisionDetection[] {
     const camKey = cameraId.toLowerCase();
-    if (!this.cameraDetections.has(camKey)) {
-      this.cameraDetections.set(camKey, this.generateCameraDetections(camKey));
-    }
     return this.cameraDetections.get(camKey) || [];
   }
 
@@ -260,152 +249,8 @@ export class VisionFabricService extends EventEmitter {
     }
     return this.detectionHistory;
   }
-
-  /**
-   * Seed authentic YOLO detections across ALL cameras (cam01 to cam30)
-   */
-  private seedAllCamerasDetections(): void {
-    for (let i = 1; i <= 30; i++) {
-      const camId = `cam${i.toString().padStart(2, '0')}`;
-      const detections = this.generateCameraDetections(camId);
-      this.cameraDetections.set(camId, detections);
-    }
-  }
-
-  /**
-   * Generate realistic, context-aware YOLO detections for a camera node
-   */
-  private generateCameraDetections(cameraId: string): VisionDetection[] {
-    const camNum = parseInt(cameraId.replace(/[^0-9]/g, ''), 10) || 1;
-    const now = Date.now();
-    const detections: any[] = [];
-
-    // Camera-specific variation based on node index
-    const variant = camNum % 4;
-
-    if (variant === 0) {
-      // Heavy Traffic Arterial (Cars, Bus, Pedestrian)
-      detections.push(
-        {
-          id: `YOLO-${cameraId}-01`,
-          className: 'bus',
-          confidence: 0.94,
-          bbox: { x: 0.12, y: 0.35, width: 0.32, height: 0.38 },
-          trackId: `TRK-${cameraId}-01`,
-          truthStatus: 'OBSERVED'
-        },
-        {
-          id: `YOLO-${cameraId}-02`,
-          className: 'car',
-          confidence: 0.91,
-          bbox: { x: 0.52, y: 0.42, width: 0.22, height: 0.26 },
-          trackId: `TRK-${cameraId}-02`,
-          truthStatus: 'OBSERVED'
-        },
-        {
-          id: `YOLO-${cameraId}-03`,
-          className: 'person',
-          confidence: 0.87,
-          bbox: { x: 0.82, y: 0.50, width: 0.09, height: 0.32 },
-          trackId: `TRK-${cameraId}-03`,
-          truthStatus: 'OBSERVED'
-        }
-      );
-    } else if (variant === 1) {
-      // Mixed Urban Corridor (Car, Motorcycle, Person)
-      detections.push(
-        {
-          id: `YOLO-${cameraId}-01`,
-          className: 'car',
-          confidence: 0.96,
-          bbox: { x: 0.28, y: 0.38, width: 0.26, height: 0.30 },
-          trackId: `TRK-${cameraId}-01`,
-          truthStatus: 'OBSERVED'
-        },
-        {
-          id: `YOLO-${cameraId}-02`,
-          className: 'motorcycle',
-          confidence: 0.88,
-          bbox: { x: 0.58, y: 0.45, width: 0.14, height: 0.25 },
-          trackId: `TRK-${cameraId}-02`,
-          truthStatus: 'OBSERVED'
-        },
-        {
-          id: `YOLO-${cameraId}-03`,
-          className: 'person',
-          confidence: 0.92,
-          bbox: { x: 0.15, y: 0.52, width: 0.08, height: 0.28 },
-          trackId: `TRK-${cameraId}-03`,
-          truthStatus: 'OBSERVED'
-        }
-      );
-    } else if (variant === 2) {
-      // Toll Plaza / Highway Corridor (SUV, Truck, Car)
-      detections.push(
-        {
-          id: `YOLO-${cameraId}-01`,
-          className: 'car',
-          confidence: 0.95,
-          bbox: { x: 0.35, y: 0.32, width: 0.30, height: 0.35 },
-          trackId: `TRK-${cameraId}-01`,
-          truthStatus: 'OBSERVED'
-        },
-        {
-          id: `YOLO-${cameraId}-02`,
-          className: 'truck',
-          confidence: 0.92,
-          bbox: { x: 0.05, y: 0.28, width: 0.28, height: 0.42 },
-          trackId: `TRK-${cameraId}-02`,
-          truthStatus: 'OBSERVED'
-        },
-        {
-          id: `YOLO-${cameraId}-03`,
-          className: 'car',
-          confidence: 0.89,
-          bbox: { x: 0.68, y: 0.40, width: 0.24, height: 0.28 },
-          trackId: `TRK-${cameraId}-03`,
-          truthStatus: 'OBSERVED'
-        }
-      );
-    } else {
-      // Pedestrian Crossing & Light Traffic (Person, Pedestrian, Car)
-      detections.push(
-        {
-          id: `YOLO-${cameraId}-01`,
-          className: 'person',
-          confidence: 0.93,
-          bbox: { x: 0.22, y: 0.45, width: 0.10, height: 0.35 },
-          trackId: `TRK-${cameraId}-01`,
-          truthStatus: 'OBSERVED'
-        },
-        {
-          id: `YOLO-${cameraId}-02`,
-          className: 'person',
-          confidence: 0.86,
-          bbox: { x: 0.36, y: 0.46, width: 0.09, height: 0.34 },
-          trackId: `TRK-${cameraId}-02`,
-          truthStatus: 'OBSERVED'
-        },
-        {
-          id: `YOLO-${cameraId}-03`,
-          className: 'car',
-          confidence: 0.90,
-          bbox: { x: 0.55, y: 0.38, width: 0.25, height: 0.30 },
-          trackId: `TRK-${cameraId}-03`,
-          truthStatus: 'OBSERVED'
-        }
-      );
-    }
-
-    return detections.map((det) => ({
-      ...det,
-      cameraId,
-      frameTimestamp: now,
-      engine: 'YOLOv8' as const,
-      model: 'yolov8n.onnx'
-    })) as VisionDetection[];
-  }
 }
 
 export const visionFabricService = VisionFabricService.getInstance();
 export default visionFabricService;
+

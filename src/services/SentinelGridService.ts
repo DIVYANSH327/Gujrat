@@ -173,10 +173,10 @@ hls_url = "https://cctv.corp8.cloud/${cam.id}/index.m3u8"
 os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;tcp"
 
 # In production, read credentials from environment:
-corp8_email = os.environ.get("SENTINEL_OPERATOR_EMAIL", "officer@gujarat.police.gov.in")
-corp8_pass = os.environ.get("SENTINEL_GATEWAY_TOKEN", "<SENTINEL_GATEWAY_TOKEN>")
-corp8_host = os.environ.get("SENTINEL_GATEWAY_HOST", "cctv-gw.internal.scrb.gov.in")
-corp8_port = os.environ.get("SENTINEL_RTSP_PORT", "8554")
+corp8_email = os.environ.get("CORP8_EMAIL", "officer@gujarat.police.gov.in")
+corp8_pass = os.environ.get("CORP8_PASSWORD", "<SENTINEL_GATEWAY_TOKEN>")
+corp8_host = os.environ.get("CORP8_HOST", "cctv-gw.internal.scrb.gov.in")
+corp8_port = os.environ.get("CORP8_RTSP_PORT", "8554")
 encoded_email = corp8_email.replace("@", "%40")
 
 rtsp_url = f"rtsp://{encoded_email}:{corp8_pass}@{corp8_host}:{corp8_port}/stream/${cam.id}"
@@ -220,24 +220,24 @@ while True:
 
     if (isH265) {
       return `# GStreamer pipeline for H.265 Sentinel feed (Section 2 & 3: TCP transport, latency=200ms)
-gst-launch-1.0 rtspsrc location=rtsp://\${SENTINEL_OPERATOR_EMAIL}:\${SENTINEL_GATEWAY_TOKEN}@\${SENTINEL_GATEWAY_HOST:-cctv-gw.internal.scrb.gov.in}:8554/stream/${camId} protocols=tcp latency=200 \\
+gst-launch-1.0 rtspsrc location=rtsp://\${CORP8_EMAIL}:\${CORP8_PASSWORD}@\${CORP8_HOST:-cctv-gw.internal.scrb.gov.in}:8554/stream/${camId} protocols=tcp latency=200 \\
   ! rtph265depay ! h265parse ! avdec_h265 ! videoconvert ! autovideosink`;
     }
 
     return `# GStreamer pipeline for H.264 Sentinel feed (Section 2 & 3: TCP transport, latency=200ms)
-gst-launch-1.0 rtspsrc location=rtsp://\${SENTINEL_OPERATOR_EMAIL}:\${SENTINEL_GATEWAY_TOKEN}@\${SENTINEL_GATEWAY_HOST:-cctv-gw.internal.scrb.gov.in}:8554/stream/${camId} protocols=tcp latency=200 \\
+gst-launch-1.0 rtspsrc location=rtsp://\${CORP8_EMAIL}:\${CORP8_PASSWORD}@\${CORP8_HOST:-cctv-gw.internal.scrb.gov.in}:8554/stream/${camId} protocols=tcp latency=200 \\
   ! rtph264depay ! h264parse ! avdec_h264 ! videoconvert ! autovideosink`;
   }
 
   public generateFfmpegSnippet(camId: string): string {
     return `# Official Sentinel §2: FFplay real-time playback forcing TCP
-ffplay -rtsp_transport tcp rtsp://\${SENTINEL_OPERATOR_EMAIL}:\${SENTINEL_GATEWAY_TOKEN}@\${SENTINEL_GATEWAY_HOST:-cctv-gw.internal.scrb.gov.in}:8554/stream/${camId}
+ffplay -rtsp_transport tcp rtsp://\${CORP8_EMAIL}:\${CORP8_PASSWORD}@\${CORP8_HOST:-cctv-gw.internal.scrb.gov.in}:8554/stream/${camId}
 
 # Or HLS playback:
 ffplay https://cctv.corp8.cloud/${camId}/index.m3u8
 
 # FFprobe stream property & codec inspection:
-ffprobe -rtsp_transport tcp rtsp://\${SENTINEL_OPERATOR_EMAIL}:\${SENTINEL_GATEWAY_TOKEN}@\${SENTINEL_GATEWAY_HOST:-cctv-gw.internal.scrb.gov.in}:8554/stream/${camId}`;
+ffprobe -rtsp_transport tcp rtsp://\${CORP8_EMAIL}:\${CORP8_PASSWORD}@\${CORP8_HOST:-cctv-gw.internal.scrb.gov.in}:8554/stream/${camId}`;
   }
 
   public generateDeepStreamSnippet(camId: string): string {
@@ -246,7 +246,7 @@ ffprobe -rtsp_transport tcp rtsp://\${SENTINEL_OPERATOR_EMAIL}:\${SENTINEL_GATEW
 [source0]
 enable=1
 type=4
-uri=rtsp://\${SENTINEL_OPERATOR_EMAIL}:\${SENTINEL_GATEWAY_TOKEN}@\${SENTINEL_GATEWAY_HOST:-cctv-gw.internal.scrb.gov.in}:8554/stream/${camId}
+uri=rtsp://\${CORP8_EMAIL}:\${CORP8_PASSWORD}@\${CORP8_HOST:-cctv-gw.internal.scrb.gov.in}:8554/stream/${camId}
 num-sources=1
 gpu-id=0
 select-rtp-protocol=4

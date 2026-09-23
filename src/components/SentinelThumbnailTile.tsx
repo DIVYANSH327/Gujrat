@@ -12,6 +12,7 @@ import {
   Activity
 } from 'lucide-react';
 import { SentinelCameraCatalogueItem } from '../types';
+import { thumbnailLoaderQueue } from '../services/video/ThumbnailLoaderQueue';
 
 interface SentinelThumbnailTileProps {
   camera: SentinelCameraCatalogueItem;
@@ -25,20 +26,20 @@ interface SentinelThumbnailTileProps {
   className?: string;
 }
 
+const PLACEHOLDER_SVG = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect width="320" height="180" fill="%23090d16"/><text x="160" y="90" fill="%23475569" font-size="11" font-family="sans-serif" text-anchor="middle">Feed Initializing</text></svg>';
+
 export const SentinelThumbnailTile: React.FC<SentinelThumbnailTileProps> = ({
   camera,
   isSelected = false,
   isImported = false,
-  pollIntervalMs = 3500,
+  pollIntervalMs = 15000,
   isPaused = false,
   onSelect,
   onOpenInCamerasView,
   onImportToLive,
   className = ''
 }) => {
-  const [currentImageUrl, setCurrentImageUrl] = useState<string>(
-    `/api/sentinel/thumbnail/${camera.id.toLowerCase()}`
-  );
+  const [currentImageUrl, setCurrentImageUrl] = useState<string>(PLACEHOLDER_SVG);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [hasError, setHasError] = useState<boolean>(false);
   const [lastRefreshedAt, setLastRefreshedAt] = useState<number>(Date.now());
@@ -63,28 +64,22 @@ export const SentinelThumbnailTile: React.FC<SentinelThumbnailTileProps> = ({
     let pollTimeout: any = null;
     let intervalTimer: any = null;
 
-    const fetchNextFrame = () => {
+    const fetchNextFrame = async () => {
       if (!isMountedRef.current || isPaused) return;
 
       const nextUrl = `/api/sentinel/thumbnail/${camera.id.toLowerCase()}?t=${Date.now()}`;
-      const img = new Image();
-
-      img.onload = () => {
+      try {
+        const loadedSrc = await thumbnailLoaderQueue.loadThumbnail(camera.id, nextUrl);
         if (!isMountedRef.current) return;
-        setCurrentImageUrl(nextUrl);
+        setCurrentImageUrl(loadedSrc);
         setIsLoading(false);
         setHasError(false);
         setLastRefreshedAt(Date.now());
-      };
-
-      img.onerror = () => {
+      } catch {
         if (!isMountedRef.current) return;
         setIsLoading(false);
-        // Do not immediately flash error if previous frame was good
         setHasError(true);
-      };
-
-      img.src = nextUrl;
+      }
     };
 
     // Stagger first query to prevent 30 parallel socket requests

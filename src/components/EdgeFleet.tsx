@@ -144,7 +144,7 @@ export function EdgeFleet() {
       }
     };
 
-    const interval = setInterval(pollCentral, 2000);
+    const interval = setInterval(pollCentral, 20000);
     pollCentral();
     return () => clearInterval(interval);
   }, [selectedNode?.id]);

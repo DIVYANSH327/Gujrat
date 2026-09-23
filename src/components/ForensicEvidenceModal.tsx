@@ -22,9 +22,12 @@ import {
   Maximize2, 
   Layers, 
   FileText,
-  Eye
+  Eye,
+  Download
 } from 'lucide-react';
 import { EvidenceRecord } from '../services/ai/RealAIEvidencePipeline';
+import { downloadForensicPdfReport } from '../utils/forensicPdfGenerator';
+import { AlertImageProvenanceBadge } from './ui/AlertImageProvenanceBadge';
 
 export interface ForensicEvidenceModalProps {
   evidence: Partial<EvidenceRecord> & {
@@ -209,8 +212,16 @@ export const ForensicEvidenceModal: React.FC<ForensicEvidenceModalProps> = ({
             )}
 
             {/* WATERMARK OVERLAY */}
-            <div className="absolute top-2 left-2 bg-black/70 backdrop-blur-sm border border-zinc-700/60 px-2.5 py-1 rounded text-[10px] text-zinc-200">
-              {cameraId} • {new Date(capturedAt).toLocaleTimeString()}
+            <div className="absolute top-2 left-2 flex items-center gap-2">
+              <div className="bg-black/70 backdrop-blur-sm border border-zinc-700/60 px-2.5 py-1 rounded text-[10px] text-zinc-200">
+                {cameraId} • {new Date(capturedAt).toLocaleTimeString()}
+              </div>
+              <AlertImageProvenanceBadge 
+                provenance={isReal ? 'EVIDENCE_FRAME' : isSimulation ? 'DEMO_ASSET' : 'UNVERIFIED'}
+                truthStatus={isReal ? 'OBSERVED' : 'DEMO'}
+                evidenceUrl={currentDisplayImage}
+                size="xs"
+              />
             </div>
 
             {isSimulation && (
@@ -307,6 +318,31 @@ export const ForensicEvidenceModal: React.FC<ForensicEvidenceModalProps> = ({
         {/* MODAL ACTION BUTTONS */}
         <div className="flex items-center justify-between gap-2 pt-2 border-t border-zinc-800 flex-wrap">
           <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => {
+                downloadForensicPdfReport({
+                  targetVehicle: evidence.label || 'GJ01AB1234',
+                  caseNumber: `CR-${evidenceId.slice(0, 8).toUpperCase()}/2026/SCRB`,
+                  evidenceItems: [
+                    {
+                      evidenceId,
+                      cameraId,
+                      locationName: (evidence as any).siteName || (evidence as any).location || 'Gujarat Police Surveillance Node',
+                      timestamp: capturedAt,
+                      anprConfidence: evidence.detectionConfidence || 0.95,
+                      sha256Hash: sha256,
+                      hsrpStatus: 'VERIFIED',
+                      imageSnapshotUrl: fullFrameUrl
+                    }
+                  ]
+                });
+              }}
+              className="px-3.5 py-2 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-600 hover:to-indigo-600 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow cursor-pointer border border-blue-500/40"
+            >
+              <Download size={13} />
+              EXPORT BSA 2023 PDF REPORT
+            </button>
+
             {hasGps && onNavigateToMap && (
               <button
                 onClick={() => onNavigateToMap(lat!, lng!, evidenceId)}

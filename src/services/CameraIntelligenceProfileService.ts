@@ -42,6 +42,64 @@ export class CameraIntelligenceProfileService {
    */
   private seedDefaultProfiles(): void {
     const defaultProfiles: CameraIntelligenceProfile[] = [
+      // GOLDEN REFERENCE CAMERA 1: CAM-06 (Junagadh Timbavadi Gate)
+      {
+        cameraId: 'cam06',
+        cameraName: '06 Timbavadi gate-Junagadh',
+        status: 'ONLINE',
+        cameraClass: 'AI_SMART',
+        resolution: '1920x1080 (FHD)',
+        fps: 25,
+        supportsANPR: true,
+        supportsHSRP: true,
+        supportsAdvancedVision: true,
+        aiEnabled: true,
+        preferredDetector: 'YOLO',
+        processingPriority: 'P1',
+        district: 'Junagadh',
+        location: 'Timbavadi Gate Bypass Junction',
+        edgeNodeId: 'EDGE-JUNAGADH-001',
+        activeDetector: 'YOLO',
+        frameQuality: 'HIGH',
+        lastFrameTimestamp: Date.now(),
+        lastFrameAge: 120,
+        intelligenceSource: 'SENTINEL_YOLO',
+        plateRecognitionSource: 'SENTINEL',
+        nativeAnprStatus: 'ANPR_EVENT_UNAVAILABLE',
+        probedResolution: '1920x1080',
+        probedFps: 25,
+        probedCodec: 'HEVC (H.265)',
+        notes: 'Golden Reference Node 1 (Junagadh). Probed: HEVC 1080p @ 25 FPS. Forensic plate acquisition via Sentinel server-side AI pipeline.'
+      },
+      // GOLDEN REFERENCE CAMERA 2: CAM-12 (Gandhinagar Tri Mandir Adalaj Tollnaka)
+      {
+        cameraId: 'cam12',
+        cameraName: '12 Tri Mandir Adalaj Tollnaka',
+        status: 'ONLINE',
+        cameraClass: 'ANPR',
+        resolution: '1280x720 (HD)',
+        fps: 20,
+        supportsANPR: true,
+        supportsHSRP: true,
+        supportsAdvancedVision: true,
+        aiEnabled: true,
+        preferredDetector: 'ANPR',
+        processingPriority: 'P1',
+        district: 'Gandhinagar',
+        location: 'TriMandir Adalaj Highway Toll Plaza',
+        edgeNodeId: 'EDGE-GANDHINAGAR-001',
+        activeDetector: 'ANPR',
+        frameQuality: 'HIGH',
+        lastFrameTimestamp: Date.now(),
+        lastFrameAge: 85,
+        intelligenceSource: 'SENTINEL_YOLO',
+        plateRecognitionSource: 'SENTINEL',
+        nativeAnprStatus: 'ANPR_EVENT_UNAVAILABLE',
+        probedResolution: '1280x720',
+        probedFps: 20,
+        probedCodec: 'HEVC (H.265)',
+        notes: 'Golden Reference Node 2 (Gandhinagar). Probed: HEVC 720p @ 20 FPS. Forensic plate acquisition via Sentinel server-side AI pipeline.'
+      },
       // ANPR Specialized Node
       {
         cameraId: 'CAM-007',
@@ -63,6 +121,12 @@ export class CameraIntelligenceProfileService {
         frameQuality: 'HIGH',
         lastFrameTimestamp: Date.now(),
         lastFrameAge: 250,
+        intelligenceSource: 'SENTINEL_YOLO',
+        plateRecognitionSource: 'SENTINEL',
+        nativeAnprStatus: 'ANPR_EVENT_UNAVAILABLE',
+        probedResolution: '3840x2160',
+        probedFps: 30,
+        probedCodec: 'H.264',
         notes: 'Dedicated high-speed ANPR optical zoom lane camera with retro-reflective plate calibration.'
       },
       // ANPR City Transit Node
@@ -243,6 +307,13 @@ export class CameraIntelligenceProfileService {
       return { ...existing };
     }
 
+    const cleanId = cameraId.toLowerCase().replace(/[^a-z0-9]/g, '');
+    for (const [key, profile] of this.profiles.entries()) {
+      if (key.toLowerCase().replace(/[^a-z0-9]/g, '') === cleanId) {
+        return { ...profile };
+      }
+    }
+
     // Defensive fallback: Never assume AI capabilities
     const fallbackProfile: CameraIntelligenceProfile = {
       cameraId,
@@ -258,6 +329,9 @@ export class CameraIntelligenceProfileService {
       preferredDetector: 'YOLO',
       processingPriority: 'P3',
       frameQuality: 'MEDIUM',
+      intelligenceSource: 'UNKNOWN',
+      plateRecognitionSource: 'UNKNOWN',
+      nativeAnprStatus: 'NOT_SUPPORTED',
       notes: 'Auto-registered node profile with defensive capability defaults.'
     };
 

@@ -83,7 +83,7 @@ export class PlateOcrAgent {
       };
     }
 
-    if (!isGeminiApiKeyValid(process.env.GEMINI_API_KEY)) {
+    if (process.env.GEMINI_REASONING_ENABLED === 'false' || !isGeminiApiKeyValid(process.env.GEMINI_API_KEY)) {
       return {
         agentName: 'PlateOcrAgent',
         status: 'KEY_REQUIRED',
@@ -92,16 +92,18 @@ export class PlateOcrAgent {
           normalizedText: null,
           confidence: 0,
           readable: false,
-          reason: 'AI vision provider is not configured or authenticated. Optical character recognition halted.'
+          reason: process.env.GEMINI_REASONING_ENABLED === 'false'
+            ? 'Autonomous Local Edge Mode: Cloud Gemini reasoning disabled. Operating with zero cloud calls.'
+            : 'AI vision provider is not configured or authenticated. Optical character recognition halted.'
         },
         confidence: 0,
         execution: {
           provider: 'optical',
-          model: 'none',
+          model: 'local-edge',
           latencyMs: 1,
           status: 'KEY_REQUIRED',
           retryCount: 0,
-          failureReason: 'AI_PROVIDER_UNAVAILABLE'
+          failureReason: 'LOCAL_EDGE_ONLY'
         }
       };
     }

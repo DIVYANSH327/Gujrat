@@ -47,6 +47,7 @@ export class SentinelCameraRecoveryManager {
   private cameraStates = new Map<string, CameraNodeState>();
   private reconnectTimers = new Map<string, NodeJS.Timeout>();
   private activeWorkers = new Set<string>();
+  private defaultReconnectWorker: ((camId: string) => Promise<boolean>) | null = null;
 
   // Thresholds
   private readonly staleThresholdMs = 25000; // 25s without a fresh frame -> STALE
@@ -62,6 +63,36 @@ export class SentinelCameraRecoveryManager {
       SentinelCameraRecoveryManager.instance = new SentinelCameraRecoveryManager();
     }
     return SentinelCameraRecoveryManager.instance;
+  }
+
+  public setDefaultReconnectWorker(worker: (camId: string) => Promise<boolean>): void {
+    this.defaultReconnectWorker = worker;
+  }
+
+  public resetCameraState(camId: string, targetState: CameraLifecycleState = 'STARTING'): void {
+    const node = this.cameraStates.get(camId);
+    if (node) {
+      const existingTimer = this.reconnectTimers.get(camId);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+        this.reconnectTimers.delete(camId);
+      }
+      this.activeWorkers.delete(camId);
+      node.state = targetState;
+      node.consecutiveFailures = 0;
+      node.reconnectAttempts = 0;
+      node.nextAllowedReconnectTime = 0;
+      node.lastErrorMessage = null;
+      node.lastStateChange = new Date().toISOString();
+    }
+  }
+
+  public resetAuthErrors(): void {
+    for (const node of this.cameraStates.values()) {
+      if (node.state === 'AUTH_ERROR') {
+        this.resetCameraState(node.cameraId, 'STARTING');
+      }
+    }
   }
 
   private initDefaultNodes(): void {
@@ -125,6 +156,13 @@ export class SentinelCameraRecoveryManager {
     const node = this.cameraStates.get(camId);
 
     if (node) {
+      const existingTimer = this.reconnectTimers.get(camId);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+        this.reconnectTimers.delete(camId);
+      }
+      this.activeWorkers.delete(camId);
+
       const wasNotLive = node.state !== 'LIVE';
       node.state = 'LIVE';
       node.lastFrameTimestamp = now;
@@ -198,6 +236,17 @@ export class SentinelCameraRecoveryManager {
         newState,
         { cameraId: camId, consecutiveFailures: node.consecutiveFailures, reason: cleanMsg }
       );
+    }
+
+    // For AUTH_ERROR, do not rapid-cycle reconnects; use a calm backoff (minimum 60s)
+    if (newState === 'AUTH_ERROR') {
+      node.nextAllowedReconnectTime = Date.now() + 60000;
+      return;
+    }
+
+    // Trigger autonomous self-healing reconnect worker if available for transient errors
+    if (this.defaultReconnectWorker && !this.reconnectTimers.has(camId) && !this.activeWorkers.has(camId)) {
+      this.scheduleCameraReconnect(camId, this.defaultReconnectWorker);
     }
   }
 

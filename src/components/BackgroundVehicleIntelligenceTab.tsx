@@ -72,42 +72,26 @@ export function BackgroundVehicleIntelligenceTab() {
 
   const fetchIntelligenceData = useCallback(async () => {
     try {
-      const [
-        statusRes, 
-        obsRes, 
-        personsRes,
-        auditRes,
-        summaryRes,
-        tracksRes, 
-        personTracksRes,
-        suitRes
-      ] = await Promise.all([
-        fetch('/api/intelligence/status').then(r => r.json()),
-        fetch('/api/intelligence/observations?limit=50').then(r => r.json()),
-        fetch('/api/intelligence/persons?limit=50').then(r => r.json()),
-        fetch('/api/intelligence/audit-trail?limit=60').then(r => r.json()),
-        fetch('/api/intelligence/audit-summary').then(r => r.json()),
-        fetch('/api/intelligence/vehicle-tracks?limit=50').then(r => r.json()),
-        fetch('/api/intelligence/person-tracks?limit=50').then(r => r.json()),
-        fetch('/api/intelligence/anpr-suitability').then(r => r.json())
-      ]);
+      const res = await fetch('/api/intelligence/bundle');
+      if (!res.ok) return;
+      const data = await res.json();
       
-      setTelemetry(statusRes);
-      setObservations(obsRes || []);
-      setPersonObservations(personsRes || []);
-      setAuditTrail(auditRes || []);
-      setAuditSummary(summaryRes || null);
-      setTracks(tracksRes || []);
-      setPersonTracks(personTracksRes || []);
-      setAnprSuitability(suitRes || {});
+      if (data.status) setTelemetry(data.status);
+      if (data.observations) setObservations(data.observations);
+      if (data.persons) setPersonObservations(data.persons);
+      if (data.auditTrail) setAuditTrail(data.auditTrail);
+      if (data.auditSummary) setAuditSummary(data.auditSummary);
+      if (data.vehicleTracks) setTracks(data.vehicleTracks);
+      if (data.personTracks) setPersonTracks(data.personTracks);
+      if (data.anprSuitability) setAnprSuitability(data.anprSuitability);
     } catch (err) {
-      console.warn('Error fetching intelligence data:', err);
+      console.warn('Error fetching intelligence bundle:', err);
     }
   }, []);
 
   useEffect(() => {
     fetchIntelligenceData();
-    const interval = setInterval(fetchIntelligenceData, 3000);
+    const interval = setInterval(fetchIntelligenceData, 30000);
     return () => clearInterval(interval);
   }, [fetchIntelligenceData]);
 

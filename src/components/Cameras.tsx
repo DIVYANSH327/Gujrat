@@ -279,10 +279,11 @@ export function Cameras({ onNavigate, initialSelectedCameraId }: CamerasProps) {
                         : 'https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=600&auto=format&fit=crop&q=80'
                     }
                     alt={cam.name}
+                    loading="lazy"
                     className="w-full h-full object-cover transition-transform duration-300 group-hover/thumb:scale-105"
                     onError={(e) => {
                       (e.target as HTMLImageElement).src =
-                        'https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=600&auto=format&fit=crop&q=80';
+                        'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect width="320" height="180" fill="%23090d16"/><text x="160" y="90" fill="%2364748b" font-size="12" font-family="sans-serif" text-anchor="middle">Feed Standby</text></svg>';
                     }}
                   />
                   {/* Status Badge & Tier 1 Indicator */}

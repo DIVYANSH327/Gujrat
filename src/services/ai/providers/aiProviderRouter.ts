@@ -93,7 +93,7 @@ export class AIProviderRouter {
     if (this.omniRouteProvider.isConfigured()) {
       return 'OMNIROUTE';
     }
-    return 'GEMINI';
+    return 'NONE';
   }
 
   getPrimaryProviderType(): AIProviderType {
@@ -139,6 +139,25 @@ export class AIProviderRouter {
     const primaryType = this.getPrimaryProviderType();
     const mode = this.getRoutingMode();
 
+    if (primaryType === 'NONE') {
+      const latency = Date.now() - startTime;
+      const isOmniDegraded = typeof (this.omniRouteProvider as any).isDegraded === 'function' && (this.omniRouteProvider as any).isDegraded();
+      const omniReason = typeof (this.omniRouteProvider as any).getLastResolutionError === 'function' 
+        ? (this.omniRouteProvider as any).getLastResolutionError() 
+        : null;
+      const msg = isOmniDegraded 
+        ? (omniReason || 'OmniRoute endpoint is unreachable (Offline). Autonomous Edge CV active.')
+        : 'All configured AI providers are offline or require API keys. Autonomous Edge CV active.';
+      
+      this.recordInference('NONE', 'none', latency, false, 'AI_PROVIDER_OFFLINE');
+      const err: any = new Error(msg);
+      err.code = 'AI_PROVIDER_OFFLINE';
+      err.statusCode = 503;
+      err.primaryProvider = 'NONE';
+      err.fallbackAttempted = false;
+      throw err;
+    }
+
     let primary: IAIProvider;
     let fallback: IAIProvider | null = null;
 
@@ -175,14 +194,13 @@ export class AIProviderRouter {
         if (fallback && fallback.isConfigured()) {
           this.logWarnThrottled('AI Router', `Provider ${primary.name} unavailable (${err?.message || 'offline'}). Routing to active fallback provider ${fallback.name}.`);
         } else {
-          this.logWarnThrottled('AI Router', `Primary provider ${primary.name} failed: ${err?.message || err}`);
+          this.logWarnThrottled('AI Router', `Provider ${primary.name} unavailable (${err?.message || 'offline'}). Autonomous Edge CV active.`);
         }
       }
     } else {
       const msg = `Primary provider ${primary.name} is not configured/authenticated.`;
       lastError = new Error(msg);
       lastError.code = 'AI_KEY_REQUIRED';
-      this.logWarnThrottled('AI Router', msg);
     }
 
     // 2. If fallback available in AUTO mode, attempt fallback
@@ -200,7 +218,7 @@ export class AIProviderRouter {
           warning: `Inference served via fallback provider ${fallback.name} (Primary ${primary.name} was unavailable).`
         };
       } catch (fallbackErr: any) {
-        this.logWarnThrottled('AI Router', `Fallback provider ${fallback.name} failed: ${fallbackErr?.message || fallbackErr}`);
+        this.logWarnThrottled('AI Router', `Fallback provider ${fallback.name} unavailable (${fallbackErr?.message || 'offline'}). Autonomous Edge CV active.`);
         lastError = fallbackErr;
       }
     }

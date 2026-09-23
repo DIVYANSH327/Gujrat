@@ -219,9 +219,12 @@ export class UniversalPlateIntelligenceService {
   private trackFrameBuffer: Map<string, TrackFrameCandidate[]> = new Map();
   private maxObservations = 2000;
 
-  // Real Gujarat surveillance seeded baseline for high-velocity initialization
+  // Canonical repository: Real surveillance operations operate strictly on authentic camera observations.
+  // Synthetic seed is segregated to test harness and disabled in production.
   private constructor() {
-    this.seedAuthoritativeObservations();
+    if (process.env.NODE_ENV === 'test' || process.env.SENTINEL_DEMO_SEED === 'true') {
+      this.seedAuthoritativeObservations();
+    }
   }
 
   public static getInstance(): UniversalPlateIntelligenceService {
@@ -654,9 +657,9 @@ export class UniversalPlateIntelligenceService {
   }
 
   /**
-   * Seed realistic observations to demonstrate universal plate capture across Gujarat CCTV nodes
+   * Seed realistic observations to demonstrate universal plate capture across Gujarat CCTV nodes (Test harness only)
    */
-  private seedAuthoritativeObservations(): void {
+  public seedAuthoritativeObservations(): void {
     const cameras = Object.values(AUTHORITATIVE_SENTINEL_GEO_REGISTRY);
     const vehicleClasses: VehicleClass[] = ['car', 'motorcycle', 'scooter', 'bus', 'truck', 'auto_rickshaw'];
     const unreadableReasons: UnreadableReason[] = [

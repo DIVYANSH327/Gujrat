@@ -201,7 +201,7 @@ class AiObjectEnhancerAndVerifierService {
   private maxEvidenceCount = 500;
 
   private constructor() {
-    this.seedBaselineEvidence();
+    // Evidence is strictly recorded from live YOLO inferences or verified testing
   }
 
   public static getInstance(): AiObjectEnhancerAndVerifierService {
@@ -478,52 +478,6 @@ class AiObjectEnhancerAndVerifierService {
   private computeSha256(str: string): string {
     const hash = Math.abs(this.simpleHash(str)).toString(16).padStart(8, '0');
     return `sha256:7f9a2b0c1e4d3a${hash}f8c5e2d1b0a9c8e7f6`;
-  }
-
-  private seedBaselineEvidence(): void {
-    const now = Date.now();
-    const initialDetections: YoloBoxedObject[] = [
-      {
-        id: 'YOLO-CAM01-01',
-        cameraId: 'cam01',
-        cameraName: 'Chimanbhai Bridge North ANPR Node',
-        location: 'Sabarmati Riverfront Arterial, Ahmedabad',
-        district: 'Ahmedabad',
-        className: 'car',
-        confidence: 0.94,
-        bbox: { x: 0.25, y: 0.4, width: 0.28, height: 0.3 },
-        trackId: 'TRK-01',
-        timestamp: now - 35000
-      },
-      {
-        id: 'YOLO-CAM02-02',
-        cameraId: 'cam02',
-        cameraName: 'Iscon Crossroad SG Highway Node',
-        location: 'SG Highway & Iscon Junction, Ahmedabad',
-        district: 'Ahmedabad',
-        className: 'person',
-        confidence: 0.91,
-        bbox: { x: 0.65, y: 0.45, width: 0.15, height: 0.38 },
-        trackId: 'TRK-02',
-        timestamp: now - 75000
-      },
-      {
-        id: 'YOLO-CAM12-03',
-        cameraId: 'cam12',
-        cameraName: 'Tri Mandir Adalaj Tollnaka - Lane 03',
-        location: 'Gandhinagar Highway Corridor, Adalaj Toll Plaza',
-        district: 'Gandhinagar',
-        className: 'car',
-        confidence: 0.98,
-        bbox: { x: 0.35, y: 0.3, width: 0.32, height: 0.35 },
-        trackId: 'TRK-03',
-        timestamp: now - 110000
-      }
-    ];
-
-    initialDetections.forEach(det => {
-      this.processYoloDetection(det);
-    });
   }
 }
 

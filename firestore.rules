@@ -38,6 +38,13 @@ service cloud.firestore {
              data.timestamp is string && data.timestamp.size() <= 64;
     }
 
+    function isValidEvidence(data) {
+      return data.id is string && data.id.size() <= 128 &&
+             data.cameraId is string && data.cameraId.size() <= 64 &&
+             data.plateNumber is string && data.plateNumber.size() <= 32 &&
+             data.timestamp is string && data.timestamp.size() <= 64;
+    }
+
     // User / Officer Profiles
     match /users/{userId} {
       allow get: if isSignedIn() && isValidId(userId);
@@ -63,6 +70,15 @@ service cloud.firestore {
       allow create: if isSignedIn() && isValidId(alertId) && isValidAlert(request.resource.data);
       allow update: if isSignedIn() && isValidId(alertId) && isValidAlert(request.resource.data);
       allow delete: if isSignedIn() && isValidId(alertId);
+    }
+
+    // Vehicle Evidence Records
+    match /evidence/{evidenceId} {
+      allow get: if isSignedIn() && isValidId(evidenceId);
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(evidenceId) && isValidEvidence(request.resource.data);
+      allow update: if isSignedIn() && isValidId(evidenceId) && isValidEvidence(request.resource.data);
+      allow delete: if isSignedIn() && isValidId(evidenceId);
     }
   }
 }

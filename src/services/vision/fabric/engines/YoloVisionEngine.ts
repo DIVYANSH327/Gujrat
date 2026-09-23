@@ -503,39 +503,6 @@ export class YoloVisionEngine implements VisionEngine {
     const variance = (sumSq / len) - (mean * mean);
     const stdDev = Math.sqrt(Math.max(0, variance));
 
-    if (stdDev < 8.0) {
-      return {
-        id: `OBS-${cameraId}-${timestamp}`,
-        cameraId,
-        frameTimestamp: timestamp,
-        captureIso,
-        engine: this.name,
-        model: this.modelName,
-        device: this.device,
-        latencyMs: elapsedMs,
-        detections: [],
-        tracks: [],
-        frameQuality: 'UNREADABLE',
-        truthStatus: 'OBSERVED',
-        sha256,
-        reasoningNotes: 'Frame luminance variance indicates unreadable frame. Zero detections.'
-      };
-    }
-
-    const testDetection: VisionDetection = {
-      id: `YOLO-${cameraId}-T1`,
-      cameraId,
-      frameTimestamp: timestamp,
-      engine: 'YOLOv8',
-      model: this.modelName,
-      className: 'car',
-      confidence: 0.92,
-      bbox: { x: 0.32, y: 0.45, width: 0.22, height: 0.24 },
-      truthStatus: 'OBSERVED'
-    };
-
-    const tracks = yoloTracker.update(cameraId, timestamp, captureIso, [testDetection]);
-
     return {
       id: `OBS-${cameraId}-${timestamp}`,
       cameraId,
@@ -545,12 +512,12 @@ export class YoloVisionEngine implements VisionEngine {
       model: this.modelName,
       device: this.device,
       latencyMs: elapsedMs,
-      detections: [testDetection],
-      tracks,
-      frameQuality: 'READABLE',
+      detections: [],
+      tracks: [],
+      frameQuality: 'UNREADABLE',
       truthStatus: 'OBSERVED',
       sha256,
-      reasoningNotes: 'Frame evaluated with spatial tracking.'
+      reasoningNotes: 'Non-standard JPEG payload or decode failed. Zero synthetic detections emitted.'
     };
   }
 }

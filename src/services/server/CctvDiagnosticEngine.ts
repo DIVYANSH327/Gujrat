@@ -515,7 +515,8 @@ export class CctvDiagnosticEngine {
       const chunks: Buffer[] = [];
       const proc = spawn('ffmpeg', [
         '-y',
-        '-v', 'error',
+        '-nostats',
+        '-loglevel', 'quiet',
         '-f', 'image2pipe',
         '-vcodec', 'mjpeg',
         '-i', 'pipe:0',
@@ -523,7 +524,9 @@ export class CctvDiagnosticEngine {
         '-f', 'rawvideo',
         '-pix_fmt', 'gray',
         'pipe:1'
-      ]);
+      ], {
+        stdio: ['pipe', 'pipe', 'ignore']
+      });
 
       proc.stdout.on('data', d => chunks.push(d));
       proc.on('close', () => {
@@ -553,7 +556,8 @@ export class CctvDiagnosticEngine {
       const chunks: Buffer[] = [];
       const proc = spawn('ffmpeg', [
         '-y',
-        '-v', 'error',
+        '-nostats',
+        '-loglevel', 'quiet',
         '-f', 'image2pipe',
         '-vcodec', 'mjpeg',
         '-i', 'pipe:0',
@@ -561,7 +565,9 @@ export class CctvDiagnosticEngine {
         '-f', 'rawvideo',
         '-pix_fmt', 'gray',
         'pipe:1'
-      ]);
+      ], {
+        stdio: ['pipe', 'pipe', 'ignore']
+      });
 
       proc.stdout.on('data', d => chunks.push(d));
       proc.on('close', () => {
@@ -585,7 +591,8 @@ export class CctvDiagnosticEngine {
       const vf = 'scale=iw:ih:flags=lanczos,unsharp=5:5:1.2:5:5:0.0,eq=contrast=1.15:brightness=0.03';
       const proc = spawn('ffmpeg', [
         '-y',
-        '-v', 'error',
+        '-nostats',
+        '-loglevel', 'quiet',
         '-f', 'image2pipe',
         '-i', 'pipe:0',
         '-vf', vf,
@@ -593,7 +600,9 @@ export class CctvDiagnosticEngine {
         '-vcodec', 'mjpeg',
         '-q:v', '2',
         'pipe:1'
-      ]);
+      ], {
+        stdio: ['pipe', 'pipe', 'ignore']
+      });
 
       proc.stdout.on('data', d => chunks.push(d));
       proc.on('close', (code) => {
@@ -620,7 +629,8 @@ export class CctvDiagnosticEngine {
       const vf = 'scale=640:360:force_original_aspect_ratio=decrease,pad=640:360:(ow-iw)/2:(oh-ih)/2:black';
       const proc = spawn('ffmpeg', [
         '-y',
-        '-v', 'error',
+        '-nostats',
+        '-loglevel', 'quiet',
         '-f', 'image2pipe',
         '-i', 'pipe:0',
         '-vf', vf,
@@ -628,7 +638,9 @@ export class CctvDiagnosticEngine {
         '-vcodec', 'mjpeg',
         '-q:v', '3',
         'pipe:1'
-      ]);
+      ], {
+        stdio: ['pipe', 'pipe', 'ignore']
+      });
 
       proc.stdout.on('data', d => chunks.push(d));
       proc.on('close', (code) => {

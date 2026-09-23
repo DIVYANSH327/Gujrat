@@ -45,6 +45,24 @@
         "status": { "type": "string", "description": "Triage status" }
       },
       "required": ["id", "alertType", "severity", "timestamp"]
+    },
+    "evidence": {
+      "title": "evidence",
+      "description": "Electronic vehicle evidence capture dossiers and HSRP verification records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique Evidence ID" },
+        "cameraId": { "type": "string", "description": "Camera ID" },
+        "cameraName": { "type": "string", "description": "Camera location name" },
+        "plateNumber": { "type": "string", "description": "Extracted plate number" },
+        "vehicleType": { "type": "string", "description": "Vehicle classification" },
+        "hsrpStatus": { "type": "string", "description": "HSRP compliance status" },
+        "frameSha256": { "type": "string", "description": "SHA-256 evidence integrity hash" },
+        "timestamp": { "type": "string", "description": "Capture timestamp" },
+        "bsaCertificateId": { "type": "string", "description": "BSA 2023 Sec 63 certificate ID" },
+        "status": { "type": "string", "description": "Evidence status" }
+      },
+      "required": ["id", "cameraId", "plateNumber", "timestamp"]
     }
   },
   "firestore": {
@@ -59,6 +77,10 @@
     "/alerts/{alertId}": {
       "schema": { "$ref": "#/entities/alerts" },
       "description": "Real-time AI camera detection alarms"
+    },
+    "/evidence/{evidenceId}": {
+      "schema": { "$ref": "#/entities/evidence" },
+      "description": "Live stream background captured vehicle evidence dossiers"
     }
   }
 }

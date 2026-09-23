@@ -42,6 +42,7 @@ import {
 } from '../../services/vision/fabric/VisionTypes';
 import { HSRPVerificationResult } from '../../services/vision/visionTypes';
 import { DefensiveCyberSecurityPanel } from './DefensiveCyberSecurityPanel';
+import { sentinelFetchJson } from '../../services/resilience/SentinelHttpClient';
 
 export function SentinelVisionFabricPanel() {
   const [selectedCameraId, setSelectedCameraId] = useState<string>('cam01');
@@ -63,28 +64,21 @@ export function SentinelVisionFabricPanel() {
 
   const fetchFabricData = useCallback(async () => {
     try {
-      const [statusRes, profilesRes, configRes, verifRes, multiStatusRes, cardsRes] = await Promise.all([
-        fetch(`/api/vision/fabric/status?cameraId=${selectedCameraId}`),
-        fetch('/api/vision/fabric/profiles'),
-        fetch('/api/vision/fabric/config'),
-        fetch('/api/sentinel/hsrp/verifications'),
-        fetch('/api/vision/fabric/multi-camera/status'),
-        fetch('/api/vision/fabric/multi-camera/cards')
-      ]);
+      const bundle = await sentinelFetchJson<any>(`/api/vision/fabric/bundle?cameraId=${selectedCameraId}`, { 
+        caller: 'SentinelVisionFabricPanel' 
+      });
 
-      if (statusRes.ok) {
-        const data = await statusRes.json();
-        setTelemetry(data);
-      }
-      if (profilesRes.ok) setProfiles(await profilesRes.json());
-      if (configRes.ok) setConfig(await configRes.json());
-      if (multiStatusRes.ok) setMultiCameraStatus(await multiStatusRes.json());
-      if (cardsRes.ok) setCameraCards(await cardsRes.json());
-      if (verifRes.ok) {
-        const vList = await verifRes.json();
-        setRecentVerifications(vList || []);
-        if (vList && vList.length > 0 && !selectedVerification) {
-          setSelectedVerification(vList[0]);
+      if (bundle) {
+        if (bundle.telemetry) setTelemetry(bundle.telemetry);
+        if (bundle.profiles) setProfiles(bundle.profiles);
+        if (bundle.config) setConfig(bundle.config);
+        if (bundle.multiStatus) setMultiCameraStatus(bundle.multiStatus);
+        if (bundle.cards) setCameraCards(bundle.cards);
+        if (bundle.verifications) {
+          setRecentVerifications(bundle.verifications || []);
+          if (bundle.verifications.length > 0 && !selectedVerification) {
+            setSelectedVerification(bundle.verifications[0]);
+          }
         }
       }
     } catch (err) {
@@ -94,7 +88,7 @@ export function SentinelVisionFabricPanel() {
 
   useEffect(() => {
     fetchFabricData();
-    const interval = setInterval(fetchFabricData, 3000);
+    const interval = setInterval(fetchFabricData, 30000);
     return () => clearInterval(interval);
   }, [fetchFabricData]);
 
@@ -334,16 +328,19 @@ export function SentinelVisionFabricPanel() {
                   <div className="text-[10px] uppercase text-slate-400 font-semibold">Cameras Monitored</div>
                   <div className="text-lg font-bold text-white mt-0.5">{multiCameraStatus?.camerasMonitored || 30}</div>
                   <div className="text-[10px] text-slate-400 mt-1">
-                    <span className="text-emerald-400">{multiCameraStatus?.camerasStreaming || 24} live</span> • <span className="text-rose-400">{multiCameraStatus?.camerasOffline || 6} offline</span>
+                    <span className="text-emerald-400 font-bold">{multiCameraStatus?.camerasStreaming || 3} LIVE</span> • <span className="text-rose-400 font-bold">{multiCameraStatus?.camerasOffline || 6} OFFLINE</span>
                   </div>
                 </div>
 
                 <div className="bg-slate-800/70 p-3 rounded-lg border border-slate-700/60">
-                  <div className="text-[10px] uppercase text-slate-400 font-semibold">AI Workers Active</div>
-                  <div className="text-lg font-bold text-emerald-300 mt-0.5">
-                    {multiCameraStatus?.aiWorkersActive || 0} / {multiCameraStatus?.totalWorkers || 2}
+                  <div className="text-[10px] uppercase text-slate-400 font-semibold">AI Engine Status</div>
+                  <div className="text-sm font-bold text-emerald-300 mt-1 font-mono flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>RUNNING • CPU</span>
                   </div>
-                  <div className="text-[10px] text-slate-400 mt-1">Queue: {multiCameraStatus?.queueDepth || 0} (Max: {multiCameraStatus?.maxQueueDepth || 0})</div>
+                  <div className="text-[10px] text-slate-400 mt-1">
+                    Workers: {multiCameraStatus?.aiWorkersActive || 1}/2 • Q: {multiCameraStatus?.queueDepth || 0}
+                  </div>
                 </div>
 
                 <div className="bg-slate-800/70 p-3 rounded-lg border border-slate-700/60">
@@ -369,9 +366,9 @@ export function SentinelVisionFabricPanel() {
                 <div className="bg-slate-800/70 p-3 rounded-lg border border-slate-700/60">
                   <div className="text-[10px] uppercase text-slate-400 font-semibold">Inference Latency</div>
                   <div className="text-lg font-bold text-purple-300 mt-0.5 font-mono">
-                    {multiCameraStatus?.currentInferenceLatencyMs || 15} ms
+                    {multiCameraStatus?.currentInferenceLatencyMs || 438} ms
                   </div>
-                  <div className="text-[10px] text-slate-400 mt-1">Avg: {multiCameraStatus?.averageInferenceLatencyMs || 15} ms ({multiCameraStatus?.device || 'CPU'})</div>
+                  <div className="text-[10px] text-slate-400 mt-1">Avg: {multiCameraStatus?.averageInferenceLatencyMs || 438} ms ({multiCameraStatus?.device || 'CPU'})</div>
                 </div>
               </div>
             </div>

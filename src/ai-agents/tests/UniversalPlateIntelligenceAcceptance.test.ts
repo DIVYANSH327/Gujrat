@@ -4,6 +4,8 @@
  * Universal Indian Registration Plate Intelligence & Google Cloud Architecture
  */
 
+process.env.NODE_ENV = 'test';
+
 import { universalPlateIntelligenceService } from '../../services/vision/UniversalPlateIntelligenceService.js';
 import { googleCloudPlateEventPipeline } from '../../services/cloud/GoogleCloudPlateEventPipeline.js';
 import { AUTHORITATIVE_SENTINEL_GEO_REGISTRY } from '../../data/sentinelCatalogue.js';
@@ -22,6 +24,9 @@ function assert(condition: boolean, testName: string, detail?: any) {
 }
 
 async function runTestSuite() {
+  // Explicitly initialize test dataset for test execution
+  universalPlateIntelligenceService.seedAuthoritativeObservations();
+
   console.log('================================================================');
   console.log('SENTINEL GRID: UNIVERSAL PLATE INTELLIGENCE ACCEPTANCE TEST');
   console.log('================================================================\n');

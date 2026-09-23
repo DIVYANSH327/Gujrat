@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { centralEventBus, GridEvent } from '../services/CentralEventBus';
 import { audioAlertService } from '../services/AudioAlertService';
+import { AlertImageProvenanceBadge } from './ui/AlertImageProvenanceBadge';
 
 export interface AlertNotificationItem {
   id: string;
@@ -30,6 +31,8 @@ export interface AlertNotificationItem {
   confidence?: number;
   incidentId?: string;
   sourceType?: string;
+  provenance?: 'CAMERA_FRAME' | 'EVIDENCE_FRAME' | 'UNVERIFIED' | 'DEMO_ASSET' | 'TEST_FIXTURE' | 'UNKNOWN';
+  truthStatus?: 'OBSERVED' | 'UNVERIFIED' | 'DEMO' | 'TEST' | 'SUPPRESSED';
 }
 
 interface AlertNotificationToastProps {
@@ -220,6 +223,15 @@ export function AlertNotificationToast({
                       )}
                       <span>{item.severity} Incident</span>
                     </span>
+
+                    {/* Image / Alert Provenance Badge */}
+                    <AlertImageProvenanceBadge 
+                      provenance={item.provenance}
+                      sourceType={item.sourceType}
+                      truthStatus={item.truthStatus}
+                      evidenceUrl={item.evidenceUrl}
+                      size="xs"
+                    />
 
                     {item.confidence && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200">

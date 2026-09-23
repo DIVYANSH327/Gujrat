@@ -36,8 +36,8 @@ export const SentinelHealthIndicator: React.FC = () => {
     };
 
     checkHealth();
-    // Poll every 10 seconds
-    const interval = setInterval(checkHealth, 10000);
+    // Poll every 20 seconds
+    const interval = setInterval(checkHealth, 20000);
     return () => {
       mounted = false;
       clearInterval(interval);

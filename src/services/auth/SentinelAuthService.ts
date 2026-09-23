@@ -6,6 +6,7 @@
 import crypto from 'crypto';
 import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import firebaseConfig from '../../../firebase-applet-config.json';
 import { 
   SentinelUser, 
   SentinelRole, 
@@ -32,6 +33,13 @@ class SentinelAuthService {
    */
   private initFirebaseAdmin() {
     try {
+      const isLocalOnly = process.env.SENTINEL_RUNTIME_MODE === 'LOCAL_ONLY' || 
+                          process.env.CLOUD_MODE === 'LOCAL_ONLY';
+      if (isLocalOnly) {
+        this.isFirebaseAdminReady = false;
+        return;
+      }
+
       const existingApps = getApps();
       if (existingApps.length > 0) {
         this.adminApp = existingApps[0]!;
@@ -39,7 +47,7 @@ class SentinelAuthService {
         return;
       }
 
-      const projectId = process.env.FIREBASE_PROJECT_ID || process.env.GCP_PROJECT_ID || 'sentinel-grid-police';
+      const projectId = process.env.FIREBASE_PROJECT_ID || process.env.GCP_PROJECT_ID || firebaseConfig.projectId;
       const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
       const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
 

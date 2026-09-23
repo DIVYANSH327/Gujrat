@@ -14,6 +14,17 @@
 import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';
 
+export type FrameQualityRejectionReason =
+  | 'ACCEPTED'
+  | 'INVALID_DIMENSIONS'
+  | 'TOO_BLURRY'
+  | 'TOO_DARK'
+  | 'TOO_BRIGHT'
+  | 'DUPLICATE'
+  | 'FROZEN'
+  | 'STALE'
+  | 'MOTION_BLUR';
+
 export interface FrameQualityMetrics {
   width: number;
   height: number;
@@ -35,6 +46,8 @@ export interface FrameQualityMetrics {
   evidenceIntegrityScore: number; // 100/100 cryptographic hash seal
   imageUsabilityScore: number;    // Physical pixel readability (0-100)
   plateOcrReadability: 'READABLE' | 'UNCERTAIN' | 'NOT_READABLE';
+  rejectionReason: FrameQualityRejectionReason;
+  isAccepted: boolean;
 }
 
 export interface BufferedFrame {
@@ -77,6 +90,7 @@ export class FrameQualityEngine {
   // Frame counter & dropped frame tracking
   private frameCounters = new Map<string, { totalReceived: number; dropped: number; lastSecFrames: number[]; lastCalcTime: number }>();
   private lastKnownSha = new Map<string, string>();
+  private duplicateStreak = new Map<string, number>();
 
   public static getInstance(): FrameQualityEngine {
     if (!FrameQualityEngine.instance) {
@@ -99,8 +113,17 @@ export class FrameQualityEngine {
 
     // Duplicate / frozen frame check
     const prevSha = this.lastKnownSha.get(cameraId);
-    const isFrozenOrDuplicate = prevSha === sha256;
+    let streak = this.duplicateStreak.get(cameraId) || 0;
+    if (prevSha === sha256) {
+      streak += 1;
+    } else {
+      streak = 0;
+    }
+    this.duplicateStreak.set(cameraId, streak);
     this.lastKnownSha.set(cameraId, sha256);
+
+    const isFrozen = streak >= 5;
+    const isFrozenOrDuplicate = streak > 1;
 
     // Extract raw grayscale bitmap downsampled to 320x180 via FFmpeg for high-speed mathematical analysis
     let width = 1920;
@@ -185,6 +208,27 @@ export class FrameQualityEngine {
       plateOcrReadability = 'READABLE';
     }
 
+    // Evaluate rejection reasons strictly per Requirement 9:
+    // INVALID_DIMENSIONS | TOO_BLURRY | TOO_DARK | TOO_BRIGHT | DUPLICATE | FROZEN | STALE | MOTION_BLUR | ACCEPTED
+    let rejectionReason: FrameQualityRejectionReason = 'ACCEPTED';
+    if (width <= 0 || height <= 0 || imageBuffer.length < 500) {
+      rejectionReason = 'INVALID_DIMENSIONS';
+    } else if (isFrozen) {
+      rejectionReason = 'FROZEN';
+    } else if (frameAgeMs > 15000) {
+      rejectionReason = 'STALE';
+    } else if (brightnessScore < 10) {
+      rejectionReason = 'TOO_DARK';
+    } else if (brightnessScore > 245) {
+      rejectionReason = 'TOO_BRIGHT';
+    } else if (blurCategory === 'SEVERE_MOTION_BLUR' && sharpnessScore < 40) {
+      rejectionReason = 'MOTION_BLUR';
+    } else if (sharpnessScore < 30) {
+      rejectionReason = 'TOO_BLURRY';
+    }
+
+    const isAccepted = rejectionReason === 'ACCEPTED';
+
     return {
       width,
       height,
@@ -204,7 +248,9 @@ export class FrameQualityEngine {
       anprSuitability,
       evidenceIntegrityScore,
       imageUsabilityScore,
-      plateOcrReadability
+      plateOcrReadability,
+      rejectionReason,
+      isAccepted
     };
   }
 
@@ -369,13 +415,16 @@ export class FrameQualityEngine {
       }
 
       const proc = spawn('ffmpeg', [
-        '-v', 'error',
+        '-nostats',
+        '-loglevel', 'quiet',
         '-f', 'image2pipe',
         '-i', 'pipe:0',
         '-vf', 'scale=320:180,format=gray',
         '-f', 'rawvideo',
         'pipe:1'
-      ]);
+      ], {
+        stdio: ['pipe', 'pipe', 'ignore']
+      });
 
       const chunks: Buffer[] = [];
       proc.stdout.on('data', (d: Buffer) => chunks.push(d));

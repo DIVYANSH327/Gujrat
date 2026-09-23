@@ -23,7 +23,7 @@ export class HsrpAnalysisAgent {
   public async analyzeHsrp(plateCandidate: PlateCandidate): Promise<AgentResult<HSRPAnalysis>> {
     const startTime = Date.now();
 
-    if (!process.env.GEMINI_API_KEY) {
+    if (process.env.GEMINI_REASONING_ENABLED === 'false' || !process.env.GEMINI_API_KEY || !isGeminiApiKeyValid(process.env.GEMINI_API_KEY)) {
       return {
         agentName: 'HsrpAnalysisAgent',
         status: 'KEY_REQUIRED',
@@ -33,18 +33,20 @@ export class HsrpAnalysisAgent {
           inconsistencies: [],
           confidence: 0,
           result: 'UNCERTAIN',
-          reason: 'GEMINI_API_KEY is not configured.'
+          reason: process.env.GEMINI_REASONING_ENABLED === 'false'
+            ? 'Autonomous Local Edge Mode: Cloud Gemini reasoning disabled. Operating with zero cloud calls.'
+            : 'GEMINI_API_KEY is not configured or authenticated.'
         },
         confidence: 0,
         execution: {
           provider: 'gemini',
-          model: this.candidateModels[0],
+          model: 'local-edge',
           latencyMs: 0,
           status: 'KEY_REQUIRED',
           retryCount: 0,
-          failureReason: 'GEMINI_API_KEY missing'
+          failureReason: 'LOCAL_EDGE_ONLY'
         },
-        disclaimer: 'HSRP visual analysis requires active AI provider.'
+        disclaimer: 'HSRP visual analysis operating in autonomous local edge verification mode.'
       };
     }
 

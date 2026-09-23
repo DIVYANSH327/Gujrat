@@ -52,6 +52,8 @@ import {
 } from '../services/ai/IAIVisionAgent';
 import { EvidenceItem, Alert, SecurityEventPayload } from '../types';
 import { sysEvents } from '../services/Architecture';
+import { usePersistentVideoTask } from '../hooks/usePersistentVideoIntelligence';
+import { persistentVideoIntelligenceService } from '../services/video/PersistentVideoIntelligenceService';
 
 interface RealAIVideoAnalysisProps {
   onNavigate?: (view: any) => void;
@@ -97,6 +99,54 @@ export const RealAIVideoAnalysis: React.FC<RealAIVideoAnalysisProps> = ({ onNavi
   const analysisTimerRef = useRef<any>(null);
   const isBusySamplingRef = useRef<boolean>(false);
   const lastSampleSecRef = useRef<number>(-1);
+
+  // Decoupled Persistent Background Video Intelligence Task
+  const {
+    task: bgTask,
+    isRunning: isBgRunning,
+    isPaused: isBgPaused,
+    metrics: bgMetrics,
+    detections: bgDetections,
+    roadSafetyEvents: bgRoadEvents,
+    activeAiModel: bgActiveAiModel,
+    startTask: startBgTask,
+    pauseTask: pauseBgTask,
+    resumeTask: resumeBgTask,
+    stopTask: stopBgTask,
+    setFps: setBgFps
+  } = usePersistentVideoTask({
+    taskId: 'REAL-CAM-AIRPORT-RD',
+    name: 'Airport Road Real Traffic Analysis',
+    sourceType: 'UPLOADED_FILE',
+    fps,
+    helmetThreshold,
+    loop: true
+  }, {
+    videoElementRef: videoRef,
+    canvasElementRef: canvasOverlayRef
+  });
+
+  // Synchronize state when re-mounting with an active background task
+  useEffect(() => {
+    if (bgTask) {
+      if (bgTask.status === 'RUNNING') {
+        setIsAnalyzing(true);
+        setIsPaused(false);
+      } else if (bgTask.status === 'PAUSED') {
+        setIsAnalyzing(true);
+        setIsPaused(true);
+      }
+      if (bgDetections.length > 0) {
+        setCurrentDetections(bgDetections);
+      }
+      if (bgRoadEvents.length > 0) {
+        setCurrentRoadEvents(bgRoadEvents);
+      }
+      if (bgMetrics) {
+        setMetrics(prev => ({ ...prev, ...bgMetrics }));
+      }
+    }
+  }, [bgTask?.status, bgDetections, bgRoadEvents, bgMetrics]);
 
   // Initialize Frame Source
   useEffect(() => {
@@ -376,27 +426,33 @@ export const RealAIVideoAnalysis: React.FC<RealAIVideoAnalysisProps> = ({ onNavi
     }
   }, [fps, helmetThreshold, syncCanvasDimensions, drawBoundingBoxes]);
 
-  // Start analysis loop
+  // Start analysis loop (Persistent background service integration)
   const handleStartAnalysis = async () => {
     const video = videoRef.current;
-    if (!video) {
+    const mediaSource = videoFile || videoUrl || video?.src;
+    if (!video && !mediaSource) {
       alert('Please select or generate a video first.');
       return;
     }
 
     try {
-      await video.play();
+      if (video) {
+        await video.play().catch(() => {});
+      }
       setIsAnalyzing(true);
       setIsPaused(false);
       geminiVisionAgent.resume();
 
+      // Launch decoupled persistent background acquisition & analysis
+      await startBgTask(mediaSource);
+
       if (analysisTimerRef.current) clearInterval(analysisTimerRef.current);
-      // Run analysis tick every 250ms (rate-limited by fps internally)
+      // Run UI-attached analysis tick every 250ms for smooth local sync
       analysisTimerRef.current = setInterval(() => {
         executeFrameAnalysisStep();
       }, 250);
     } catch (err: any) {
-      console.error('Failed to play video:', err);
+      console.error('Failed to play video / start background task:', err);
       alert('Browser blocked autoplay. Please click play on the video directly.');
     }
   };
@@ -407,6 +463,7 @@ export const RealAIVideoAnalysis: React.FC<RealAIVideoAnalysisProps> = ({ onNavi
     if (video) video.pause();
     setIsPaused(true);
     geminiVisionAgent.pause();
+    pauseBgTask();
   };
 
   // Stop analysis
@@ -420,6 +477,7 @@ export const RealAIVideoAnalysis: React.FC<RealAIVideoAnalysisProps> = ({ onNavi
     setIsAnalyzing(false);
     setIsPaused(false);
     geminiVisionAgent.pause();
+    stopBgTask();
 
     const canvas = canvasOverlayRef.current;
     if (canvas) {
@@ -582,7 +640,10 @@ export const RealAIVideoAnalysis: React.FC<RealAIVideoAnalysisProps> = ({ onNavi
                 {([0.5, 1, 2] as const).map(rate => (
                   <button
                     key={rate}
-                    onClick={() => setFps(rate)}
+                    onClick={() => {
+                      setFps(rate);
+                      setBgFps(rate);
+                    }}
                     className={`px-2 py-0.5 rounded text-[11px] font-bold transition-colors cursor-pointer ${
                       fps === rate ? 'bg-cyan-500 text-black' : 'text-zinc-400 hover:text-zinc-200'
                     }`}
@@ -602,6 +663,21 @@ export const RealAIVideoAnalysis: React.FC<RealAIVideoAnalysisProps> = ({ onNavi
             </div>
           </div>
         </div>
+
+        {/* Persistent Background AI Decoupled Mode Banner */}
+        {isBgRunning && (
+          <div className="mt-3 p-2 bg-emerald-950/40 border border-emerald-500/40 rounded-lg flex items-center justify-between gap-2 text-xs text-emerald-200">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span className="font-mono font-medium">
+                PERSISTENT SERVICE ACTIVE: Decoupled video acquisition & analysis running in background memory ({bgMetrics?.framesAnalyzed || 0} frames analyzed)
+              </span>
+            </div>
+            <span className="text-[10px] text-emerald-400/90 font-mono bg-emerald-950/80 px-2 py-0.5 rounded border border-emerald-800/60 hidden sm:inline">
+              Safe to navigate away • Keeps processing
+            </span>
+          </div>
+        )}
 
         {/* Telemetry Bar */}
         <div className="mt-4 pt-3 border-t border-zinc-800/80 flex flex-wrap items-center justify-between gap-3 text-xs font-mono">

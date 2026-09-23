@@ -148,7 +148,7 @@ export function ChallengeMode() {
 
   useEffect(() => {
     fetchAllData();
-    const interval = setInterval(fetchAllData, 2500);
+    const interval = setInterval(fetchAllData, 20000);
     return () => clearInterval(interval);
   }, []);
 

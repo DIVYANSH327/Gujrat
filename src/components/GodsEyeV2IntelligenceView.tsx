@@ -133,7 +133,7 @@ export function GodsEyeV2IntelligenceView({
 
   useEffect(() => {
     loadLiveStream();
-    const interval = setInterval(loadLiveStream, 8000);
+    const interval = setInterval(loadLiveStream, 30000);
     return () => clearInterval(interval);
   }, [streamFilterClass, streamFilterStatus, streamWatchlistOnly]);
 

@@ -43,7 +43,9 @@ export class GodsEyeObservationService {
   private correlationResults: Map<string, CrossCameraCorrelationResult[]> = new Map(); // Key = plateNormalized -> correlations
 
   private constructor() {
-    this.seedAuthoritativeObservations();
+    if (process.env.NODE_ENV === 'test' || process.env.SENTINEL_DEMO_SEED === 'true') {
+      this.seedAuthoritativeObservations();
+    }
   }
 
   public static getInstance(): GodsEyeObservationService {

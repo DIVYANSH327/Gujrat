@@ -165,6 +165,7 @@ export function getRequiredPermissionForView(viewId: string): string {
     case 'dashboard':
       return 'dashboard:view';
     case 'cameras':
+    case 'gcp_vision_hub':
       return 'cameras:view';
     case 'sentinel_grid':
       return 'sentinel_grid:view';

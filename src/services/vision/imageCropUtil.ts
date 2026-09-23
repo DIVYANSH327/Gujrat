@@ -57,7 +57,8 @@ export class ImageCropUtil {
       const chunks: Buffer[] = [];
       const proc = spawn('ffmpeg', [
         '-y',
-        '-v', 'error',
+        '-nostats',
+        '-loglevel', 'quiet',
         '-f', 'image2pipe',
         '-vcodec', 'mjpeg',
         '-i', 'pipe:0',
@@ -65,7 +66,9 @@ export class ImageCropUtil {
         '-f', 'image2pipe',
         '-vcodec', 'mjpeg',
         'pipe:1'
-      ]);
+      ], {
+        stdio: ['pipe', 'pipe', 'ignore']
+      });
 
       proc.stdout.on('data', (d: Buffer) => chunks.push(d));
       proc.on('error', (err) => reject(err));
@@ -106,60 +109,22 @@ export class ImageCropUtil {
     originalCropBuffer: Buffer,
     scaleFactor: 2 | 4 = 2
   ): Promise<EnhancedCropResult> {
-    return this.enhanceCropCustom(originalCropBuffer, {
-      scaleFactor,
-      contrast: 1.3,
-      brightness: 0.05,
-      sharpen: true,
-      denoise: true
-    });
-  }
-
-  /**
-   * Applies customized optical enhancement pipeline with officer fine-tuning controls.
-   */
-  public static async enhanceCropCustom(
-    originalCropBuffer: Buffer,
-    options: {
-      scaleFactor?: number;
-      contrast?: number;
-      brightness?: number;
-      sharpen?: boolean | number;
-      denoise?: boolean | number;
-      deblur?: boolean;
-    } = {}
-  ): Promise<EnhancedCropResult> {
     if (!originalCropBuffer || originalCropBuffer.length === 0) {
       throw new Error('Cannot enhance empty crop buffer');
     }
 
     const originalSha256 = crypto.createHash('sha256').update(originalCropBuffer).digest('hex');
-    const scaleFactor = Math.max(1, Math.min(4, options.scaleFactor || 2));
-    const contrast = Math.max(0.5, Math.min(2.5, options.contrast !== undefined ? options.contrast : 1.3));
-    const brightness = Math.max(-0.5, Math.min(0.5, options.brightness !== undefined ? options.brightness : 0.05));
-
-    const filters: string[] = [];
-    if (scaleFactor > 1) {
-      filters.push(`scale=iw*${scaleFactor}:ih*${scaleFactor}:flags=lanczos`);
-    }
-
-    if (options.denoise) {
-      filters.push(`hqdn3d=2.0:1.5:3.0:2.5`);
-    }
-
-    if (options.sharpen !== false) {
-      filters.push(`unsharp=5:5:1.5:5:5:0.0`);
-    }
-
-    filters.push(`eq=contrast=${contrast.toFixed(2)}:brightness=${brightness.toFixed(2)}`);
-
-    const vf = filters.join(',');
+    const scaleFilter = `scale=iw*${scaleFactor}:ih*${scaleFactor}:flags=lanczos`;
+    const deblurFilter = `unsharp=5:5:1.5:5:5:0.0`;
+    const contrastFilter = `eq=contrast=1.3:brightness=0.05`;
+    const vf = `${scaleFilter},${deblurFilter},${contrastFilter}`;
 
     return new Promise((resolve) => {
       const chunks: Buffer[] = [];
       const proc = spawn('ffmpeg', [
         '-y',
-        '-v', 'error',
+        '-nostats',
+        '-loglevel', 'quiet',
         '-f', 'image2pipe',
         '-i', 'pipe:0',
         '-vf', vf,
@@ -167,7 +132,9 @@ export class ImageCropUtil {
         '-vcodec', 'mjpeg',
         '-q:v', '2',
         'pipe:1'
-      ]);
+      ], {
+        stdio: ['pipe', 'pipe', 'ignore']
+      });
 
       proc.stdout.on('data', (d: Buffer) => chunks.push(d));
       proc.on('error', () => {
@@ -180,7 +147,7 @@ export class ImageCropUtil {
           isEnhanced: true,
           originalSha256,
           enhancementType: 'OPTICAL',
-          enhancementMethod: 'OPTICAL_FALLBACK',
+          enhancementMethod: 'OPTICAL_LANCZOS_FALLBACK',
           scaleFactor: 1
         });
       });

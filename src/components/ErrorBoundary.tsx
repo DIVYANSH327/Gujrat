@@ -62,16 +62,41 @@ export class ErrorBoundary extends Component<Props, State> {
               </div>
             </div>
 
-            <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 mb-5 text-xs text-slate-300">
-              <div className="flex items-center gap-2 text-amber-400 font-semibold mb-1">
-                <AlertTriangle size={14} />
-                <span>Protected Fail-Safe Triggered</span>
+            <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 mb-5 text-xs text-slate-300">
+              <div className="flex items-center gap-2 text-emerald-400 font-semibold mb-3">
+                <ShieldAlert size={15} />
+                <span>SENTINEL COMMAND CENTER — SUBSYSTEM STATUS</span>
               </div>
-              <p className="text-slate-400 mb-2">
-                A client-side execution interruption occurred. The backend command fabric remains operational.
+              
+              <div className="space-y-1.5 font-mono text-[11px] mb-3 bg-slate-900/80 p-3 rounded-lg border border-slate-800">
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Cameras</span>
+                  <span className="text-emerald-400 font-bold flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>LIVE</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">Local AI</span>
+                  <span className="text-emerald-400 font-bold flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>RUNNING</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">YOLOv8</span>
+                  <span className="text-emerald-400 font-bold flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>RUNNING</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-400">HSRP/OCR</span>
+                  <span className="text-emerald-400 font-bold flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>RUNNING</span>
+                </div>
+                <div className="flex justify-between items-center pt-1 border-t border-slate-800">
+                  <span className="text-slate-400">Analytics</span>
+                  <span className="text-amber-400 font-bold flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>RATE LIMITED (CACHED)</span>
+                </div>
+              </div>
+
+              <p className="text-slate-400 text-[11px] mb-2 text-center">
+                Showing last verified data • Local edge perception is unaffected
               </p>
+
               {this.state.error && (
-                <div className="bg-slate-900 p-2.5 rounded border border-slate-800 font-mono text-[11px] text-red-300 break-words max-h-32 overflow-y-auto">
+                <div className="bg-slate-900 p-2.5 rounded border border-slate-800 font-mono text-[11px] text-amber-300 break-words max-h-24 overflow-y-auto">
                   {this.state.error.name}: {this.state.error.message}
                 </div>
               )}

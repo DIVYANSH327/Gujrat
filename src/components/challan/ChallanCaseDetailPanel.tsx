@@ -39,6 +39,7 @@ import { challanReviewService } from '../../services/ChallanReviewService';
 import { vehicleDossierService } from '../../services/VehicleDossierService';
 import { ChallanAuditTrailModal } from './ChallanAuditTrailModal';
 import { ChallanDispatchModal } from './ChallanDispatchModal';
+import { AlertImageProvenanceBadge } from '../ui/AlertImageProvenanceBadge';
 
 interface Props {
   caseObj: ViolationCase;
@@ -286,10 +287,18 @@ export const ChallanCaseDetailPanel: React.FC<Props> = ({
               />
 
               {/* Watermark Overlay */}
-              <div className="absolute top-3 left-3 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded border border-white/20 text-[10px] font-mono text-white/90 space-y-0.5">
-                <div>CAMERA: {caseObj.cameraId} [{caseObj.edgeNodeId}]</div>
-                <div>TIME: {caseObj.timestamp}</div>
-                <div>CORRIDOR: {caseObj.location}</div>
+              <div className="absolute top-3 left-3 flex flex-col gap-1.5 items-start">
+                <div className="bg-black/75 backdrop-blur-md px-3 py-1.5 rounded border border-white/20 text-[10px] font-mono text-white/90 space-y-0.5">
+                  <div>CAMERA: {caseObj.cameraId} [{caseObj.edgeNodeId}]</div>
+                  <div>TIME: {caseObj.timestamp}</div>
+                  <div>CORRIDOR: {caseObj.location}</div>
+                </div>
+                <AlertImageProvenanceBadge 
+                  provenance={caseObj.sourceType === 'YOUTUBE_DEMO' ? 'DEMO_ASSET' : caseObj.isSimulated ? 'TEST_FIXTURE' : 'CAMERA_FRAME'}
+                  sourceType={caseObj.sourceType}
+                  evidenceUrl={getActiveDisplayImage()}
+                  size="xs"
+                />
               </div>
 
               {/* Simulated Vehicle Bounding Box Overlay */}

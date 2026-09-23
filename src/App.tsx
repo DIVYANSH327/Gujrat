@@ -21,8 +21,8 @@ import { CctvSiteRegistryView } from './components/CctvSiteRegistryView';
 import { PoliceDataIntelligence } from './components/PoliceDataIntelligence';
 import { ChallanModeDashboard } from './components/challan/ChallanModeDashboard';
 import { MobileCameraTest } from './components/MobileCameraTest';
-import { MobilePatrolCamerasView } from './components/MobilePatrolCamerasView';
 import { RealAIVisionTestLab } from './components/RealAIVisionTestLab';
+import { GoogleCloudVisionHub } from './components/GoogleCloudVisionHub';
 import { AiTrainingLab } from './components/AiTrainingLab';
 import { AboutModal } from './components/AboutModal';
 import { CommandCenterView } from './components/CommandCenterView';
@@ -36,9 +36,9 @@ import { PlateIntelligenceMapView } from './components/geospatial/PlateIntellige
 import { SentinelCameraGridLab } from './components/SentinelCameraGridLab';
 import { SentinelHealthIndicator } from './components/SentinelHealthIndicator';
 import { NightAuditView } from './components/night-audit/NightAuditView';
-import { HsrpVerificationPanel } from './components/HsrpVerificationPanel';
 import { AlertNotificationToast } from './components/AlertNotificationToast';
 import { DefensiveCyberSecurityPanel } from './components/vision/DefensiveCyberSecurityPanel';
+import { PersistentBackgroundAiIndicator } from './components/video/PersistentBackgroundAiIndicator';
 import { ViewMode, DetectionEvent } from './types';
 import { PROJECT_BRANDING } from './branding';
 import { audioAlertService } from './services/AudioAlertService';
@@ -223,10 +223,10 @@ function SentinelCommandApp() {
         );
       case 'mobile_camera':
         return <MobileCameraTest onNavigate={setCurrentView} />;
-      case 'mobile_patrol_cameras':
-        return <MobilePatrolCamerasView onNavigate={setCurrentView} />;
       case 'real_ai_test_lab':
         return <RealAIVisionTestLab onNavigate={setCurrentView} />;
+      case 'gcp_vision_hub':
+        return <GoogleCloudVisionHub onNavigate={setCurrentView} />;
       case 'youtube_demo':
         return <YouTubeDemoCameras onNavigate={setCurrentView} />;
       case 'alerts':
@@ -264,11 +264,15 @@ function SentinelCommandApp() {
         );
       case 'raw_video_audit':
         return (
-          <HsrpVerificationPanel
-            selectedCameraId={selectedCameraForView}
+          <SentinelCameraGridLab
+            initialTab="diagnostics"
             onNavigate={(view, camId) => {
               if (camId) setSelectedCameraForView(camId);
               setCurrentView(view);
+            }}
+            onImportCameraToLive={(cam) => {
+              setSelectedCameraForView(cam.id);
+              setCurrentView('cameras');
             }}
           />
         );
@@ -440,7 +444,15 @@ function SentinelCommandApp() {
         />
 
         {/* Content Area */}
-        <main className="flex-1 relative overflow-y-auto overflow-x-hidden flex flex-col custom-scrollbar bg-slate-50" id="main-content-viewport">
+        <main 
+          className="flex-1 relative overflow-y-auto overflow-x-hidden flex flex-col custom-scrollbar bg-slate-50" 
+          id="main-content-viewport"
+          onClick={() => {
+            if (isMobileMenuOpen) {
+              setIsMobileMenuOpen(false);
+            }
+          }}
+        >
           <AnimatePresence mode="wait">
             <motion.div
               key={currentView}
@@ -488,6 +500,11 @@ function SentinelCommandApp() {
         onSelectCamera={(cameraId) => {
           setCurrentView('cameras');
         }}
+      />
+
+      {/* Decoupled Persistent Background AI Intelligence HUD */}
+      <PersistentBackgroundAiIndicator 
+        onNavigateToAnalysis={() => setCurrentView('real_vision_lab' as ViewMode)} 
       />
 
       {/* In-App About & System Info Modal */}

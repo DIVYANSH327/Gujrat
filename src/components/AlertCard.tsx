@@ -11,6 +11,7 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { StatusBadge } from './ui/OfficerPrimitives';
+import { AlertImageProvenanceBadge, NonOperationalAlertBanner } from './ui/AlertImageProvenanceBadge';
 
 export interface AlertCardData {
   id: string;
@@ -23,6 +24,9 @@ export interface AlertCardData {
   timestamp: string;
   confidence: number;
   evidenceUrl: string;
+  provenance?: 'CAMERA_FRAME' | 'EVIDENCE_FRAME' | 'DEMO_ASSET' | 'TEST_FIXTURE' | 'UNKNOWN';
+  truthStatus?: 'OBSERVED' | 'UNVERIFIED' | 'DEMO' | 'TEST' | 'SUPPRESSED';
+  sha256?: string;
 }
 
 export interface AlertCardProps {
@@ -44,20 +48,53 @@ export const AlertCard: React.FC<AlertCardProps> = ({
   onViewCamera,
   className = ''
 }) => {
+  const isDemo = alert.provenance === 'DEMO_ASSET' || alert.truthStatus === 'DEMO' || alert.sourceType === 'DEMO_ASSET' || alert.evidenceUrl?.includes('unsplash.com');
+  const isTest = alert.provenance === 'TEST_FIXTURE' || alert.truthStatus === 'TEST' || alert.sourceType === 'TEST_FIXTURE';
+  const isObserved = !isDemo && !isTest && (alert.provenance === 'CAMERA_FRAME' || alert.truthStatus === 'OBSERVED');
+
   return (
-    <div className={`bg-white rounded-2xl border-2 border-rose-200 p-4 sm:p-6 shadow-xs relative overflow-hidden ${className}`}>
+    <div className={`bg-white rounded-2xl border-2 ${isObserved ? 'border-rose-200' : isDemo ? 'border-amber-300 bg-amber-50/20' : 'border-slate-200'} p-4 sm:p-6 shadow-xs relative overflow-hidden ${className}`}>
+      {/* Top Banner if Non-Operational DEMO or TEST */}
+      {(isDemo || isTest) && (
+        <div className="mb-4">
+          <NonOperationalAlertBanner 
+            sourceType={alert.sourceType}
+            provenance={alert.provenance}
+            truthStatus={alert.truthStatus}
+            evidenceUrl={alert.evidenceUrl}
+          />
+        </div>
+      )}
+
       <div className="flex flex-col lg:flex-row gap-5 sm:gap-6">
         {/* Evidence Frame Preview Thumbnail */}
         <div className="w-full lg:w-72 shrink-0">
           <div className="relative aspect-4/3 rounded-xl overflow-hidden border border-slate-200 bg-slate-900 group">
-            <img
-              src={alert.evidenceUrl}
-              alt="Active Alert Frame"
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-            <div className="absolute top-2.5 left-2.5">
-              <StatusBadge status="CRITICAL" label="ACTIVE ALERT" size="sm" />
+            {alert.evidenceUrl && alert.evidenceUrl !== 'NO_EVIDENCE_FRAME' ? (
+              <img
+                src={alert.evidenceUrl}
+                alt="Alert Frame Preview"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-950 font-mono text-xs p-4 text-center">
+                <Video size={24} className="text-slate-600 mb-1" />
+                <span>NO EVIDENCE FRAME</span>
+              </div>
+            )}
+            
+            {/* Visual Status Indicator Badge */}
+            <div className="absolute top-2.5 left-2.5 flex flex-col gap-1">
+              <AlertImageProvenanceBadge 
+                provenance={alert.provenance}
+                sourceType={alert.sourceType}
+                truthStatus={alert.truthStatus}
+                evidenceUrl={alert.evidenceUrl}
+                size="sm"
+                showDetails={false}
+              />
             </div>
+
             <div className="absolute bottom-2 left-2 right-2 bg-slate-900/85 text-white px-2.5 py-1 rounded text-[11px] font-mono flex items-center justify-between">
               <span>{alert.cameraId}</span>
               <span>{alert.timestamp}</span>
@@ -71,10 +108,22 @@ export const AlertCard: React.FC<AlertCardProps> = ({
             {/* Top metadata tags */}
             <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1">
-                  <AlertTriangle size={12} className="text-rose-700" />
-                  High Priority Violation
-                </span>
+                {isObserved ? (
+                  <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200 flex items-center gap-1">
+                    <AlertTriangle size={12} className="text-rose-700" />
+                    High Priority Violation • TRUTH: OBSERVED
+                  </span>
+                ) : isDemo ? (
+                  <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1 font-mono">
+                    <Info size={12} className="text-amber-700" />
+                    NON-OPERATIONAL DEMO ASSET • SIMULATION ONLY
+                  </span>
+                ) : (
+                  <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-300 flex items-center gap-1 font-mono">
+                    <Info size={12} className="text-slate-600" />
+                    NON-OPERATIONAL TEST FIXTURE • UNVERIFIED
+                  </span>
+                )}
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 font-mono">
                   ID: {alert.id}
                 </span>

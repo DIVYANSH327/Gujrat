@@ -138,6 +138,7 @@ export function CameraDetailsModal({
                 aspectRatio="16/9"
                 showControls={true}
                 showTelemetryOverlay={false}
+                showBackgroundAiPanelByDefault={true}
               />
             </div>
           ) : (

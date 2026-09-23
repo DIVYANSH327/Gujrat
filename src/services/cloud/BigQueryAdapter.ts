@@ -31,6 +31,7 @@ export interface BigQueryTableDefinition {
 export class BigQueryIntelligenceAdapter {
   private dataset: string;
   private isConfigured: boolean;
+  private rowBuffers = new Map<string, Record<string, any>[]>();
 
   constructor(dataset = 'police_surveillance_mesh') {
     this.dataset = process.env.GCP_BIGQUERY_DATASET || dataset;
@@ -38,11 +39,56 @@ export class BigQueryIntelligenceAdapter {
                          process.env.ENABLE_GOOGLE_CLOUD_SYNC === 'true';
   }
 
+  public async insertRow(tableName: string, row: Record<string, any>): Promise<void> {
+    if (!this.rowBuffers.has(tableName)) {
+      this.rowBuffers.set(tableName, []);
+    }
+    const buf = this.rowBuffers.get(tableName)!;
+    buf.unshift(row);
+    if (buf.length > 2000) buf.pop();
+  }
+
+  public queryRows(tableName: string, filter?: (row: Record<string, any>) => boolean): Record<string, any>[] {
+    const rows = this.rowBuffers.get(tableName) || [];
+    if (!filter) return [...rows];
+    return rows.filter(filter);
+  }
+
   /**
-   * Return comprehensive DDLs and table definitions for all 11 surveillance entities
+   * Return comprehensive DDLs and table definitions for all surveillance entities
    */
   public getAllTableDefinitions(): Record<string, BigQueryTableDefinition> {
-    return {
+    const definitions: Record<string, BigQueryTableDefinition> = {
+      camera_observations: {
+        dataset: this.dataset,
+        table: 'camera_observations',
+        description: 'Raw telemetry and state transition events from CCTV fleet',
+        partitionField: 'timestamp',
+        clusterFields: ['camera_id', 'district', 'event_type'],
+        schema: [
+          { name: 'event_id', type: 'STRING', mode: 'REQUIRED', description: 'Unique event identifier' },
+          { name: 'camera_id', type: 'STRING', mode: 'REQUIRED', description: 'Camera identifier' },
+          { name: 'district', type: 'STRING', mode: 'REQUIRED', description: 'Administrative district' },
+          { name: 'timestamp', type: 'TIMESTAMP', mode: 'REQUIRED', description: 'Event timestamp' },
+          { name: 'event_type', type: 'STRING', mode: 'REQUIRED', description: 'CAMERA_ONLINE | CAMERA_OFFLINE | STALE' },
+          { name: 'fps', type: 'FLOAT', mode: 'NULLABLE', description: 'Reported frames per second' },
+          { name: 'latency_ms', type: 'FLOAT', mode: 'NULLABLE', description: 'RTSP ping latency' },
+          { name: 'idempotency_key', type: 'STRING', mode: 'REQUIRED', description: 'Deduplication key' }
+        ],
+        ddl: `CREATE TABLE IF NOT EXISTS \`${this.dataset}.camera_observations\` (
+  event_id STRING NOT NULL,
+  camera_id STRING NOT NULL,
+  district STRING NOT NULL,
+  timestamp TIMESTAMP NOT NULL,
+  event_type STRING NOT NULL,
+  fps FLOAT64,
+  latency_ms FLOAT64,
+  idempotency_key STRING NOT NULL
+)
+PARTITION BY DATE(timestamp)
+CLUSTER BY camera_id, district, event_type;`
+      },
+
       camera_events: {
         dataset: this.dataset,
         table: 'camera_events',
@@ -131,6 +177,32 @@ CLUSTER BY camera_id, health_state;`
 )
 PARTITION BY DATE(timestamp)
 CLUSTER BY camera_id, district, vehicle_type;`
+      },
+
+      vehicle_tracks: {
+        dataset: this.dataset,
+        table: 'vehicle_tracks',
+        description: 'Aggregated vehicle tracks and trajectories',
+        partitionField: 'timestamp',
+        clusterFields: ['camera_id', 'vehicle_type'],
+        schema: [
+          { name: 'track_id', type: 'STRING', mode: 'REQUIRED', description: 'Vehicle track identifier' },
+          { name: 'camera_id', type: 'STRING', mode: 'REQUIRED', description: 'Originating camera' },
+          { name: 'vehicle_type', type: 'STRING', mode: 'REQUIRED', description: 'Vehicle classification' },
+          { name: 'timestamp', type: 'TIMESTAMP', mode: 'REQUIRED', description: 'First observed timestamp' },
+          { name: 'confidence', type: 'FLOAT', mode: 'REQUIRED', description: 'Detection confidence' },
+          { name: 'source_hash', type: 'STRING', mode: 'REQUIRED', description: 'Evidence SHA-256' }
+        ],
+        ddl: `CREATE TABLE IF NOT EXISTS \`${this.dataset}.vehicle_tracks\` (
+  track_id STRING NOT NULL,
+  camera_id STRING NOT NULL,
+  vehicle_type STRING NOT NULL,
+  timestamp TIMESTAMP NOT NULL,
+  confidence FLOAT64 NOT NULL,
+  source_hash STRING NOT NULL
+)
+PARTITION BY DATE(timestamp)
+CLUSTER BY camera_id, vehicle_type;`
       },
 
       plate_observations: {
@@ -223,6 +295,34 @@ CLUSTER BY incident_type, district, severity;`
 )
 PARTITION BY DATE(timestamp)
 CLUSTER BY watchlist_id, camera_id, review_status;`
+      },
+
+      alerts: {
+        dataset: this.dataset,
+        table: 'alerts',
+        description: 'Real-time operational alerts for traffic, ANPR watchlist, and safety anomalies',
+        partitionField: 'timestamp',
+        clusterFields: ['camera_id', 'alert_type', 'severity'],
+        schema: [
+          { name: 'alert_id', type: 'STRING', mode: 'REQUIRED', description: 'Alert ID' },
+          { name: 'alert_type', type: 'STRING', mode: 'REQUIRED', description: 'WATCHLIST_HIT | WRONG_WAY | SPEEDING | STOLEN_VEHICLE' },
+          { name: 'severity', type: 'STRING', mode: 'REQUIRED', description: 'CRITICAL | HIGH | MEDIUM | LOW' },
+          { name: 'camera_id', type: 'STRING', mode: 'REQUIRED', description: 'Originating camera' },
+          { name: 'timestamp', type: 'TIMESTAMP', mode: 'REQUIRED', description: 'Trigger timestamp' },
+          { name: 'target_plate', type: 'STRING', mode: 'NULLABLE', description: 'License plate if applicable' },
+          { name: 'evidence_id', type: 'STRING', mode: 'REQUIRED', description: 'Associated evidence' }
+        ],
+        ddl: `CREATE TABLE IF NOT EXISTS \`${this.dataset}.alerts\` (
+  alert_id STRING NOT NULL,
+  alert_type STRING NOT NULL,
+  severity STRING NOT NULL,
+  camera_id STRING NOT NULL,
+  timestamp TIMESTAMP NOT NULL,
+  target_plate STRING,
+  evidence_id STRING NOT NULL
+)
+PARTITION BY DATE(timestamp)
+CLUSTER BY camera_id, alert_type, severity;`
       },
 
       audit_events: {
@@ -355,6 +455,8 @@ PARTITION BY DATE(analyzed_at)
 CLUSTER BY analysis_id, provider, model_name;`
       }
     };
+
+    return definitions;
   }
 
   /**

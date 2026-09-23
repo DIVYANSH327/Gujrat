@@ -217,30 +217,143 @@ export class LocalReasoningProvider implements ReasoningProvider {
 }
 
 // ============================================================================
-// Google Gemini Reasoning Provider (Multimodal LLM Reasoning)
+// Disabled Reasoning Provider (Default - Zero API Billing / Zero Cloud AI Cost)
+// ============================================================================
+
+export class DisabledReasoningProvider implements ReasoningProvider {
+  private localDeterministic = new LocalReasoningProvider();
+
+  public async analyzeIncident(params: {
+    incidentId: string;
+    description: string;
+    observations: any[];
+    timestamps: string[];
+    cameraIds: string[];
+  }): Promise<IncidentReasoningResult> {
+    const local = await this.localDeterministic.analyzeIncident(params);
+    return {
+      ...local,
+      factualSummary: `[AI Reasoning Disabled] ${local.factualSummary}`,
+      provider: 'LOCAL_DETERMINISTIC'
+    };
+  }
+
+  public async summarizeTimeline(observations: any[]): Promise<TimelineSummaryResult> {
+    return this.localDeterministic.summarizeTimeline(observations);
+  }
+
+  public async investigateVehicle(query: {
+    target: string;
+    observations: any[];
+    timeRange?: { from: string; to: string };
+  }): Promise<VehicleInvestigationResult> {
+    return this.localDeterministic.investigateVehicle(query);
+  }
+
+  public async generateOfficerReport(data: {
+    incident: any;
+    observations: any[];
+    evidence: any[];
+    officerNotes?: string;
+  }): Promise<OfficerReportResult> {
+    return this.localDeterministic.generateOfficerReport(data);
+  }
+
+  public getStatus() {
+    return {
+      provider: 'DISABLED',
+      active: false,
+      model: 'none'
+    };
+  }
+}
+
+// ============================================================================
+// Future Reasoning Provider (Pluggable On-Premise / Edge Foundation Models)
+// ============================================================================
+
+export class FutureReasoningProvider implements ReasoningProvider {
+  private localDeterministic = new LocalReasoningProvider();
+  private modelName: string;
+
+  constructor(modelName = 'on-prem-sentinel-v1') {
+    this.modelName = modelName;
+  }
+
+  public async analyzeIncident(params: {
+    incidentId: string;
+    description: string;
+    observations: any[];
+    timestamps: string[];
+    cameraIds: string[];
+  }): Promise<IncidentReasoningResult> {
+    return this.localDeterministic.analyzeIncident(params);
+  }
+
+  public async summarizeTimeline(observations: any[]): Promise<TimelineSummaryResult> {
+    return this.localDeterministic.summarizeTimeline(observations);
+  }
+
+  public async investigateVehicle(query: {
+    target: string;
+    observations: any[];
+    timeRange?: { from: string; to: string };
+  }): Promise<VehicleInvestigationResult> {
+    return this.localDeterministic.investigateVehicle(query);
+  }
+
+  public async generateOfficerReport(data: {
+    incident: any;
+    observations: any[];
+    evidence: any[];
+    officerNotes?: string;
+  }): Promise<OfficerReportResult> {
+    return this.localDeterministic.generateOfficerReport(data);
+  }
+
+  public getStatus() {
+    return {
+      provider: 'FUTURE_PROVIDER',
+      active: false,
+      model: this.modelName
+    };
+  }
+}
+
+// ============================================================================
+// Google Gemini Reasoning Provider (Multimodal LLM Reasoning - OPTIONAL ONLY)
 // ============================================================================
 
 export class GoogleGeminiReasoningProvider implements ReasoningProvider {
   private localProvider: LocalReasoningProvider;
+  private disabledProvider: DisabledReasoningProvider;
   private ai: GoogleGenAI | null = null;
   private modelName: string;
   private isConfigured: boolean;
 
   constructor(modelName = 'gemini-3.8-flash') {
     this.localProvider = new LocalReasoningProvider();
+    this.disabledProvider = new DisabledReasoningProvider();
     this.modelName = process.env.GEMINI_MODEL || modelName;
+    
+    // CRITICAL BILLING CONSTRAINT: Explicitly check GEMINI_REASONING_ENABLED
+    const isExplicitlyEnabled = process.env.GEMINI_REASONING_ENABLED === 'true';
     const apiKey = process.env.GEMINI_API_KEY;
 
-    if (apiKey && apiKey.length > 5 && apiKey !== 'mock' && apiKey !== 'placeholder') {
-      this.ai = new GoogleGenAI({
-        apiKey,
-        httpOptions: {
-          headers: {
-            'User-Agent': 'aistudio-build'
+    if (isExplicitlyEnabled && apiKey && apiKey.length > 5 && apiKey !== 'mock' && apiKey !== 'placeholder') {
+      try {
+        this.ai = new GoogleGenAI({
+          apiKey,
+          httpOptions: {
+            headers: {
+              'User-Agent': 'aistudio-build'
+            }
           }
-        }
-      });
-      this.isConfigured = true;
+        });
+        this.isConfigured = true;
+      } catch {
+        this.isConfigured = false;
+      }
     } else {
       this.isConfigured = false;
     }
@@ -254,7 +367,7 @@ export class GoogleGeminiReasoningProvider implements ReasoningProvider {
     cameraIds: string[];
   }): Promise<IncidentReasoningResult> {
     if (!this.ai || !this.isConfigured) {
-      return this.localProvider.analyzeIncident(params);
+      return this.disabledProvider.analyzeIncident(params);
     }
 
     try {
@@ -400,4 +513,22 @@ Officer Notes: ${local.officerNotes}
   }
 }
 
-export const defaultReasoningProvider = new GoogleGeminiReasoningProvider();
+// ============================================================================
+// Factory & Default Instance
+// ============================================================================
+
+export function createReasoningProvider(type?: 'DISABLED' | 'GEMINI' | 'FUTURE'): ReasoningProvider {
+  const selectedType = type || (process.env.GEMINI_REASONING_ENABLED === 'true' ? 'GEMINI' : 'DISABLED');
+  switch (selectedType) {
+    case 'GEMINI':
+      return new GoogleGeminiReasoningProvider();
+    case 'FUTURE':
+      return new FutureReasoningProvider();
+    case 'DISABLED':
+    default:
+      return new DisabledReasoningProvider();
+  }
+}
+
+// Default export: Defaults to DisabledReasoningProvider unless GEMINI_REASONING_ENABLED=true
+export const defaultReasoningProvider: ReasoningProvider = createReasoningProvider();

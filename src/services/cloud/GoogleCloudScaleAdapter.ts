@@ -126,7 +126,7 @@ export interface GoogleCloudConfig {
 }
 
 export interface CloudAdapterTelemetry {
-  status: 'CONNECTED' | 'OFFLINE_LOCAL_MODE' | 'DEGRADED' | 'CONFIG_REQUIRED';
+  status: 'CONNECTED' | 'OFFLINE_LOCAL_MODE' | 'DEGRADED' | 'CONFIG_REQUIRED' | 'NOT_CONFIGURED';
   eventsEnqueued: number;
   eventsDispatched: number;
   eventsDroppedOverflow: number;
@@ -184,9 +184,14 @@ export class GoogleCloudScaleAdapter extends EventEmitter {
     };
 
     const hasExplicitAuth = Boolean(process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GCP_SERVICE_ACCOUNT_KEY);
-    const initialStatus = this.config.enabled && this.config.projectId && hasExplicitAuth
-      ? 'CONNECTED'
-      : 'OFFLINE_LOCAL_MODE';
+    let initialStatus: 'CONNECTED' | 'OFFLINE_LOCAL_MODE' | 'DEGRADED' | 'CONFIG_REQUIRED' | 'NOT_CONFIGURED';
+    if (!this.config.enabled) {
+      initialStatus = 'OFFLINE_LOCAL_MODE';
+    } else if (this.config.projectId && hasExplicitAuth) {
+      initialStatus = 'CONNECTED';
+    } else {
+      initialStatus = 'NOT_CONFIGURED';
+    }
 
     this.telemetry = {
       status: initialStatus,
@@ -318,6 +323,13 @@ export class GoogleCloudScaleAdapter extends EventEmitter {
       this.telemetry.deadLetterCount = this.deadLetterQueue.length;
       return { dispatched: 0, remaining: this.queue.length };
     }
+  }
+
+  /**
+   * Immediate synchronous/asynchronous manual flush trigger
+   */
+  public async flushNow(): Promise<{ dispatched: number; remaining: number }> {
+    return this.flushQueue();
   }
 
   private startPeriodicFlush(): void {

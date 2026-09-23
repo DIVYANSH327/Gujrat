@@ -152,11 +152,13 @@ export class OmniRouteProvider implements IAIProvider {
     for (const url of uniqueTryUrls) {
       try {
         const controller = new AbortController();
-        const tId = setTimeout(() => controller.abort(), 6000);
+        const tId = setTimeout(() => controller.abort(), Math.min(3000, Number(process.env.OMNIROUTE_TIMEOUT_MS) || 3000));
         const resp = await fetch(url, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true',
+            'User-Agent': 'aistudio-gujarat-police-platform',
             ...authHeaders
           },
           body: JSON.stringify({
@@ -168,7 +170,7 @@ export class OmniRouteProvider implements IAIProvider {
                 content: [
                   {
                     type: 'text',
-                    text: 'Analyze this image. Return JSON with: {"visible_scene":"surveillance_test","people_visible":false,"vehicles_visible":false}. Do not invent anything that is not visible.'
+                    text: 'Analyze this image. Return JSON with: {"visible_scene":"surveillance_test","people_visible":false,"vehicles_visible":false}.'
                   },
                   {
                     type: 'image_url',
@@ -199,6 +201,9 @@ export class OmniRouteProvider implements IAIProvider {
       } catch (e: any) {
         const isTimeout = e?.name === 'AbortError' || String(e?.message || '').toLowerCase().includes('timeout');
         lastProbeError = isTimeout ? 'Vision probe timed out' : (e?.message || String(e));
+        if (isTimeout || e?.code === 'ECONNREFUSED' || e?.code === 'ENOTFOUND' || String(e?.message || '').includes('fetch failed')) {
+          break;
+        }
       }
     }
 
@@ -233,7 +238,10 @@ export class OmniRouteProvider implements IAIProvider {
       return { model: 'none', verified: false, availableModels: [], error: this.lastResolutionError };
     }
 
-    const authHeaders: Record<string, string> = {};
+    const authHeaders: Record<string, string> = {
+      'ngrok-skip-browser-warning': 'true',
+      'User-Agent': 'aistudio-gujarat-police-platform'
+    };
     if (cfg.apiKey) {
       authHeaders['Authorization'] = `Bearer ${cfg.apiKey}`;
     }
@@ -249,7 +257,6 @@ export class OmniRouteProvider implements IAIProvider {
       }
     }
 
-    // 1. Fetch available models from OmniRoute across standard endpoint variants
     let availableModels: string[] = [];
     let modelsFetchFailed = false;
     let modelsStatus: number | string = 'Offline';
@@ -266,7 +273,7 @@ export class OmniRouteProvider implements IAIProvider {
 
     try {
       const controller = new AbortController();
-      const tId = setTimeout(() => controller.abort(), Math.min(cfg.timeoutMs, 6000));
+      const tId = setTimeout(() => controller.abort(), Math.min(3000, cfg.timeoutMs));
       let modelsResp: Response | null = null;
 
       for (const mUrl of modelUrls) {
@@ -276,6 +283,13 @@ export class OmniRouteProvider implements IAIProvider {
             headers: authHeaders,
             signal: controller.signal
           });
+          const ngrokErr = resp?.headers?.get('ngrok-error-code');
+          const isHtml = (resp?.headers?.get('content-type') || '').includes('text/html');
+          if (ngrokErr || (resp && resp.status === 404 && isHtml)) {
+            modelsFetchFailed = true;
+            modelsStatus = 'Offline';
+            break;
+          }
           if (resp && resp.ok) {
             modelsResp = resp;
             break;
@@ -283,7 +297,14 @@ export class OmniRouteProvider implements IAIProvider {
             modelsResp = resp;
             break;
           }
-        } catch {}
+        } catch (e: any) {
+          const isNetworkError = e?.name === 'AbortError' || e?.code === 'ECONNREFUSED' || e?.code === 'ENOTFOUND' || String(e?.message || '').includes('fetch failed');
+          if (isNetworkError) {
+            modelsFetchFailed = true;
+            modelsStatus = e?.name === 'AbortError' ? 'Timeout' : 'Unreachable';
+            break;
+          }
+        }
       }
 
       clearTimeout(tId);
@@ -295,7 +316,7 @@ export class OmniRouteProvider implements IAIProvider {
         } else if (Array.isArray(body?.models)) {
           availableModels = body.models.map((m: any) => m?.name || m?.id).filter(Boolean);
         }
-      } else {
+      } else if (!modelsFetchFailed) {
         modelsFetchFailed = true;
         modelsStatus = modelsResp ? modelsResp.status : 'Offline';
       }
@@ -305,32 +326,37 @@ export class OmniRouteProvider implements IAIProvider {
       modelsStatus = isTimeout ? 'Timeout' : 'Unreachable';
     }
 
-    // Fallback direct candidate probe when /models is 404 or unsupported
+    // Fallback direct candidate probe when /models is 404 or unsupported (only if host was reachable)
     if (availableModels.length === 0) {
-      const directCandidates = [
-        cfg.model && cfg.model !== 'auto' ? cfg.model : '',
-        'gemini-2.0-flash',
-        'gpt-4o-mini',
-        'gemini-1.5-flash',
-        'claude-3-5-sonnet',
-        'auto/pro-vision'
-      ].filter(Boolean);
+      const isHostUnreachable = modelsStatus === 'Offline' || modelsStatus === 'Unreachable' || modelsStatus === 'Timeout' || (typeof modelsStatus === 'number' && modelsStatus >= 500);
+      
+      if (!isHostUnreachable) {
+        const directCandidates = [
+          cfg.model && cfg.model !== 'auto' ? cfg.model : '',
+          'gemini-2.0-flash',
+          'gpt-4o-mini',
+          'gemini-1.5-flash',
+          'claude-3-5-sonnet',
+          'auto/pro-vision'
+        ].filter(Boolean);
 
-      for (const cand of directCandidates) {
-        const probe = await this.probeModelVision(cleanBaseUrl, authHeaders, cand);
-        if (probe.ok) {
-          this.verifiedVisionModel = probe.actualModel;
-          this.verifiedVisionModelExpiresAt = Date.now() + 60000;
-          this.lastResolutionError = null;
-          return { model: probe.actualModel, verified: true, availableModels: [probe.actualModel] };
+        for (const cand of directCandidates) {
+          const probe = await this.probeModelVision(cleanBaseUrl, authHeaders, cand);
+          if (probe.ok) {
+            this.verifiedVisionModel = probe.actualModel;
+            this.verifiedVisionModelExpiresAt = Date.now() + 60000;
+            this.lastResolutionError = null;
+            return { model: probe.actualModel, verified: true, availableModels: [probe.actualModel] };
+          }
         }
       }
 
       const errorReason = modelsFetchFailed
-        ? `OmniRoute endpoint returned HTTP ${modelsStatus}. Check tunnel/base URL.`
+        ? (typeof modelsStatus === 'number'
+            ? `OmniRoute endpoint returned HTTP ${modelsStatus}. Check tunnel/base URL.`
+            : `OmniRoute endpoint is unreachable (${modelsStatus}). Check tunnel/base URL.`)
         : `OmniRoute model catalogue returned 0 models from ${cleanBaseUrl}.`;
-      this.lastResolutionError = errorReason;
-      this.lastResolutionErrorExpiresAt = Date.now() + (modelsStatus === 401 || modelsStatus === 403 ? 300000 : 180000);
+      this.markDegraded(errorReason, 300000);
       return { model: 'none', verified: false, availableModels: [], error: errorReason };
     }
 
@@ -472,7 +498,7 @@ export class OmniRouteProvider implements IAIProvider {
    * Diagnostic verification conforming strictly to network topology and reachability checks.
    * Reports OMNIROUTE_REACHABLE, OMNIROUTE_AUTHENTICATED, OMNIROUTE_MODEL_AVAILABLE, and visionAvailable.
    */
-  async getStatus(): Promise<ProviderDiagnosticResult> {
+  async getStatus(forceRecheck = false): Promise<ProviderDiagnosticResult> {
     const cfg = this.getConfig();
 
     if (!cfg.enabled) {
@@ -530,6 +556,29 @@ export class OmniRouteProvider implements IAIProvider {
     }
 
     const cleanBaseUrl = cfg.baseUrl.replace(/\/+$/, '');
+
+    if (!forceRecheck && this.isDegraded() && this.lastResolutionError) {
+      const isTimeout = this.lastResolutionError.toLowerCase().includes('timeout');
+      return {
+        provider: 'OMNIROUTE',
+        configured: Boolean(cfg.apiKey),
+        authenticated: false,
+        reachable: false,
+        OMNIROUTE_REACHABLE: false,
+        OMNIROUTE_AUTHENTICATED: false,
+        OMNIROUTE_MODEL_AVAILABLE: false,
+        modelAvailable: false,
+        visionAvailable: false,
+        endpoint: cleanBaseUrl,
+        actualEndpoint: cleanBaseUrl,
+        model: cfg.model,
+        actualModel: cfg.model,
+        status: isTimeout ? 'AI_TIMEOUT' : 'UNREACHABLE',
+        latencyMs: 0,
+        error: this.lastResolutionError
+      };
+    }
+
     const start = Date.now();
 
     // 1. Probe models endpoint to check reachability and auth
@@ -549,7 +598,39 @@ export class OmniRouteProvider implements IAIProvider {
         signal: controller.signal
       }).finally(() => clearTimeout(timeoutId));
 
+      const ngrokErr = modelsResp.headers.get('ngrok-error-code');
+      const isHtml = (modelsResp.headers.get('content-type') || '').includes('text/html');
+      if (ngrokErr || (modelsResp.status === 404 && isHtml)) {
+        const errorMsg = `OmniRoute tunnel endpoint at ${cleanBaseUrl} is offline (${ngrokErr || 'HTTP 404 HTML'}). Check tunnel/base URL.`;
+        this.markDegraded(errorMsg, 300000);
+        return {
+          provider: 'OMNIROUTE',
+          configured: Boolean(cfg.apiKey),
+          authenticated: false,
+          reachable: false,
+          OMNIROUTE_REACHABLE: false,
+          OMNIROUTE_AUTHENTICATED: false,
+          OMNIROUTE_MODEL_AVAILABLE: false,
+          modelAvailable: false,
+          visionAvailable: false,
+          endpoint: cleanBaseUrl,
+          actualEndpoint: cleanBaseUrl,
+          model: cfg.model,
+          actualModel: 'none',
+          status: 'UNREACHABLE',
+          latencyMs: Date.now() - start,
+          error: errorMsg,
+          networkTopology: {
+            client: 'Phone / Remote Client',
+            backend: 'Cloud Run Backend',
+            targetHost: cleanBaseUrl,
+            description: `Attempted path: Phone -> Cloud Run -> ${cleanBaseUrl.startsWith('https://') ? 'HTTPS Tunnel' : 'LAN'} (${cleanBaseUrl}) -> OmniRoute :20128`
+          }
+        };
+      }
+
       if (modelsResp.status === 401 || modelsResp.status === 403) {
+        this.markDegraded(`OmniRoute authentication failed (HTTP ${modelsResp.status})`, 300000);
         return {
           provider: 'OMNIROUTE',
           configured: true,
@@ -580,6 +661,11 @@ export class OmniRouteProvider implements IAIProvider {
       const isTimeout = networkErr?.name === 'AbortError' || String(networkErr?.message || '').toLowerCase().includes('timeout');
       const latencyMs = Date.now() - start;
       const isPrivateIp = /^(https?:\/\/)?(192\.168\.|10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.)/.test(cleanBaseUrl);
+      const errorMsg = isTimeout
+        ? `Connection timed out connecting to OmniRoute endpoint at ${cleanBaseUrl} after ${Math.min(cfg.timeoutMs, 5000)}ms.`
+        : `OmniRoute endpoint at ${cleanBaseUrl} is unreachable (${networkErr?.message || 'Connection refused or host unreachable'}).${isPrivateIp ? ' Note: Cloud Run cannot reach private LAN IP addresses directly without an external HTTPS tunnel.' : ''}`;
+
+      this.markDegraded(errorMsg, isTimeout ? 60000 : 180000);
 
       return {
         provider: 'OMNIROUTE',
@@ -597,9 +683,7 @@ export class OmniRouteProvider implements IAIProvider {
         actualModel: cfg.model,
         status: isTimeout ? 'AI_TIMEOUT' : 'UNREACHABLE',
         latencyMs,
-        error: isTimeout
-          ? `Connection timed out connecting to OmniRoute endpoint at ${cleanBaseUrl} after ${Math.min(cfg.timeoutMs, 5000)}ms.`
-          : `OmniRoute endpoint at ${cleanBaseUrl} is unreachable (${networkErr?.message || 'Connection refused or host unreachable'}).${isPrivateIp ? ' Note: Cloud Run cannot reach private LAN IP addresses directly without an external HTTPS tunnel.' : ''}`,
+        error: errorMsg,
         networkTopology: {
           client: 'Phone / Remote Client',
           backend: 'Cloud Run Backend',
@@ -614,13 +698,14 @@ export class OmniRouteProvider implements IAIProvider {
     const latencyMs = Date.now() - start;
 
     if (!resolved.verified || resolved.model === 'none') {
+      const isEndpointOffline = (resolved.error || '').toLowerCase().includes('offline') || (resolved.error || '').toLowerCase().includes('unreachable');
       return {
         provider: 'OMNIROUTE',
-        configured: true,
-        authenticated: true,
-        reachable: true,
-        OMNIROUTE_REACHABLE: true,
-        OMNIROUTE_AUTHENTICATED: true,
+        configured: Boolean(cfg.apiKey),
+        authenticated: !isEndpointOffline,
+        reachable: !isEndpointOffline,
+        OMNIROUTE_REACHABLE: !isEndpointOffline,
+        OMNIROUTE_AUTHENTICATED: !isEndpointOffline,
         OMNIROUTE_MODEL_AVAILABLE: false,
         modelAvailable: false,
         visionAvailable: false,
@@ -628,7 +713,7 @@ export class OmniRouteProvider implements IAIProvider {
         actualEndpoint: cleanBaseUrl,
         model: cfg.model,
         actualModel: 'none',
-        status: 'VISION_UNAVAILABLE',
+        status: isEndpointOffline ? 'UNREACHABLE' : 'VISION_UNAVAILABLE',
         latencyMs,
         availableModels: resolved.availableModels.length > 0 ? resolved.availableModels : availableModels,
         error: resolved.error || 'No operational vision model available on OmniRoute.'
