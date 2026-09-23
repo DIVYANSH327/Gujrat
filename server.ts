@@ -742,7 +742,7 @@ function seedSyntheticIntelligenceData() {
 
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   // Initialize seed intelligence data
   seedSyntheticIntelligenceData();

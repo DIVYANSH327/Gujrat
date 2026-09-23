@@ -1,10 +1,7 @@
-PROPRIETARY AND CONFIDENTIAL SOURCE CODE
+Copyright (c) 2026 DIVYANSH Shrivastava.
+Sentinel Grid / Gujarat Police CCTV & AI Intelligence Platform.
+All rights reserved.
 
-Copyright (c) 2026 Gujarat Police State Crime Records Bureau (SCRB) & Authorized Law Enforcement Agencies.
-All Rights Reserved.
+This software is provided for evaluation, demonstration, testing, and operational deployment in authorized law enforcement environments.
 
-CONFIDENTIALITY & ANTI-REUSE NOTICE:
-1. This software and its associated source code, architectures, neural pipeline configurations, and security protocols are the proprietary intellectual property of the designated law enforcement agency.
-2. STRICTLY PROHIBITED: Any unauthorized copying, reverse engineering, redistribution, cloning, commercial exploitation, public hosting, or re-utilization of this repository or any portion thereof without express written authorization from the State Crime Records Bureau is strictly forbidden.
-3. SURVEILLANCE & INFRASTRUCTURE PROTECTION: No license is granted to access, stream, intercept, decode, or relay any live or recorded CCTV feeds, police network endpoints, or AI analytics feeds referenced by or communicating with this software.
-4. VIOLATION & ENFORCEMENT: Unauthorized use, duplication, or deployment will result in civil and criminal prosecution under applicable national and international cyber defense and intellectual property statutes (including the Information Technology Act).
+Third-party libraries, frameworks, icons, and specifications included or referenced in this project are the property of their respective copyright holders and remain subject to their respective open-source licenses.
