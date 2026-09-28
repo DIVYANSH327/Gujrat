@@ -24,6 +24,7 @@ import {
 import { backgroundVehicleIntelligenceEngine } from './BackgroundVehicleIntelligenceEngine.js';
 import { getAdminDb } from '../../lib/firebase-admin.js';
 import { ImageCropUtil } from '../vision/imageCropUtil.js';
+import firebaseConfig from '../../../firebase-applet-config.json';
 
 // Official Gujarat RTO District Mapping (CMVR Rule 50)
 const GUJARAT_RTO_DISTRICTS: Record<string, string> = {
@@ -964,7 +965,7 @@ export class GCPVisionRecognitionService {
     };
 
     const evidenceId = `EVD-GCP-${nowMs}-${crypto.randomBytes(3).toString('hex')}`;
-    const firestoreDatabaseId = 'ai-studio-gujrat-217890ee-4c63-4e61-90de-a0dc591996f6';
+    const firestoreDatabaseId = firebaseConfig.firestoreDatabaseId || 'ai-studio-gujrat-217890ee-4c63-4e61-90de-a0dc591996f6';
 
     const evidenceRecord: GCPBackgroundEvidenceRecord = {
       id: evidenceId,

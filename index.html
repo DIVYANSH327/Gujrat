@@ -43,21 +43,7 @@
       </div>
     </div>
     <script>
-      window.addEventListener('error', function(event) {
-        var msg = (event && event.message) || '';
-        if (
-          !msg ||
-          msg.includes('ResizeObserver') || 
-          msg.includes('websocket') || 
-          msg.includes('WebSocket') || 
-          msg.includes('vite') || 
-          msg.includes('HMR') ||
-          msg.includes('Script error') ||
-          msg.includes('chrome-extension') ||
-          msg.includes('Extension')
-        ) {
-          return;
-        }
+      function showSentinelBootAlert(message, title) {
         var loader = document.getElementById('sentinel-initial-loader');
         if (loader && !document.getElementById('sentinel-runtime-alert')) {
           var alertBox = document.createElement('div');
@@ -71,12 +57,46 @@
           alertBox.style.color = '#fca5a5';
           alertBox.style.fontSize = '12px';
           alertBox.style.textAlign = 'center';
-          alertBox.innerHTML = '<div style="font-weight: 700; margin-bottom: 6px; color: #f87171;">Command Center Boot Diagnostics</div>' +
-            '<div style="font-family: monospace; font-size: 11px; margin-bottom: 12px; word-break: break-word;">' + msg + '</div>' +
-            '<button onclick="window.location.reload()" style="background: #2563eb; color: #fff; border: none; padding: 6px 14px; border-radius: 8px; font-weight: 600; font-size: 11px; cursor: pointer;">Reload Application</button>';
+          alertBox.innerHTML = '<div style="font-weight: 700; margin-bottom: 6px; color: #f87171;">' + (title || 'Command Center Boot Diagnostics') + '</div>' +
+            '<div style="font-family: monospace; font-size: 11px; margin-bottom: 12px; word-break: break-word;">' + (message || 'Network delay or rate limit detected.') + '</div>' +
+            '<div style="display:flex; gap:8px; justify-content:center;">' +
+              '<button onclick="window.location.reload()" style="background: #2563eb; color: #fff; border: none; padding: 7px 16px; border-radius: 8px; font-weight: 600; font-size: 11px; cursor: pointer;">Reload Application</button>' +
+              '<button onclick="try { localStorage.clear(); sessionStorage.clear(); } catch(e){} window.location.reload();" style="background: #334155; color: #cbd5e1; border: none; padding: 7px 12px; border-radius: 8px; font-weight: 500; font-size: 11px; cursor: pointer;">Clear Cache</button>' +
+            '</div>';
           loader.appendChild(alertBox);
         }
+      }
+
+      window.addEventListener('error', function(event) {
+        var msg = (event && (event.message || (event.target && event.target.src ? 'Script failed: ' + event.target.src : ''))) || '';
+        if (
+          !msg ||
+          msg.includes('ResizeObserver') || 
+          msg.includes('websocket') || 
+          msg.includes('WebSocket') || 
+          msg.includes('vite') || 
+          msg.includes('HMR') ||
+          msg.includes('chrome-extension') ||
+          msg.includes('Extension')
+        ) {
+          return;
+        }
+        showSentinelBootAlert(msg);
+      }, true);
+
+      window.addEventListener('unhandledrejection', function(event) {
+        var reason = event && (event.reason && (event.reason.message || event.reason.toString())) || '';
+        if (!reason || reason.includes('ResizeObserver') || reason.includes('WebSocket')) return;
+        showSentinelBootAlert(reason, 'Initialization Notice');
       });
+
+      // Safety check: if loader has not been replaced after 7 seconds, give user one-click refresh
+      setTimeout(function() {
+        var loader = document.getElementById('sentinel-initial-loader');
+        if (loader && !document.getElementById('sentinel-runtime-alert')) {
+          showSentinelBootAlert('Command center modules are loading. If the screen does not load in a moment, click below to refresh.', 'Network Connection Notice');
+        }
+      }, 7000);
     </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>

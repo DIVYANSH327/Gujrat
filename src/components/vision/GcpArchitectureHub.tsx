@@ -65,28 +65,28 @@ export const GcpArchitectureHub: React.FC = () => {
   const [gcpStatus, setGcpStatus] = useState<GcpStatusData>({
     cloudRun: {
       status: 'OPERATIONAL',
-      containerRegion: 'asia-southeast1',
+      containerRegion: 'asia-south1',
       port: 3000,
       memoryMb: 512,
       uptimeSeconds: 1420
     },
     cloudStorage: {
-      bucketName: 'gs://gujarat-police-evidence-vault-apac',
-      region: 'asia-south1 (Mumbai / Gandhinagar Edge)',
+      bucketName: 'gs://sentinel-evidence-gujrat-cctv',
+      region: 'asia-south1 (Gujarat Police SCRB Vault)',
       lifecyclePolicy: 'Standard -> Coldline (30d) -> Archive (7yr Statutory BSA-63)',
-      kmsKeyId: 'projects/gujarat-police-cctv/locations/asia-south1/keyRings/forensic/cryptoKeys/bsa-sec63',
+      kmsKeyId: 'projects/gujrat-cctv/locations/asia-south1/keyRings/forensic/cryptoKeys/bsa-sec63',
       totalEvidenceObjects: realAIEvidencePipeline.getAllEvidenceRecords().length
     },
     bigQuery: {
-      dataset: 'police_cctv_analytics',
-      table: 'vehicle_telemetry_partitioned',
+      dataset: 'sentinel_poc',
+      table: 'observations',
       partitioning: 'DAY(_PARTITIONDATE)',
       clustering: ['camera_id', 'vehicle_class', 'hsrp_compliance'],
       totalRows: 148920
     },
     pubsub: {
-      topic: 'projects/gujarat-police-cctv/topics/camera-ingest-mesh',
-      subscription: 'cctv-vision-worker-sub',
+      topic: 'projects/gujrat-cctv/topics/sentinel-poc-observations',
+      subscription: 'projects/gujrat-cctv/subscriptions/sentinel-poc-observations-sub',
       throughputFps: 28.4,
       ackLatencyMs: 14
     }

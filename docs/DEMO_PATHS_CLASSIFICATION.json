@@ -1,0 +1,1412 @@
+{
+  "auditTimestamp": "2026-09-24T19:30:17.970Z",
+  "total": 2501,
+  "counts": {
+    "testCode": 280,
+    "testMode": 103,
+    "productionFallback": 426,
+    "productionCode": 1692
+  },
+  "sampleBreakdown": [
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 7,
+      "snippet": "\"productionFallback\": 304,"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "sample",
+      "line": 10,
+      "snippet": "\"sampleBreakdown\": ["
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 14,
+      "snippet": "\"term\": \"fallback\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 16,
+      "snippet": "\"snippet\": \"console.log(`[-] ${camId}: Skipped (Frame size ${buf?.length || 0} bytes - fallback or o"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 21,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "demo",
+      "line": 23,
+      "snippet": "\"snippet\": \"let demoFallback = true;\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 28,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "demo",
+      "line": 30,
+      "snippet": "\"snippet\": \"demoFallback = false;\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 35,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "demo",
+      "line": 37,
+      "snippet": "\"snippet\": \"console.log('DEMO FALLBACK:', demoFallback ? 'TRUE' : 'MUST BE FALSE');\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 40,
+      "snippet": "\"file\": \"scripts/classify-demo-paths.ts\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "mock",
+      "line": 42,
+      "snippet": "\"term\": \"mock\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "mock",
+      "line": 44,
+      "snippet": "\"snippet\": \"const keywords = ['mock', 'demo', 'sample', 'fake', 'simulation', 'fixture', 'fallback']"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 47,
+      "snippet": "\"file\": \"scripts/classify-demo-paths.ts\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 49,
+      "snippet": "\"term\": \"fallback\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 51,
+      "snippet": "\"snippet\": \"category: 'TEST CODE' | 'TEST MODE' | 'PRODUCTION CODE' | 'PRODUCTION FALLBACK';\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 54,
+      "snippet": "\"file\": \"scripts/classify-demo-paths.ts\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 56,
+      "snippet": "\"term\": \"fallback\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 58,
+      "snippet": "\"snippet\": \"let cat: 'TEST CODE' | 'TEST MODE' | 'PRODUCTION CODE' | 'PRODUCTION FALLBACK' = 'PRODUC"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 61,
+      "snippet": "\"file\": \"scripts/classify-demo-paths.ts\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 63,
+      "snippet": "\"term\": \"fallback\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 65,
+      "snippet": "\"snippet\": \"} else if (lower.includes('fallback') || lower.includes('timeout_fallback') || lower.inc"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 68,
+      "snippet": "\"file\": \"scripts/classify-demo-paths.ts\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 70,
+      "snippet": "\"term\": \"fallback\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 72,
+      "snippet": "\"snippet\": \"cat = 'PRODUCTION FALLBACK';\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 75,
+      "snippet": "\"file\": \"scripts/classify-demo-paths.ts\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 77,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "TEST MODE",
+      "term": "demo",
+      "line": 79,
+      "snippet": "\"snippet\": \"} else if (lower.includes('demorunid') || lower.includes('isdemo') || lower.includes('te"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 82,
+      "snippet": "\"file\": \"scripts/classify-demo-paths.ts\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "mock",
+      "line": 84,
+      "snippet": "\"term\": \"mock\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "mock",
+      "line": 86,
+      "snippet": "\"snippet\": \"console.log('🔍 DEMO / MOCK / FALLBACK PATHS AUDIT & CLASSIFICATION');\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 89,
+      "snippet": "\"file\": \"scripts/classify-demo-paths.ts\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 91,
+      "snippet": "\"term\": \"fallback\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 93,
+      "snippet": "\"snippet\": \"'PRODUCTION FALLBACK': occurrences.filter(o => o.category === 'PRODUCTION FALLBACK'),\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 96,
+      "snippet": "\"file\": \"scripts/classify-demo-paths.ts\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "mock",
+      "line": 98,
+      "snippet": "\"term\": \"mock\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "mock",
+      "line": 100,
+      "snippet": "\"snippet\": \"console.log(`- TEST CODE: ${byCategory['TEST CODE'].length} (Automated test suites, mock"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 103,
+      "snippet": "\"file\": \"scripts/classify-demo-paths.ts\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 105,
+      "snippet": "\"term\": \"fallback\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 107,
+      "snippet": "\"snippet\": \"console.log(`- PRODUCTION FALLBACK: ${byCategory['PRODUCTION FALLBACK'].length} (Bounded"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 110,
+      "snippet": "\"file\": \"scripts/classify-demo-paths.ts\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "sample",
+      "line": 112,
+      "snippet": "\"term\": \"sample\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 117,
+      "snippet": "\"file\": \"scripts/classify-demo-paths.ts\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "fake",
+      "line": 119,
+      "snippet": "\"term\": \"fake\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "fake",
+      "line": 121,
+      "snippet": "\"snippet\": \"// Check if any production code silently generates fake data on search\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 124,
+      "snippet": "\"file\": \"scripts/classify-demo-paths.ts\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "fake",
+      "line": 126,
+      "snippet": "\"term\": \"fake\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "fake",
+      "line": 128,
+      "snippet": "\"snippet\": \"(o.snippet.includes('Math.random') || o.snippet.includes('generateFake') || o.snippet.in"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 131,
+      "snippet": "\"file\": \"scripts/classify-demo-paths.ts\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "fake",
+      "line": 133,
+      "snippet": "\"term\": \"fake\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "fake",
+      "line": 135,
+      "snippet": "\"snippet\": \"console.log(`\\\\nSilent Fake Data Generators in Production Search/Workflow: ${silentGener"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 138,
+      "snippet": "\"file\": \"scripts/classify-demo-paths.ts\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "fake",
+      "line": 140,
+      "snippet": "\"term\": \"fake\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "fake",
+      "line": 142,
+      "snippet": "\"snippet\": \"console.log('✅ ZERO silent fake data generators detected in production search/investigat"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 145,
+      "snippet": "\"file\": \"scripts/classify-demo-paths.ts\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 147,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 149,
+      "snippet": "\"snippet\": \"fs.writeFileSync('docs/DEMO_PATHS_CLASSIFICATION.json', JSON.stringify({\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 152,
+      "snippet": "\"file\": \"scripts/classify-demo-paths.ts\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 154,
+      "snippet": "\"term\": \"fallback\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 156,
+      "snippet": "\"snippet\": \"productionFallback: byCategory['PRODUCTION FALLBACK'].length,\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 159,
+      "snippet": "\"file\": \"scripts/classify-demo-paths.ts\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "sample",
+      "line": 161,
+      "snippet": "\"term\": \"sample\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "sample",
+      "line": 163,
+      "snippet": "\"snippet\": \"sampleBreakdown: occurrences.slice(0, 200)\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 166,
+      "snippet": "\"file\": \"scripts/classify-demo-paths.ts\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 168,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 170,
+      "snippet": "\"snippet\": \"console.log('\\\\nSaved full classified inventory to docs/DEMO_PATHS_CLASSIFICATION.json')"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "sample",
+      "line": 175,
+      "snippet": "\"term\": \"sample\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "sample",
+      "line": 177,
+      "snippet": "\"snippet\": \"console.log(`  Sample Errors: ${s.errors.slice(0, 3).join(', ')}`);\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "simulation",
+      "line": 182,
+      "snippet": "\"term\": \"simulation\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "simulation",
+      "line": 184,
+      "snippet": "\"snippet\": \"// 5. 60-Second Continuous Playback Simulation\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 189,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "demo",
+      "line": 191,
+      "snippet": "\"snippet\": \"console.log('  ✅ Non-existent search returns zero results without demo fallback data.');"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 196,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 198,
+      "snippet": "\"snippet\": \"import { DEFAULT_DEMO_VIDEO_SOURCES, isValidYouTubeVideoId } from \\\"./src/services/DemoV"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 203,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 205,
+      "snippet": "\"snippet\": \"import { DemoVideoSource } from \\\"./src/video/types.js\\\";\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 210,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 212,
+      "snippet": "\"snippet\": \"import { sentinelDemoRecordingService } from \\\"./src/services/server/SentinelDemoRecordi"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "mock",
+      "line": 217,
+      "snippet": "\"term\": \"mock\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "mock",
+      "line": 219,
+      "snippet": "\"snippet\": \"// Mock Data Generators\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "mock",
+      "line": 224,
+      "snippet": "\"term\": \"mock\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 231,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 238,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 240,
+      "snippet": "\"snippet\": \"label: 'SIMULATED DEMO EVIDENCE',\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 245,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 247,
+      "snippet": "\"snippet\": \"// --- SCENARIO A: Vehicle GJ01AB1234 + Person P-DEMO-001 (Correlated 87%) ---\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 252,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 254,
+      "snippet": "\"snippet\": \"personTrackId: 'P-DEMO-001',\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 259,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 261,
+      "snippet": "\"snippet\": \"// --- SCENARIO B: Watchlist Match GJ05XY6789 + Person P-DEMO-002 ---\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 266,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 268,
+      "snippet": "\"snippet\": \"personTrackId: 'P-DEMO-002',\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 273,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 275,
+      "snippet": "\"snippet\": \"// --- SCENARIO C: Pedestrian Concourse Person-only P-DEMO-003 ---\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 280,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 282,
+      "snippet": "\"snippet\": \"personTrackId: 'P-DEMO-003',\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 287,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 289,
+      "snippet": "\"snippet\": \"// --- SCENARIO D: Wanted Vehicle Corridor GJ05AB1234 (V1.1 Demonstration) ---\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 294,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "TEST MODE",
+      "term": "demo",
+      "line": 296,
+      "snippet": "\"snippet\": \"const demoRunId = (req.headers['x-demo-run-id'] as string) || '';\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 301,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "TEST MODE",
+      "term": "demo",
+      "line": 303,
+      "snippet": "\"snippet\": \"if (demoRunId) {\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 308,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "TEST MODE",
+      "term": "demo",
+      "line": 310,
+      "snippet": "\"snippet\": \"ev.metadata.demoRunId = demoRunId;\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "simulation",
+      "line": 315,
+      "snippet": "\"term\": \"simulation\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "simulation",
+      "line": 317,
+      "snippet": "\"snippet\": \"await auditService.log('SIMULATION_ENGINE', 'MANUAL_ALERT_FIRED', manualAlert.id, 'CRITI"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "sample",
+      "line": 322,
+      "snippet": "\"term\": \"sample\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "sample",
+      "line": 324,
+      "snippet": "\"snippet\": \"clipUrl: `https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBla"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 329,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 331,
+      "snippet": "\"snippet\": \"label: 'SIMULATED DEMO EVIDENCE',\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 336,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 338,
+      "snippet": "\"snippet\": \"integrityNotice: 'Evidence Integrity Hash — DEMO (Calculated via SHA-256 over synthetic "
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "simulation",
+      "line": 343,
+      "snippet": "\"term\": \"simulation\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "simulation",
+      "line": 345,
+      "snippet": "\"snippet\": \"isSimulation: true,\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "fixture",
+      "line": 350,
+      "snippet": "\"term\": \"fixture\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "TEST MODE",
+      "term": "fixture",
+      "line": 352,
+      "snippet": "\"snippet\": \"sourceType: 'TEST_FIXTURE',\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "fixture",
+      "line": 357,
+      "snippet": "\"term\": \"fixture\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "TEST MODE",
+      "term": "fixture",
+      "line": 359,
+      "snippet": "\"snippet\": \"provenance: 'TEST_FIXTURE',\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 364,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 366,
+      "snippet": "\"snippet\": \"if (target.startsWith('P-DEMO') || target.startsWith('PERSON')) {\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 371,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 373,
+      "snippet": "\"snippet\": \"targetType: target.startsWith('P-DEMO') ? 'person' : 'vehicle',\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 378,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 380,
+      "snippet": "\"snippet\": \"const isPerson = target.startsWith('P-DEMO');\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "simulation",
+      "line": 385,
+      "snippet": "\"term\": \"simulation\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "simulation",
+      "line": 387,
+      "snippet": "\"snippet\": \"isSimulation: true,\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 392,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 394,
+      "snippet": "\"snippet\": \"label: 'SIMULATED DEMO EVIDENCE',\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 399,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 401,
+      "snippet": "\"snippet\": \"integrityNotice: 'Evidence Integrity Hash — DEMO (Calculated via SHA-256 over canonical "
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "simulation",
+      "line": 406,
+      "snippet": "\"term\": \"simulation\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 413,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 420,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 427,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 434,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 441,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 443,
+      "snippet": "\"snippet\": \"{ name: 'AI Demonstration Agent', component: 'AI Demonstration Agent', tier: 'Inference'"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "mock",
+      "line": 448,
+      "snippet": "\"term\": \"mock\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "simulation",
+      "line": 455,
+      "snippet": "\"term\": \"simulation\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 462,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "mock",
+      "line": 469,
+      "snippet": "\"term\": \"mock\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 476,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 483,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 485,
+      "snippet": "\"snippet\": \"mode: 'DEMO',\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "simulation",
+      "line": 490,
+      "snippet": "\"term\": \"simulation\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "simulation",
+      "line": 492,
+      "snippet": "\"snippet\": \"// Genuine Offline Simulation Execution & Verification\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 497,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 499,
+      "snippet": "\"snippet\": \"app.post('/api/central/demo/offline-run', async (req, res) => {\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 504,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 506,
+      "snippet": "\"snippet\": \"app.post('/api/central/demo/generate-batch', async (req, res) => {\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "sample",
+      "line": 511,
+      "snippet": "\"term\": \"sample\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "sample",
+      "line": 513,
+      "snippet": "\"snippet\": \"const samplePlates = ['GJ01AB1234', 'GJ05XY9988', 'GJ27CC4400', 'GJ01CD5678', 'GJ18FF112"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "sample",
+      "line": 518,
+      "snippet": "\"term\": \"sample\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "sample",
+      "line": 520,
+      "snippet": "\"snippet\": \"const plate = samplePlates[idx % samplePlates.length];\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "simulation",
+      "line": 525,
+      "snippet": "\"term\": \"simulation\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "simulation",
+      "line": 527,
+      "snippet": "\"snippet\": \"await auditService.log('SIMULATION_ENGINE', 'GENERATE_50_EVENTS', `50_EVENTS_INGESTED`, "
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 532,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 534,
+      "snippet": "\"snippet\": \"// Demo Video Sources Store (Presentation Layer)\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 539,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 541,
+      "snippet": "\"snippet\": \"const serverDemoVideoSources: DemoVideoSource[] = JSON.parse(JSON.stringify(DEFAULT_DEMO"
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 546,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 548,
+      "snippet": "\"snippet\": \"app.get('/api/video/demo/sources', (req, res) => {\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 553,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 555,
+      "snippet": "\"snippet\": \"sources: serverDemoVideoSources\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 560,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 562,
+      "snippet": "\"snippet\": \"app.post('/api/video/demo/sources/:id', (req, res) => {\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 567,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 569,
+      "snippet": "\"snippet\": \"const idx = serverDemoVideoSources.findIndex(s => s.id === id);\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 574,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 576,
+      "snippet": "\"snippet\": \"serverDemoVideoSources[idx].youtubeVideoId = youtubeVideoId.trim();\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 581,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 583,
+      "snippet": "\"snippet\": \"serverDemoVideoSources[idx].status = 'AVAILABLE';\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 588,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 590,
+      "snippet": "\"snippet\": \"return res.json({ status: 'ok', source: serverDemoVideoSources[idx] });\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 595,
+      "snippet": "\"term\": \"demo\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION CODE",
+      "term": "demo",
+      "line": 597,
+      "snippet": "\"snippet\": \"res.status(404).json({ status: 'NOT_FOUND', message: 'Demo source not found.' });\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 601,
+      "snippet": "\"category\": \"PRODUCTION FALLBACK\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 602,
+      "snippet": "\"term\": \"fallback\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 604,
+      "snippet": "\"snippet\": \"console.warn('[Sentinel] Using fallback camera catalogue:', err?.message);\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 608,
+      "snippet": "\"category\": \"PRODUCTION FALLBACK\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 609,
+      "snippet": "\"term\": \"fallback\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 611,
+      "snippet": "\"snippet\": \"const fallbackCameras = sentinelServerService.getFallbackCameras();\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 615,
+      "snippet": "\"category\": \"PRODUCTION FALLBACK\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 616,
+      "snippet": "\"term\": \"fallback\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 618,
+      "snippet": "\"snippet\": \"fallback: true,\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 622,
+      "snippet": "\"category\": \"PRODUCTION FALLBACK\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 623,
+      "snippet": "\"term\": \"fallback\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 625,
+      "snippet": "\"snippet\": \"cameraCount: fallbackCameras.length,\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 629,
+      "snippet": "\"category\": \"PRODUCTION FALLBACK\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 630,
+      "snippet": "\"term\": \"fallback\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 632,
+      "snippet": "\"snippet\": \"cameras: fallbackCameras\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 636,
+      "snippet": "\"category\": \"PRODUCTION FALLBACK\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 637,
+      "snippet": "\"term\": \"fallback\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 639,
+      "snippet": "\"snippet\": \"const fallbackCameras = sentinelServerService.getFallbackCameras();\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 643,
+      "snippet": "\"category\": \"PRODUCTION FALLBACK\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 644,
+      "snippet": "\"term\": \"fallback\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 646,
+      "snippet": "\"snippet\": \"version: '2026.1-fallback',\""
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 650,
+      "snippet": "\"category\": \"PRODUCTION FALLBACK\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 651,
+      "snippet": "\"term\": \"fallback\","
+    },
+    {
+      "file": "docs/DEMO_PATHS_CLASSIFICATION.json",
+      "category": "PRODUCTION FALLBACK",
+      "term": "fallback",
+      "line": 653,
+      "snippet": "\"snippet\": \"cameraCount: fallbackCameras.length,\""
+    }
+  ]
+}

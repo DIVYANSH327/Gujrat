@@ -75,8 +75,8 @@ export class CircuitBreaker {
       // Canary failed; immediately re-open
       this.transitionTo('OPEN');
     } else if (this.state === 'CLOSED') {
-      // Trip if threshold reached or 429 threshold reached
-      if (this.consecutive429s >= 2 || this.consecutiveFailures >= this.failureThreshold) {
+      // Trip immediately on rate-limit (429) or if failure threshold reached
+      if (isRateLimit || this.consecutive429s >= 1 || this.consecutiveFailures >= this.failureThreshold) {
         this.transitionTo('OPEN');
       }
     }

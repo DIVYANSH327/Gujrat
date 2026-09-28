@@ -1,8 +1,9 @@
 # Google Cloud Build Pipeline for Sentinel Grid
 # Gujarat Police CCTV & AI Intelligence Platform
+# Target: gujrat-cctv / asia-south1 / sentinel-grid
 
 steps:
-  # Step 1: Build Docker Container Image
+  # Step 1: Build Production Container Image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'build'
@@ -12,19 +13,19 @@ steps:
       - 'asia-south1-docker.pkg.dev/$PROJECT_ID/sentinel-grid/sentinel-server:latest'
       - '.'
 
-  # Step 2: Push Container to Artifact Registry
+  # Step 2: Push Container Image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       - 'push'
       - 'asia-south1-docker.pkg.dev/$PROJECT_ID/sentinel-grid/sentinel-server:$SHORT_SHA'
 
-  # Step 3: Deploy to Google Cloud Run
+  # Step 3: Deploy to Google Cloud Run in asia-south1
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
       - 'run'
       - 'deploy'
-      - 'sentinel-grid-service'
+      - 'sentinel-grid'
       - '--image=asia-south1-docker.pkg.dev/$PROJECT_ID/sentinel-grid/sentinel-server:$SHORT_SHA'
       - '--region=asia-south1'
       - '--platform=managed'
@@ -32,9 +33,10 @@ steps:
       - '--port=3000'
       - '--cpu=2'
       - '--memory=2Gi'
-      - '--min-instances=1'
+      - '--min-instances=0'
       - '--max-instances=10'
-      - '--set-env-vars=NODE_ENV=production,ENABLE_GOOGLE_CLOUD_SYNC=true,GCP_BIGQUERY_DATASET=police_surveillance_mesh,GCP_GCS_EVIDENCE_BUCKET=gujarat-police-cctv-evidence-asia-south1'
+      - '--service-account=sentinel-runtime@gujrat-cctv.iam.gserviceaccount.com'
+      - '--set-env-vars=NODE_ENV=production,GOOGLE_CLOUD_PROJECT=gujrat-cctv,GOOGLE_CLOUD_PROJECT_NUMBER=264410664731,GOOGLE_CLOUD_REGION=asia-south1,VERTEX_AI_LOCATION=asia-south1,GCS_BUCKET=sentinel-evidence-gujrat-cctv,BIGQUERY_DATASET=sentinel_poc,BIGQUERY_TABLE=observations,PUBSUB_TOPIC=sentinel-poc-observations'
 
 images:
   - 'asia-south1-docker.pkg.dev/$PROJECT_ID/sentinel-grid/sentinel-server:$SHORT_SHA'

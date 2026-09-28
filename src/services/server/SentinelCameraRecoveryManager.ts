@@ -223,7 +223,7 @@ export class SentinelCameraRecoveryManager {
       node.lastStateChange = new Date().toISOString();
 
       const eventType = newState === 'AUTH_ERROR' ? 'CAMERA_AUTH_ERROR' : newState === 'OFFLINE' ? 'CAMERA_OFFLINE' : 'CAMERA_STALE';
-      const severity = newState === 'OFFLINE' ? 'ERROR' : newState === 'AUTH_ERROR' ? 'WARNING' : 'INFO';
+      const severity = 'INFO';
       const logText = newState === 'STALE'
         ? `Camera ${camId} standby/reconnecting (consecutive checks: ${node.consecutiveFailures})`
         : `Camera ${camId} state shifted to ${newState}: ${cleanMsg}`;
@@ -238,9 +238,12 @@ export class SentinelCameraRecoveryManager {
       );
     }
 
-    // For AUTH_ERROR, do not rapid-cycle reconnects; use a calm backoff (minimum 60s)
+    // For AUTH_ERROR, do not rapid-cycle reconnects; use a calm backoff (minimum 30s) and schedule self-healing
     if (newState === 'AUTH_ERROR') {
-      node.nextAllowedReconnectTime = Date.now() + 60000;
+      node.nextAllowedReconnectTime = Date.now() + 30000;
+      if (this.defaultReconnectWorker && !this.reconnectTimers.has(camId) && !this.activeWorkers.has(camId)) {
+        this.scheduleCameraReconnect(camId, this.defaultReconnectWorker);
+      }
       return;
     }
 

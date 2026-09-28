@@ -242,6 +242,11 @@ export class BackgroundIntelligenceService {
 
     if (this.pollTimer) clearInterval(this.pollTimer);
     this.pollTimer = setInterval(async () => {
+      // Avoid network activity if the page/tab is currently hidden
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return;
+      }
+
       try {
         const res = await fetch('/api/sentinel/intelligence/status');
         if (res.ok) {
@@ -271,7 +276,7 @@ export class BackgroundIntelligenceService {
       } catch {
         // Transient network notice in preview environment
       }
-    }, 4000);
+    }, 25000);
   }
 
   // React Subscription API: Component unmounting DOES NOT affect the background worker or tasks!

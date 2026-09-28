@@ -67,11 +67,12 @@ export interface GcpPocDiagnosticsPayload {
     monthlyBudgetSafetyTier: string;
   };
   resources: {
-    pubsub: GcpPocResourceStatus;
-    dataflow: GcpPocResourceStatus;
-    bigquery: GcpPocResourceStatus;
-    cloudStorage: GcpPocResourceStatus;
-    costGuard: GcpPocResourceStatus;
+    pubsub?: GcpPocResourceStatus;
+    dataflow?: GcpPocResourceStatus;
+    bigquery?: GcpPocResourceStatus;
+    bigQuery?: GcpPocResourceStatus;
+    cloudStorage?: GcpPocResourceStatus;
+    costGuard?: GcpPocResourceStatus;
   };
   spoolMetrics: {
     pendingSpoolEvents: number;
@@ -431,11 +432,11 @@ export const GcpPocDiagnosticsPanel: React.FC<GcpPocDiagnosticsPanelProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="bg-slate-900/80 border border-slate-800 rounded-lg p-3 space-y-1">
               <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Project ID</span>
-              <div className="font-mono text-xs font-semibold text-slate-200 truncate" title={diagnostics?.projectIdentity.projectId}>
-                {diagnostics?.projectIdentity.projectId || 'ais-asia-southeast1-9e118291d7'}
+              <div className="font-mono text-xs font-semibold text-slate-200 truncate" title={diagnostics?.projectIdentity?.projectId}>
+                {diagnostics?.projectIdentity?.projectId || 'gujrat-cctv'}
               </div>
               <div className="text-[10px] text-slate-400">
-                Number: {diagnostics?.projectIdentity.projectNumber || '792282820119'}
+                Number: {diagnostics?.projectIdentity?.projectNumber || '264410664731'}
               </div>
             </div>
 
@@ -443,7 +444,7 @@ export const GcpPocDiagnosticsPanel: React.FC<GcpPocDiagnosticsPanelProps> = ({
               <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">GCP Billing / Credits</span>
               <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
                 <CheckCircle2 size={13} />
-                <span>Credits Active ({diagnostics?.projectIdentity.allocatedBalance || '₹28,662'})</span>
+                <span>Credits Active ({diagnostics?.projectIdentity?.allocatedBalance || '₹28,662'})</span>
               </div>
               <div className="text-[10px] text-emerald-400/80">
                 Protected by 0-Continuous Stream Lock
@@ -454,18 +455,18 @@ export const GcpPocDiagnosticsPanel: React.FC<GcpPocDiagnosticsPanelProps> = ({
               <span className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Spool Backpressure</span>
               <div className="flex items-center justify-between text-xs font-semibold">
                 <span className="font-mono text-slate-200">
-                  {diagnostics?.spoolMetrics.pendingSpoolEvents ?? 0} / {diagnostics?.spoolMetrics.maxSpoolCapacity ?? 2000} evts
+                  {diagnostics?.spoolMetrics?.pendingSpoolEvents ?? 0} / {diagnostics?.spoolMetrics?.maxSpoolCapacity ?? 2000} evts
                 </span>
                 <span className={`px-1.5 py-0.2 rounded text-[10px] ${
-                  diagnostics?.spoolMetrics.spoolBackpressure
+                  diagnostics?.spoolMetrics?.spoolBackpressure
                     ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40'
                     : 'bg-emerald-500/10 text-emerald-300'
                 }`}>
-                  {diagnostics?.spoolMetrics.spoolBackpressure ? 'PRESSURE' : 'NORMAL'}
+                  {diagnostics?.spoolMetrics?.spoolBackpressure ? 'PRESSURE' : 'NORMAL'}
                 </span>
               </div>
               <div className="text-[10px] text-slate-400">
-                Dispatched: {diagnostics?.spoolMetrics.dispatchedEvents ?? 0} · Drops: {diagnostics?.spoolMetrics.droppedEvents ?? 0}
+                Dispatched: {diagnostics?.spoolMetrics?.dispatchedEvents ?? 0} · Drops: {diagnostics?.spoolMetrics?.droppedEvents ?? 0}
               </div>
             </div>
 
@@ -500,7 +501,7 @@ export const GcpPocDiagnosticsPanel: React.FC<GcpPocDiagnosticsPanelProps> = ({
                   Google Pub/Sub
                 </span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
-                  {diagnostics?.resources.pubsub.status || 'STANDBY_LOCAL'}
+                  {diagnostics?.resources?.pubsub?.status || 'STANDBY_LOCAL'}
                 </span>
               </div>
               <div className="space-y-1 text-xs">
@@ -518,7 +519,7 @@ export const GcpPocDiagnosticsPanel: React.FC<GcpPocDiagnosticsPanelProps> = ({
                   Apache Beam Dataflow
                 </span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
-                  {diagnostics?.resources.dataflow.status || 'STANDBY_LOCAL'}
+                  {diagnostics?.resources?.dataflow?.status || 'STANDBY_LOCAL'}
                 </span>
               </div>
               <div className="space-y-1 text-xs">
@@ -536,7 +537,7 @@ export const GcpPocDiagnosticsPanel: React.FC<GcpPocDiagnosticsPanelProps> = ({
                   BigQuery Analytics
                 </span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
-                  {diagnostics?.resources.bigquery.status || 'STANDBY_LOCAL'}
+                  {diagnostics?.resources?.bigQuery?.status || diagnostics?.resources?.bigquery?.status || 'STANDBY_LOCAL'}
                 </span>
               </div>
               <div className="space-y-1 text-xs">
@@ -554,7 +555,7 @@ export const GcpPocDiagnosticsPanel: React.FC<GcpPocDiagnosticsPanelProps> = ({
                   GCS Evidence Vault
                 </span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300">
-                  {diagnostics?.resources.cloudStorage.status || 'STANDBY_LOCAL'}
+                  {diagnostics?.resources?.cloudStorage?.status || 'STANDBY_LOCAL'}
                 </span>
               </div>
               <div className="space-y-1 text-xs">
@@ -568,9 +569,10 @@ export const GcpPocDiagnosticsPanel: React.FC<GcpPocDiagnosticsPanelProps> = ({
       )}
 
       {/* TAB 2: DETAILED RESOURCES */}
-      {activeTab === 'RESOURCES' && diagnostics && (
+      {activeTab === 'RESOURCES' && diagnostics?.resources && (
         <div className="space-y-3">
           {Object.entries(diagnostics.resources).map(([key, resource]) => {
+            if (!resource) return null;
             const resStatus = getStatusBadge(resource.status);
             return (
               <div key={key} className="bg-slate-900/90 border border-slate-800 rounded-lg p-4 space-y-3">
@@ -584,31 +586,33 @@ export const GcpPocDiagnosticsPanel: React.FC<GcpPocDiagnosticsPanelProps> = ({
                       {resource.resourceType === 'COST_GUARD' && <Shield size={16} />}
                     </div>
                     <div>
-                      <h4 className="text-sm font-semibold text-white">{resource.name}</h4>
-                      <p className="text-[11px] font-mono text-slate-400">{resource.resourceId}</p>
+                      <h4 className="text-sm font-semibold text-white">{resource.name || key}</h4>
+                      <p className="text-[11px] font-mono text-slate-400">{resource.resourceId || 'N/A'}</p>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
                     <span className={`px-2 py-0.5 rounded text-[11px] font-semibold border ${resStatus.bg}`}>
-                      {resource.stateLabel}
+                      {resource.stateLabel || resource.status}
                     </span>
                     <span className="text-[10px] text-slate-400 font-mono">
-                      Checked: {new Date(resource.lastCheckedIso).toLocaleTimeString('en-GB')}
+                      Checked: {resource.lastCheckedIso ? new Date(resource.lastCheckedIso).toLocaleTimeString('en-GB') : 'N/A'}
                     </span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 text-xs">
-                  {Object.entries(resource.details).map(([dKey, dVal]) => (
-                    <div key={dKey} className="bg-slate-950/60 p-2 rounded border border-slate-800/60">
-                      <div className="text-[10px] font-mono text-slate-400 uppercase">{dKey}</div>
-                      <div className="font-mono text-slate-200 font-medium truncate" title={String(dVal)}>
-                        {typeof dVal === 'boolean' ? (dVal ? 'TRUE' : 'FALSE') : String(dVal)}
+                {resource.details && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 text-xs">
+                    {Object.entries(resource.details).map(([dKey, dVal]) => (
+                      <div key={dKey} className="bg-slate-950/60 p-2 rounded border border-slate-800/60">
+                        <div className="text-[10px] font-mono text-slate-400 uppercase">{dKey}</div>
+                        <div className="font-mono text-slate-200 font-medium truncate" title={String(dVal)}>
+                          {typeof dVal === 'boolean' ? (dVal ? 'TRUE' : 'FALSE') : String(dVal)}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}

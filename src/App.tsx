@@ -35,6 +35,7 @@ import { GeospatialMapView } from './components/geospatial/GeospatialMapView';
 import { PlateIntelligenceMapView } from './components/geospatial/PlateIntelligenceMapView';
 import { SentinelCameraGridLab } from './components/SentinelCameraGridLab';
 import { SentinelHealthIndicator } from './components/SentinelHealthIndicator';
+import { CloudSyncStatus } from './components/cloud/CloudSyncStatus';
 import { NightAuditView } from './components/night-audit/NightAuditView';
 import { AlertNotificationToast } from './components/AlertNotificationToast';
 import { DefensiveCyberSecurityPanel } from './components/vision/DefensiveCyberSecurityPanel';
@@ -389,6 +390,7 @@ function SentinelCommandApp() {
 
         {/* Right: Notifications, Officer Profile, Online Status */}
         <div className="flex items-center gap-2 sm:gap-3">
+          <CloudSyncStatus />
           <SentinelHealthIndicator />
           {/* Online Status Pill */}
           <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-full">

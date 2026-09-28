@@ -187,12 +187,15 @@ export class LocalEvidenceStore implements EvidenceStore {
   }): Promise<EvidenceStorageResult> {
     const buf = Buffer.isBuffer(params.buffer) ? params.buffer : Buffer.from(params.buffer);
     const sha256 = crypto.createHash('sha256').update(buf).digest('hex');
-    const evidenceId = `EVID-DERIVED-${params.cameraId}-${Date.now()}-${sha256.substring(0, 8)}`;
+    const safeCam = params.cameraId || 'UNKNOWN_CAM';
+    const evidenceId = `EVID-DERIVED-${safeCam}-${Date.now()}-${sha256.substring(0, 8)}`;
+    const safeTimestamp = (typeof params.timestamp === 'number' && !isNaN(params.timestamp)) ? params.timestamp : Date.now();
 
-    const dateStr = new Date(params.timestamp).toISOString().split('T')[0];
+    const dateStr = new Date(safeTimestamp).toISOString().split('T')[0];
     const region = params.region || 'gujarat-statewide';
     const incidentSegment = params.incidentId ? `incident/${params.incidentId}/` : '';
-    const storageUri = `local://${region}/${params.cameraId}/${dateStr}/${incidentSegment}derived/${params.enhancementType.toLowerCase()}/${evidenceId}.jpg`;
+    const enhancement = (params.enhancementType || 'NONE').toLowerCase();
+    const storageUri = `local://${region}/${safeCam}/${dateStr}/${incidentSegment}derived/${enhancement}/${evidenceId}.jpg`;
 
     const record: StoredEvidenceRecord = {
       evidenceId,
@@ -201,12 +204,12 @@ export class LocalEvidenceStore implements EvidenceStore {
       sha256,
       byteLength: buf.length,
       isOriginal: false,
-      originalSha256: params.originalSha256,
-      enhancementType: params.enhancementType,
-      cameraId: params.cameraId,
+      originalSha256: params.originalSha256 || 'ORIGINAL_SHA256_UNSPECIFIED',
+      enhancementType: params.enhancementType || 'NONE',
+      cameraId: safeCam,
       region,
       incidentId: params.incidentId,
-      captureTimestamp: new Date(params.timestamp).toISOString(),
+      captureTimestamp: new Date(safeTimestamp).toISOString(),
       storedAt: new Date().toISOString(),
       mimeType: params.mimeType || 'image/jpeg'
     };

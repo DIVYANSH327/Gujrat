@@ -255,7 +255,7 @@ export class VideoStreamService {
         cleanStderr.includes('method DESCRIBE failed')
       ) {
         logCategory = 'STREAM_ERROR';
-        console.warn(`[VideoStreamService] [${logCategory}] Stream session for ${camId} connection notice. Code: ${code}. Stderr: ${cleanStderr.slice(-150)}`);
+        console.info(`[VideoStreamService] [${logCategory}] Stream session for ${camId} connection notice. Code: ${code}.`);
         if (cleanStderr.includes('401') || cleanStderr.includes('authorization failed')) {
           sentinelServerService.rotateCredentialsOnAuthFailure(selectedPassword);
           if ((previousSession?.reconnectCount || 0) < 3) {

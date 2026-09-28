@@ -32,7 +32,7 @@ export const SentinelThumbnailTile: React.FC<SentinelThumbnailTileProps> = ({
   camera,
   isSelected = false,
   isImported = false,
-  pollIntervalMs = 15000,
+  pollIntervalMs = 30000,
   isPaused = false,
   onSelect,
   onOpenInCamerasView,
@@ -66,6 +66,7 @@ export const SentinelThumbnailTile: React.FC<SentinelThumbnailTileProps> = ({
 
     const fetchNextFrame = async () => {
       if (!isMountedRef.current || isPaused) return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
 
       const nextUrl = `/api/sentinel/thumbnail/${camera.id.toLowerCase()}?t=${Date.now()}`;
       try {

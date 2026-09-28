@@ -7,6 +7,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { User, signInWithPopup, signOut as fbSignOut, onAuthStateChanged, getIdToken } from 'firebase/auth';
 import { auth, googleProvider } from '../services/FirebaseService';
 import { SentinelUser, SentinelRole, SentinelAccountStatus, hasPermission as checkPermission, hasAnyRole } from '../types/auth';
+import { syncUserProfileToFirestore } from '../services/auth/FirestoreUserPersistence';
 
 export type AuthFlowStatus = 
   | 'IDLE'
@@ -28,6 +29,8 @@ interface AuthContextType {
   accountStatus: SentinelAccountStatus | null;
   loginWithGoogle: () => Promise<void>;
   loginWithDemoOfficer: (email: string) => Promise<void>;
+  loginAsGuest: (name?: string, email?: string) => Promise<void>;
+  loginWithCustomCredentials: (name: string, email: string, role?: SentinelRole) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
   hasPermission: (permission: string) => boolean;
@@ -167,6 +170,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAccountStatus(verifiedUser.status);
       setStatus('AUTHENTICATED');
 
+      // Persist user record into Cloud Firestore
+      const isGoogle = userClaims?.email?.includes('@gmail.com') || (!rawToken.startsWith('test-token:'));
+      syncUserProfileToFirestore(verifiedUser, isGoogle ? 'google.com' : 'demo').catch((err) => {
+        console.warn('[SentinelAuth] Non-blocking Firestore profile sync note:', err);
+      });
+
       try {
         localStorage.setItem(STORAGE_TOKEN_KEY, rawToken);
         localStorage.setItem(STORAGE_OFFICER_KEY, JSON.stringify(verifiedUser));
@@ -182,6 +191,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(rawToken || DEFAULT_TOKEN);
       setAccountStatus('ACTIVE');
       setStatus('AUTHENTICATED');
+      syncUserProfileToFirestore(DEFAULT_OFFICER, 'demo').catch(() => {});
       return true;
     }
   }, []);
@@ -303,6 +313,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  // Instant Guest Observer access (zero barriers: allows anyone to enter and explore Sentinel Grid)
+  const loginAsGuest = async (customName = 'Guest Observer', customEmail = 'guest.observer@gujaratpolice.gov.in') => {
+    setStatus('AUTHENTICATING');
+    setErrorMessage(null);
+
+    const guestToken = `test-token:${customEmail}:uid-guest-${Date.now()}`;
+    await verifyTokenWithBackend(guestToken, {
+      email: customEmail,
+      displayName: customName,
+      uid: `uid-guest-${Date.now()}`
+    });
+  };
+
+  // Custom User / Officer credential login (allows anyone to enter their name & email)
+  const loginWithCustomCredentials = async (name: string, email: string, role: SentinelRole = 'COMMANDER') => {
+    setStatus('AUTHENTICATING');
+    setErrorMessage(null);
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim() || cleanEmail.split('@')[0] || 'Authorized Officer';
+    const customToken = `test-token:${cleanEmail}:uid-user-${Date.now()}`;
+
+    await verifyTokenWithBackend(customToken, {
+      email: cleanEmail,
+      displayName: cleanName,
+      uid: `uid-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`
+    });
+  };
+
   // Sign out handler
   const logout = async () => {
     try {
@@ -369,6 +408,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         accountStatus,
         loginWithGoogle,
         loginWithDemoOfficer,
+        loginAsGuest,
+        loginWithCustomCredentials,
         logout,
         clearError,
         hasPermission: checkUserPermission,

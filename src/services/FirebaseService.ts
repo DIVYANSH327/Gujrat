@@ -16,8 +16,24 @@ import {
   browserLocalPersistence, 
   setPersistence 
 } from 'firebase/auth';
-import { getFirestore, Firestore, doc, getDocFromServer } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  initializeFirestore, 
+  Firestore, 
+  doc, 
+  getDocFromServer,
+  setLogLevel 
+} from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
+
+// Silence verbose transient offline/retry warnings in browser console
+if (typeof window !== 'undefined') {
+  try {
+    setLogLevel('error');
+  } catch {
+    // ignore
+  }
+}
 
 /**
  * Evaluates whether the system is running in strict LOCAL_ONLY / offline mode.
@@ -62,8 +78,21 @@ if (!isLocalMode()) {
     
     // Explicit check to stop Firestore if in local mode
     if (!isLocalMode()) {
-      db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
-      isFirestoreEnabled = true;
+      const dbId = (firebaseConfig as any).firestoreDatabaseId;
+      try {
+        db = initializeFirestore(app, {
+          experimentalForceLongPolling: true,
+        }, dbId);
+        isFirestoreEnabled = true;
+      } catch {
+        try {
+          db = getFirestore(app, dbId);
+          isFirestoreEnabled = true;
+        } catch {
+          db = null;
+          isFirestoreEnabled = false;
+        }
+      }
     } else {
       db = null;
       isFirestoreEnabled = false;
@@ -84,8 +113,21 @@ if (!isLocalMode()) {
       app = initializeApp(firebaseConfig, 'sentinel-fallback');
       auth = getAuth(app);
       if (!isLocalMode()) {
-        db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
-        isFirestoreEnabled = true;
+        const dbId = (firebaseConfig as any).firestoreDatabaseId;
+        try {
+          db = initializeFirestore(app, {
+            experimentalForceLongPolling: true,
+          }, dbId);
+          isFirestoreEnabled = true;
+        } catch {
+          try {
+            db = getFirestore(app, dbId);
+            isFirestoreEnabled = true;
+          } catch {
+            db = null;
+            isFirestoreEnabled = false;
+          }
+        }
       } else {
         db = null;
         isFirestoreEnabled = false;

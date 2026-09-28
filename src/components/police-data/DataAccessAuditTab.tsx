@@ -21,7 +21,7 @@ export function DataAccessAuditTab() {
 
   useEffect(() => {
     refreshLogs();
-    const interval = setInterval(refreshLogs, 3000);
+    const interval = setInterval(refreshLogs, 10000);
     return () => clearInterval(interval);
   }, []);
 

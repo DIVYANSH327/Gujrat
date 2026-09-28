@@ -175,7 +175,7 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({
 
   useEffect(() => {
     refreshState();
-    const timer = setInterval(refreshState, 4000);
+    const timer = setInterval(refreshState, 20000);
 
     const unsub1 = sysEvents.on('MISSION_UPDATED', refreshState);
     const unsub2 = sysEvents.on('INCIDENT_UPDATED', refreshState);

@@ -37,7 +37,12 @@ import {
   Layers,
   Filter,
   ChevronsUpDown,
-  Cloud
+  Cloud,
+  BookOpen,
+  HelpCircle,
+  ExternalLink,
+  FileCheck,
+  PhoneCall
 } from 'lucide-react';
 import { ViewMode } from '../types';
 import { PROJECT_BRANDING } from '../branding';
@@ -90,6 +95,8 @@ export function Sidebar({
   const { officer, hasPermission } = useAuth();
   const [filterText, setFilterText] = useState('');
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('ALL');
+  const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
+  const [activeDocsTab, setActiveDocsTab] = useState<'sop' | 'bsa' | 'hsrp' | 'escalation'>('sop');
   
   // Drawer ref for background outside-click detection
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -151,6 +158,20 @@ export function Sidebar({
           icon: <Radio size={18} />,
           badge: 'INGESTION LAB',
           badgeColor: 'bg-blue-50 text-blue-700 border-blue-200'
+        },
+        { 
+          id: 'federated', 
+          label: 'Federated Mesh', 
+          sub: 'District Video Gateways',
+          icon: <Globe size={18} />,
+          badge: 'FEDERATED',
+          badgeColor: 'bg-cyan-50 text-cyan-700 border-cyan-200'
+        },
+        { 
+          id: 'youtube_demo', 
+          label: 'YouTube Testbed', 
+          sub: 'Verified Live Test Streams',
+          icon: <Tv size={18} />
         },
         { 
           id: 'mobile_camera', 
@@ -316,6 +337,22 @@ export function Sidebar({
           label: 'AI Model Training', 
           sub: 'Edge Model Fine-Tuning',
           icon: <Workflow size={18} />
+        },
+        { 
+          id: 'system_brain', 
+          label: 'System Brain', 
+          sub: 'Cognitive Architecture Graph',
+          icon: <Cpu size={18} />,
+          badge: 'BRAIN',
+          badgeColor: 'bg-purple-50 text-purple-700 border-purple-200'
+        },
+        { 
+          id: 'digital_twin', 
+          label: '80k Digital Twin', 
+          sub: 'Statewide Scale Simulator',
+          icon: <Layers size={18} />,
+          badge: '80K MESH',
+          badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200'
         }
       ]
     },
@@ -341,6 +378,14 @@ export function Sidebar({
           label: 'System Health', 
           sub: 'Hardware & Diagnostics',
           icon: <Activity size={18} />
+        },
+        { 
+          id: 'scale_lab', 
+          label: 'Scale Lab', 
+          sub: 'High-Concurrency Benchmarks',
+          icon: <Scale size={18} />,
+          badge: 'BENCHMARK',
+          badgeColor: 'bg-blue-50 text-blue-700 border-blue-200'
         },
         { 
           id: 'nodes', 
@@ -692,6 +737,32 @@ export function Sidebar({
         )}
       </nav>
 
+      {/* Quick Help & Operational Documentation Section */}
+      <div className="p-3 border-t border-slate-200 bg-slate-50/70 shrink-0 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+            <BookOpen size={14} className="text-blue-600" />
+            <span>Manuals & SOP</span>
+          </div>
+          <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">
+            SCRB v0.7
+          </span>
+        </div>
+
+        <button
+          id="sidebar-open-manuals-button"
+          type="button"
+          onClick={() => setIsDocsModalOpen(true)}
+          className="w-full flex items-center justify-between px-2.5 py-2 rounded-xl bg-white hover:bg-blue-50/60 border border-slate-200 hover:border-blue-300 text-xs text-slate-700 hover:text-blue-700 hover:shadow-2xs transition group cursor-pointer"
+        >
+          <span className="flex items-center gap-2 truncate">
+            <HelpCircle size={14} className="text-slate-400 group-hover:text-blue-600 shrink-0" />
+            <span className="truncate font-medium">Operational Procedures</span>
+          </span>
+          <ExternalLink size={12} className="text-slate-400 group-hover:text-blue-600 shrink-0 ml-1" />
+        </button>
+      </div>
+
       {/* Subtle Sidebar Footer */}
       <div className="p-3 border-t border-slate-200 bg-slate-50 text-xs space-y-1 shrink-0">
         <div className="flex items-center justify-between text-slate-600 font-medium">
@@ -762,7 +833,17 @@ export function Sidebar({
         })}
       </nav>
 
-      <div className="p-2 border-t border-slate-200 flex justify-center shrink-0">
+      {/* Collapsed Rail Manuals Link */}
+      <div className="p-2 border-t border-slate-200 flex flex-col items-center justify-center gap-2 shrink-0">
+        <button
+          id="sidebar-rail-manuals-button"
+          type="button"
+          onClick={() => setIsDocsModalOpen(true)}
+          title="System Manuals & Operational SOPs"
+          className="w-10 h-10 rounded-xl bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 flex items-center justify-center text-slate-600 hover:text-blue-600 transition cursor-pointer"
+        >
+          <BookOpen size={18} />
+        </button>
         <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" title="System Online" />
       </div>
     </div>
@@ -803,6 +884,294 @@ export function Sidebar({
             className="relative w-80 max-w-[85vw] h-full shadow-2xl z-10 bg-white transform transition-transform duration-200 ease-out animate-in slide-in-from-left"
           >
             {sidebarContent}
+          </div>
+        </div>
+      )}
+
+      {/* System Manuals & Operational Procedures Modal */}
+      {isDocsModalOpen && (
+        <div 
+          id="system-manuals-modal-overlay"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs select-none"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="manuals-modal-title"
+        >
+          <div 
+            id="system-manuals-modal-panel"
+            className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+          >
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                  <BookOpen size={20} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 id="manuals-modal-title" className="text-base font-bold text-slate-900">
+                      Gujarat Police Sentinel Grid — Operational Manuals & SOP
+                    </h3>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200 uppercase font-mono">
+                      OFFICIAL GUIDE
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    State Crime Records Bureau (SCRB) Gandhinagar • Standardized Surveillance Operating Protocols
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDocsModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-xl transition cursor-pointer"
+                title="Close Manuals"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Navigation Tabs */}
+            <div className="px-6 pt-3 border-b border-slate-200 bg-white flex items-center gap-2 overflow-x-auto shrink-0 custom-scrollbar">
+              <button
+                type="button"
+                onClick={() => setActiveDocsTab('sop')}
+                className={`px-3.5 py-2 text-xs font-semibold rounded-t-xl border-b-2 transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                  activeDocsTab === 'sop'
+                    ? 'border-blue-600 text-blue-600 bg-blue-50/50'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <Shield size={14} />
+                <span>1. Operator Surveillance SOP</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveDocsTab('bsa')}
+                className={`px-3.5 py-2 text-xs font-semibold rounded-t-xl border-b-2 transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                  activeDocsTab === 'bsa'
+                    ? 'border-blue-600 text-blue-600 bg-blue-50/50'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <FileCheck size={14} />
+                <span>2. BSA 2023 Evidence Protocol</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveDocsTab('hsrp')}
+                className={`px-3.5 py-2 text-xs font-semibold rounded-t-xl border-b-2 transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                  activeDocsTab === 'hsrp'
+                    ? 'border-blue-600 text-blue-600 bg-blue-50/50'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <Tag size={14} />
+                <span>3. HSRP & ANPR Adjudication</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveDocsTab('escalation')}
+                className={`px-3.5 py-2 text-xs font-semibold rounded-t-xl border-b-2 transition flex items-center gap-2 whitespace-nowrap cursor-pointer ${
+                  activeDocsTab === 'escalation'
+                    ? 'border-blue-600 text-blue-600 bg-blue-50/50'
+                    : 'border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                <PhoneCall size={14} />
+                <span>4. Emergency Escalation & Dial 112</span>
+              </button>
+            </div>
+
+            {/* Modal Body Content */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6 text-sm text-slate-700 custom-scrollbar leading-relaxed">
+              {activeDocsTab === 'sop' && (
+                <div className="space-y-5 animate-in fade-in duration-150">
+                  <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-blue-800">
+                      Standard Operating Procedure 01: CCTV Monitoring & Incident Triage
+                    </h4>
+                    <p className="text-xs text-blue-900 mt-1">
+                      Applicable to all Command & Control Centre (CCC) operators, district control rooms, and field mobile monitoring squads across Gujarat State.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-2">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                        <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">1</span>
+                        Live Stream Observation Protocol
+                      </div>
+                      <ul className="text-xs text-slate-600 space-y-1.5 list-disc pl-5">
+                        <li>Maintain active surveillance across assigned camera matrices and critical junction corridors.</li>
+                        <li>Verify stream health indicator (green/amber) before logging operational incidents.</li>
+                        <li>Do not mark simulated or testbed feeds as active field alerts.</li>
+                      </ul>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-2">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                        <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">2</span>
+                        Real-Time Incident Logging
+                      </div>
+                      <ul className="text-xs text-slate-600 space-y-1.5 list-disc pl-5">
+                        <li>Immediately click "Log Incident" upon observing traffic gridlock, suspicious movement, or road accidents.</li>
+                        <li>Input exact landmark, camera ID, vehicle class, and direction of travel.</li>
+                        <li>Assign initial severity rating (P1 Critical, P2 High, P3 Routine).</li>
+                      </ul>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-2">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                        <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">3</span>
+                        Watchlist & Hotlist Alert Handling
+                      </div>
+                      <ul className="text-xs text-slate-600 space-y-1.5 list-disc pl-5">
+                        <li>Automatic OCR triggers audio-visual notification upon candidate plate match.</li>
+                        <li>Operator must visually corroborate raw crop image against candidate plate before dispatch.</li>
+                        <li>Click "Verify Match" to preserve human-in-the-loop audit trail.</li>
+                      </ul>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-slate-200 bg-white shadow-2xs space-y-2">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                        <span className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">4</span>
+                        Shift Handover & Daily Log Reconciliation
+                      </div>
+                      <ul className="text-xs text-slate-600 space-y-1.5 list-disc pl-5">
+                        <li>Run Night CCTV Audit report before concluding duty shift.</li>
+                        <li>Reconcile pending HITL review items with incoming shift duty officer.</li>
+                        <li>Confirm all cryptographic audit tokens are recorded in the central ledger.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeDocsTab === 'bsa' && (
+                <div className="space-y-5 animate-in fade-in duration-150">
+                  <div className="p-4 rounded-xl bg-amber-50 border border-amber-200">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900">
+                      Bharatiya Sakshya Adhiniyam, 2023 (BSA 2023) — Section 63 Digital Evidence Vault
+                    </h4>
+                    <p className="text-xs text-amber-800 mt-1">
+                      Legal standards governing admissibility of electronic records produced by computer systems and CCTV network infrastructure.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
+                      <h5 className="text-xs font-bold text-slate-900">1. Cryptographic SHA-256 Immutability</h5>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Every camera frame, vehicle crop, and plate detection recorded by Sentinel Grid is hashed instantaneously using SHA-256 upon memory ingestion. The resulting 64-character hexadecimal digest acts as a non-reputable digital fingerprint. Original raw frames are permanently isolated from derived analytical overlays.
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
+                      <h5 className="text-xs font-bold text-slate-900">2. Section 63 Certificate Generation</h5>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        When submitting surveillance video or ANPR crops into judicial proceedings, officers must generate the formal "Section 63 BSA Certificate". The document affirms computer system integrity, lawful possession, and continuous operation during capture.
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
+                      <h5 className="text-xs font-bold text-slate-900">3. Tamper Verification & Hash Validation</h5>
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        Evidence records support instantaneous cryptographic round-trip verification. If an evidence file undergoes unauthorized alteration, the recalculated SHA-256 digest fails verification, immediately flagging the record as TAMPERED and barring judicial submission.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeDocsTab === 'hsrp' && (
+                <div className="space-y-5 animate-in fade-in duration-150">
+                  <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-200">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-900">
+                      High Security Registration Plate (HSRP) & e-Challan Adjudication Protocol
+                    </h4>
+                    <p className="text-xs text-indigo-800 mt-1">
+                      Motor Vehicles Act enforcement guidelines for holographic emblem verification and automated violation adjudication.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
+                      <h5 className="text-xs font-bold text-slate-900">HSRP Security Features</h5>
+                      <ul className="text-xs text-slate-600 space-y-1.5 list-disc pl-5">
+                        <li><strong>Chromium Hologram:</strong> Hot-stamped Ashoka Chakra emblem on top-left corner.</li>
+                        <li><strong>Laser PIN:</strong> Unique 10-digit laser-etched serial code linked to VAHAN registry.</li>
+                        <li><strong>IND Inscription:</strong> Blue 45-degree angle font on the left border.</li>
+                        <li><strong>Snap Locks:</strong> Non-reusable engine snap-fit locks preventing removal.</li>
+                      </ul>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
+                      <h5 className="text-xs font-bold text-slate-900">Violation Review Checklist</h5>
+                      <ul className="text-xs text-slate-600 space-y-1.5 list-disc pl-5">
+                        <li>Inspect red-light violation camera multi-frame snapshot sequence.</li>
+                        <li>Confirm driver helmet / seatbelt non-compliance with confidence &gt; 85%.</li>
+                        <li>Verify vehicle registration status against VAHAN national database.</li>
+                        <li>Approve digital notice for automated SMS and parivahan gateway dispatch.</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeDocsTab === 'escalation' && (
+                <div className="space-y-5 animate-in fade-in duration-150">
+                  <div className="p-4 rounded-xl bg-rose-50 border border-rose-200">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-rose-900">
+                      Emergency Response & Dial 112 Rapid Escalation Protocol
+                    </h4>
+                    <p className="text-xs text-rose-800 mt-1">
+                      Inter-agency coordination between Gujarat Police Control Rooms, PCR mobile vans, and traffic task forces.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="p-4 rounded-xl border border-slate-200 bg-white flex items-start gap-4">
+                      <div className="p-2.5 rounded-xl bg-rose-100 text-rose-700 shrink-0">
+                        <PhoneCall size={20} />
+                      </div>
+                      <div className="space-y-1">
+                        <h5 className="text-xs font-bold text-slate-900">Dial 112 ERSS Intercept Trigger</h5>
+                        <p className="text-xs text-slate-600">
+                          Whenever a high-priority stolen vehicle or wanted person watchlist hit is confirmed, trigger the 112 emergency broadcast button in the Dossier panel to push GPS coordinates directly to the nearest PCR van mobile terminal.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-slate-200 bg-white flex items-start gap-4">
+                      <div className="p-2.5 rounded-xl bg-blue-100 text-blue-700 shrink-0">
+                        <ShieldCheck size={20} />
+                      </div>
+                      <div className="space-y-1">
+                        <h5 className="text-xs font-bold text-slate-900">Cyber Command & Edge Node Support</h5>
+                        <p className="text-xs text-slate-600">
+                          In the event of camera stream freeze, edge gateway packet loss, or optical tamper alerts, contact the Gandhinagar SCRB Technical Control Center (Ext: 4401 / 4402).
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3 border-t border-slate-200 bg-slate-50 flex items-center justify-between shrink-0">
+              <span className="text-[11px] text-slate-500 font-mono">
+                SCRB Gujarat Police SOP Manual • Approved for Law Enforcement Use Only
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsDocsModalOpen(false)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl transition cursor-pointer shadow-xs"
+              >
+                Close Documentation
+              </button>
+            </div>
           </div>
         </div>
       )}

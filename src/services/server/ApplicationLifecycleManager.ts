@@ -190,7 +190,11 @@ export class ApplicationLifecycleManager extends EventEmitter {
 
     this.emit('recoveryEvent', event);
 
-    if (severity === 'ERROR' || severity === 'CRITICAL') {
+    // Individual camera hardware/sensor transitions (SENTINEL_SERVICES) are normal operational
+    // telemetry in a heterogeneous CCTV network and should be logged as informational
+    if (component === 'SENTINEL_SERVICES') {
+      console.info(`[SensorTelemetry:${component}] ${eventType} (${realStatus}): ${message}`);
+    } else if (severity === 'ERROR' || severity === 'CRITICAL') {
       console.error(`[Lifecycle:${component}] [${severity}] ${eventType}: ${message}`);
     } else if (severity === 'WARNING') {
       console.warn(`[Lifecycle:${component}] [${severity}] ${eventType}: ${message}`);

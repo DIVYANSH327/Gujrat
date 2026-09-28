@@ -19,8 +19,8 @@ import {
 export class GeminiProvider implements IAIProvider {
   readonly name: AIProviderType = 'GEMINI';
   private client: GoogleGenAI | null = null;
-  private primaryModel = 'gemini-2.5-flash';
-  private candidateModels = ['gemini-3.1-pro', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-pro'];
+  private primaryModel = 'gemini-3.8-flash';
+  private candidateModels = ['gemini-3.8-flash', 'gemini-flash-latest'];
 
   isConfigured(): boolean {
     return isGeminiApiKeyValid(process.env.GEMINI_API_KEY);
@@ -36,7 +36,7 @@ export class GeminiProvider implements IAIProvider {
         apiKey: key,
         httpOptions: {
           headers: {
-            'User-Agent': 'aistudio-gujarat-police-platform'
+            'User-Agent': 'aistudio-build'
           }
         }
       });

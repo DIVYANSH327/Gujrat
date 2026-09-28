@@ -1,16 +1,27 @@
 /**
  * ReasoningProvider.ts
  * Provider-Neutral AI Reasoning Layer for Sentinel Grid
- * Supports: Local Deterministic Rule Engine & Google Gemini Reasoning Provider
+ * Supports: Local Deterministic Rule Engine, Google Cloud Vertex AI & Google Gemini Reasoning Provider
  * 
  * Invariants:
- * 1. Evidence Grounded: Gemini functions solely as an investigative synthesizer, NEVER fabricating observations.
+ * 1. Evidence Grounded: Vertex AI / Gemini functions solely as an investigative synthesizer, NEVER fabricating observations.
  * 2. Strict Truth Categories: Every conclusion is classified as OBSERVED, INFERRED, UNCERTAIN, or NOT_AVAILABLE.
- * 3. Graceful Local Fallback: If GEMINI_API_KEY is absent or unavailable, LocalReasoningProvider generates
+ * 3. Graceful Local Fallback: If Vertex AI / Gemini is absent or unavailable, LocalReasoningProvider generates
  *    structured analytical summaries without network blocking.
+ * 4. Granular State Distinction:
+ *    - API enabled
+ *    - Authentication configured
+ *    - IAM permission available
+ *    - Vertex AI endpoint reachable
+ *    - Model reachable
+ *    - Actual inference successful
+ *    - Local fallback active
  */
 
 import { GoogleGenAI } from '@google/genai';
+import { TARGET_GCP_CONFIG } from './TargetProjectConfig.js';
+
+export type TruthSemanticStatus = 'OBSERVED' | 'INFERRED' | 'UNCERTAIN' | 'NOT_AVAILABLE' | 'NOT_READABLE' | 'OFFLINE';
 
 export interface IncidentReasoningResult {
   incidentId: string;
@@ -26,7 +37,9 @@ export interface IncidentReasoningResult {
   supportingObservationsCount: number;
   uncertainties: string[];
   missingEvidence: string[];
-  provider: 'GEMINI' | 'LOCAL_DETERMINISTIC';
+  provider: 'VERTEX_AI' | 'GEMINI' | 'LOCAL_DETERMINISTIC';
+  latencyMs?: number;
+  tokenUsage?: { promptTokens?: number; candidatesTokens?: number; totalTokens?: number };
 }
 
 export interface TimelineSummaryResult {
@@ -35,7 +48,8 @@ export interface TimelineSummaryResult {
   totalSightings: number;
   timeSpanMinutes: number;
   spatialRoute: string[];
-  provider: 'GEMINI' | 'LOCAL_DETERMINISTIC';
+  provider: 'VERTEX_AI' | 'GEMINI' | 'LOCAL_DETERMINISTIC';
+  latencyMs?: number;
 }
 
 export interface VehicleInvestigationResult {
@@ -52,7 +66,8 @@ export interface VehicleInvestigationResult {
   synthesis: string;
   observedPath: string[];
   anomaliesDetected: string[];
-  provider: 'GEMINI' | 'LOCAL_DETERMINISTIC';
+  provider: 'VERTEX_AI' | 'GEMINI' | 'LOCAL_DETERMINISTIC';
+  latencyMs?: number;
 }
 
 export interface OfficerReportResult {
@@ -73,7 +88,27 @@ export interface OfficerReportResult {
   uncertainties: string[];
   officerNotes: string;
   aiAssistanceDisclosure: string;
-  provider: 'GEMINI' | 'LOCAL_DETERMINISTIC';
+  provider: 'VERTEX_AI' | 'GEMINI' | 'LOCAL_DETERMINISTIC';
+  latencyMs?: number;
+}
+
+export interface ReasoningProviderStatus {
+  provider: string;
+  active: boolean;
+  model: string;
+  apiEnabled: boolean;
+  authConfigured: boolean;
+  iamPermissionAvailable: boolean;
+  endpointReachable: boolean;
+  modelReachable: boolean;
+  actualInferenceSuccessful: boolean;
+  inferenceUnavailable: boolean;
+  localFallback: boolean;
+  backendMode: 'VERTEX_AI' | 'GEMINI_AI_STUDIO' | 'LOCAL_DETERMINISTIC' | 'DISABLED';
+  projectId: string;
+  region: string;
+  lastLatencyMs?: number;
+  lastError?: string;
 }
 
 export interface ReasoningProvider {
@@ -100,7 +135,8 @@ export interface ReasoningProvider {
     officerNotes?: string;
   }): Promise<OfficerReportResult>;
 
-  getStatus(): { provider: string; active: boolean; model: string };
+  getStatus(): ReasoningProviderStatus;
+  probeHealth?(): Promise<ReasoningProviderStatus>;
 }
 
 // ============================================================================
@@ -131,7 +167,8 @@ export class LocalReasoningProvider implements ReasoningProvider {
       supportingObservationsCount: params.observations.length,
       uncertainties: params.observations.length === 0 ? ['No raw camera frames captured during time window'] : [],
       missingEvidence: [],
-      provider: 'LOCAL_DETERMINISTIC'
+      provider: 'LOCAL_DETERMINISTIC',
+      latencyMs: 1
     };
   }
 
@@ -149,7 +186,8 @@ export class LocalReasoningProvider implements ReasoningProvider {
       totalSightings: sorted.length,
       timeSpanMinutes: diffMin,
       spatialRoute: spatial,
-      provider: 'LOCAL_DETERMINISTIC'
+      provider: 'LOCAL_DETERMINISTIC',
+      latencyMs: 1
     };
   }
 
@@ -174,7 +212,8 @@ export class LocalReasoningProvider implements ReasoningProvider {
       synthesis: `Target ${query.target} identified in ${sightings.length} verifiable sightings across CCTV network.`,
       observedPath: Array.from(new Set(sightings.map(s => s.location))),
       anomaliesDetected: [],
-      provider: 'LOCAL_DETERMINISTIC'
+      provider: 'LOCAL_DETERMINISTIC',
+      latencyMs: 1
     };
   }
 
@@ -203,21 +242,34 @@ export class LocalReasoningProvider implements ReasoningProvider {
       uncertainties: [],
       officerNotes: data.officerNotes || 'No supplementary officer remarks recorded.',
       aiAssistanceDisclosure: 'Synthesized by Sentinel Reasoning Engine. All facts grounded in cryptographic SHA-256 evidence logs.',
-      provider: 'LOCAL_DETERMINISTIC'
+      provider: 'LOCAL_DETERMINISTIC',
+      latencyMs: 1
     };
   }
 
-  public getStatus() {
+  public getStatus(): ReasoningProviderStatus {
     return {
       provider: 'LOCAL_DETERMINISTIC',
       active: true,
-      model: 'deterministic-rule-engine-v1'
+      model: 'deterministic-rule-engine-v1',
+      apiEnabled: true,
+      authConfigured: true,
+      iamPermissionAvailable: true,
+      endpointReachable: true,
+      modelReachable: true,
+      actualInferenceSuccessful: true,
+      inferenceUnavailable: false,
+      localFallback: true,
+      backendMode: 'LOCAL_DETERMINISTIC',
+      projectId: TARGET_GCP_CONFIG.projectId,
+      region: TARGET_GCP_CONFIG.region,
+      lastLatencyMs: 1
     };
   }
 }
 
 // ============================================================================
-// Disabled Reasoning Provider (Default - Zero API Billing / Zero Cloud AI Cost)
+// Disabled Reasoning Provider (Zero API Billing / Zero Cloud AI Cost)
 // ============================================================================
 
 export class DisabledReasoningProvider implements ReasoningProvider {
@@ -259,11 +311,22 @@ export class DisabledReasoningProvider implements ReasoningProvider {
     return this.localDeterministic.generateOfficerReport(data);
   }
 
-  public getStatus() {
+  public getStatus(): ReasoningProviderStatus {
     return {
       provider: 'DISABLED',
       active: false,
-      model: 'none'
+      model: 'none',
+      apiEnabled: false,
+      authConfigured: false,
+      iamPermissionAvailable: false,
+      endpointReachable: false,
+      modelReachable: false,
+      actualInferenceSuccessful: false,
+      inferenceUnavailable: true,
+      localFallback: true,
+      backendMode: 'DISABLED',
+      projectId: TARGET_GCP_CONFIG.projectId,
+      region: TARGET_GCP_CONFIG.region
     };
   }
 }
@@ -311,52 +374,149 @@ export class FutureReasoningProvider implements ReasoningProvider {
     return this.localDeterministic.generateOfficerReport(data);
   }
 
-  public getStatus() {
+  public getStatus(): ReasoningProviderStatus {
     return {
       provider: 'FUTURE_PROVIDER',
       active: false,
-      model: this.modelName
+      model: this.modelName,
+      apiEnabled: false,
+      authConfigured: false,
+      iamPermissionAvailable: false,
+      endpointReachable: false,
+      modelReachable: false,
+      actualInferenceSuccessful: false,
+      inferenceUnavailable: true,
+      localFallback: true,
+      backendMode: 'DISABLED',
+      projectId: TARGET_GCP_CONFIG.projectId,
+      region: TARGET_GCP_CONFIG.region
     };
   }
 }
 
 // ============================================================================
-// Google Gemini Reasoning Provider (Multimodal LLM Reasoning - OPTIONAL ONLY)
+// Google Cloud Vertex AI / Gemini Reasoning Provider
 // ============================================================================
 
-export class GoogleGeminiReasoningProvider implements ReasoningProvider {
+export class VertexAIReasoningProvider implements ReasoningProvider {
   private localProvider: LocalReasoningProvider;
   private disabledProvider: DisabledReasoningProvider;
   private ai: GoogleGenAI | null = null;
   private modelName: string;
-  private isConfigured: boolean;
+  private backendMode: 'VERTEX_AI' | 'GEMINI_AI_STUDIO' | 'LOCAL_DETERMINISTIC' | 'DISABLED';
+  private projectId: string;
+  private region: string;
+  private apiEnabled: boolean = false;
+  private authConfigured: boolean = false;
+  private iamPermissionAvailable: boolean = false;
+  private endpointReachable: boolean = false;
+  private modelReachable: boolean = false;
+  private lastInferenceSuccessful: boolean = false;
+  private lastLatencyMs: number = 0;
+  private lastError?: string;
 
   constructor(modelName = 'gemini-3.8-flash') {
     this.localProvider = new LocalReasoningProvider();
     this.disabledProvider = new DisabledReasoningProvider();
     this.modelName = process.env.GEMINI_MODEL || modelName;
-    
-    // CRITICAL BILLING CONSTRAINT: Explicitly check GEMINI_REASONING_ENABLED
-    const isExplicitlyEnabled = process.env.GEMINI_REASONING_ENABLED === 'true';
-    const apiKey = process.env.GEMINI_API_KEY;
+    this.projectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT_ID || TARGET_GCP_CONFIG.projectId;
+    this.region = process.env.GOOGLE_CLOUD_REGION || process.env.VERTEX_AI_LOCATION || TARGET_GCP_CONFIG.region;
 
-    if (isExplicitlyEnabled && apiKey && apiKey.length > 5 && apiKey !== 'mock' && apiKey !== 'placeholder') {
-      try {
-        this.ai = new GoogleGenAI({
-          apiKey,
-          httpOptions: {
-            headers: {
-              'User-Agent': 'aistudio-build'
+    // Evaluate configuration flags
+    const isVertexEnabled = process.env.VERTEX_AI_ENABLED === 'true';
+    const isGeminiReasoningEnabled = process.env.GEMINI_REASONING_ENABLED === 'true';
+    this.apiEnabled = isVertexEnabled || isGeminiReasoningEnabled;
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    const hasValidApiKey = !!(apiKey && apiKey.length > 5 && apiKey !== 'mock' && apiKey !== 'placeholder');
+
+    if (this.apiEnabled) {
+      if (isVertexEnabled && !hasValidApiKey) {
+        // Vertex AI Mode via GCP Project / ADC
+        try {
+          this.ai = new GoogleGenAI({
+            vertexai: true,
+            project: this.projectId,
+            location: this.region,
+            httpOptions: {
+              headers: {
+                'User-Agent': 'aistudio-build'
+              }
             }
-          }
-        });
-        this.isConfigured = true;
-      } catch {
-        this.isConfigured = false;
+          });
+          this.backendMode = 'VERTEX_AI';
+          this.authConfigured = true;
+          this.iamPermissionAvailable = true;
+        } catch (err: any) {
+          this.authConfigured = false;
+          this.backendMode = 'LOCAL_DETERMINISTIC';
+          this.lastError = err.message;
+        }
+      } else if (hasValidApiKey) {
+        // Gemini AI Studio / API Key Mode
+        try {
+          this.ai = new GoogleGenAI({
+            apiKey: apiKey!,
+            httpOptions: {
+              headers: {
+                'User-Agent': 'aistudio-build'
+              }
+            }
+          });
+          this.backendMode = 'GEMINI_AI_STUDIO';
+          this.authConfigured = true;
+          this.iamPermissionAvailable = true;
+        } catch (err: any) {
+          this.authConfigured = false;
+          this.backendMode = 'LOCAL_DETERMINISTIC';
+          this.lastError = err.message;
+        }
+      } else {
+        this.backendMode = 'LOCAL_DETERMINISTIC';
+        this.authConfigured = false;
       }
     } else {
-      this.isConfigured = false;
+      this.backendMode = 'DISABLED';
+      this.authConfigured = false;
     }
+  }
+
+  /**
+   * Probe Health and granular connectivity status
+   */
+  public async probeHealth(): Promise<ReasoningProviderStatus> {
+    if (!this.ai || !this.authConfigured) {
+      return this.getStatus();
+    }
+
+    const start = Date.now();
+    try {
+      const pingRes = await this.ai.models.generateContent({
+        model: 'gemini-3.5-flash-lite',
+        contents: 'Ping test: respond with PONG'
+      });
+      const latency = Date.now() - start;
+      const text = pingRes.text?.trim() || '';
+
+      this.endpointReachable = true;
+      this.modelReachable = true;
+      this.lastInferenceSuccessful = text.includes('PONG') || text.length > 0;
+      this.lastLatencyMs = latency;
+      this.iamPermissionAvailable = true;
+    } catch (err: any) {
+      this.lastLatencyMs = Date.now() - start;
+      this.endpointReachable = false;
+      this.modelReachable = false;
+      this.lastInferenceSuccessful = false;
+      this.lastError = err.message;
+
+      const msg = String(err?.message || err);
+      if (msg.includes('403') || msg.includes('PERMISSION_DENIED')) {
+        this.iamPermissionAvailable = false;
+      }
+    }
+
+    return this.getStatus();
   }
 
   public async analyzeIncident(params: {
@@ -366,10 +526,11 @@ export class GoogleGeminiReasoningProvider implements ReasoningProvider {
     timestamps: string[];
     cameraIds: string[];
   }): Promise<IncidentReasoningResult> {
-    if (!this.ai || !this.isConfigured) {
+    if (!this.ai || !this.authConfigured || !this.apiEnabled) {
       return this.disabledProvider.analyzeIncident(params);
     }
 
+    const start = Date.now();
     try {
       const prompt = `
 You are the Incident Reasoning Agent for the Gujarat Police CCTV Sentinel Grid.
@@ -390,24 +551,43 @@ Observations: ${JSON.stringify(params.observations.slice(0, 20))}
         contents: prompt
       });
 
+      const latencyMs = Date.now() - start;
       const text = response.text || '';
       const localFallback = await this.localProvider.analyzeIncident(params);
+
+      this.lastInferenceSuccessful = true;
+      this.lastLatencyMs = latencyMs;
+      this.endpointReachable = true;
+      this.modelReachable = true;
 
       return {
         ...localFallback,
         factualSummary: text.substring(0, 800) || localFallback.factualSummary,
-        provider: 'GEMINI'
+        provider: this.backendMode === 'VERTEX_AI' ? 'VERTEX_AI' : 'GEMINI',
+        latencyMs,
+        tokenUsage: {
+          promptTokens: (response as any)?.usageMetadata?.promptTokenCount,
+          candidatesTokens: (response as any)?.usageMetadata?.candidatesTokenCount,
+          totalTokens: (response as any)?.usageMetadata?.totalTokenCount
+        }
       };
-    } catch {
-      return this.localProvider.analyzeIncident(params);
+    } catch (err: any) {
+      this.lastError = err.message;
+      this.lastInferenceSuccessful = false;
+      const local = await this.localProvider.analyzeIncident(params);
+      return {
+        ...local,
+        latencyMs: Date.now() - start
+      };
     }
   }
 
   public async summarizeTimeline(observations: any[]): Promise<TimelineSummaryResult> {
-    if (!this.ai || !this.isConfigured) {
+    if (!this.ai || !this.authConfigured || !this.apiEnabled) {
       return this.localProvider.summarizeTimeline(observations);
     }
 
+    const start = Date.now();
     try {
       const prompt = `
 Summarize the following chronological CCTV sightings for police investigators.
@@ -420,13 +600,15 @@ Observations: ${JSON.stringify(observations.slice(0, 30))}
         contents: prompt
       });
 
+      const latencyMs = Date.now() - start;
       const text = response.text || '';
       const localFallback = await this.localProvider.summarizeTimeline(observations);
 
       return {
         ...localFallback,
         summary: text.substring(0, 600) || localFallback.summary,
-        provider: 'GEMINI'
+        provider: this.backendMode === 'VERTEX_AI' ? 'VERTEX_AI' : 'GEMINI',
+        latencyMs
       };
     } catch {
       return this.localProvider.summarizeTimeline(observations);
@@ -438,10 +620,11 @@ Observations: ${JSON.stringify(observations.slice(0, 30))}
     observations: any[];
     timeRange?: { from: string; to: string };
   }): Promise<VehicleInvestigationResult> {
-    if (!this.ai || !this.isConfigured) {
+    if (!this.ai || !this.authConfigured || !this.apiEnabled) {
       return this.localProvider.investigateVehicle(query);
     }
 
+    const start = Date.now();
     try {
       const prompt = `
 Analyze the trajectory and sightings for vehicle target: ${query.target}.
@@ -454,13 +637,15 @@ Rule: Summarize real sightings only. Do not hallucinate intermediate cameras.
         contents: prompt
       });
 
+      const latencyMs = Date.now() - start;
       const text = response.text || '';
       const localFallback = await this.localProvider.investigateVehicle(query);
 
       return {
         ...localFallback,
         synthesis: text.substring(0, 600) || localFallback.synthesis,
-        provider: 'GEMINI'
+        provider: this.backendMode === 'VERTEX_AI' ? 'VERTEX_AI' : 'GEMINI',
+        latencyMs
       };
     } catch {
       return this.localProvider.investigateVehicle(query);
@@ -475,10 +660,11 @@ Rule: Summarize real sightings only. Do not hallucinate intermediate cameras.
   }): Promise<OfficerReportResult> {
     const local = await this.localProvider.generateOfficerReport(data);
 
-    if (!this.ai || !this.isConfigured) {
+    if (!this.ai || !this.authConfigured || !this.apiEnabled) {
       return local;
     }
 
+    const start = Date.now();
     try {
       const prompt = `
 Generate a formal Section 63 BSA 2023 police investigation report summary for:
@@ -493,42 +679,69 @@ Officer Notes: ${local.officerNotes}
         contents: prompt
       });
 
+      const latencyMs = Date.now() - start;
       const text = response.text || '';
       return {
         ...local,
-        aiAssistanceDisclosure: `Synthesized with Gemini (${this.modelName}) reasoning assistance. ${text.substring(0, 400)}`,
-        provider: 'GEMINI'
+        aiAssistanceDisclosure: `Synthesized with ${this.backendMode === 'VERTEX_AI' ? 'Google Cloud Vertex AI' : 'Google Gemini'} (${this.modelName}) reasoning assistance. ${text.substring(0, 400)}`,
+        provider: this.backendMode === 'VERTEX_AI' ? 'VERTEX_AI' : 'GEMINI',
+        latencyMs
       };
     } catch {
       return local;
     }
   }
 
-  public getStatus() {
+  public getStatus(): ReasoningProviderStatus {
+    const isWorking = this.authConfigured && (this.backendMode === 'VERTEX_AI' || this.backendMode === 'GEMINI_AI_STUDIO');
     return {
-      provider: 'GOOGLE_GEMINI',
-      active: this.isConfigured,
-      model: this.modelName
+      provider: this.backendMode === 'VERTEX_AI' ? 'GOOGLE_CLOUD_VERTEX_AI' : 'GOOGLE_GEMINI',
+      active: isWorking,
+      model: this.modelName,
+      apiEnabled: this.apiEnabled,
+      authConfigured: this.authConfigured,
+      iamPermissionAvailable: this.iamPermissionAvailable,
+      endpointReachable: this.endpointReachable,
+      modelReachable: this.modelReachable,
+      actualInferenceSuccessful: this.lastInferenceSuccessful,
+      inferenceUnavailable: !isWorking,
+      localFallback: !isWorking || this.backendMode === 'LOCAL_DETERMINISTIC',
+      backendMode: this.backendMode,
+      projectId: this.projectId,
+      region: this.region,
+      lastLatencyMs: this.lastLatencyMs,
+      lastError: this.lastError
     };
   }
 }
+
+// Backwards compatibility alias
+export class GoogleGeminiReasoningProvider extends VertexAIReasoningProvider {}
 
 // ============================================================================
 // Factory & Default Instance
 // ============================================================================
 
-export function createReasoningProvider(type?: 'DISABLED' | 'GEMINI' | 'FUTURE'): ReasoningProvider {
-  const selectedType = type || (process.env.GEMINI_REASONING_ENABLED === 'true' ? 'GEMINI' : 'DISABLED');
+export function createReasoningProvider(type?: 'DISABLED' | 'GEMINI' | 'VERTEX' | 'FUTURE' | 'LOCAL'): ReasoningProvider {
+  const selectedType = type || (
+    (process.env.VERTEX_AI_ENABLED === 'true' || process.env.GEMINI_REASONING_ENABLED === 'true')
+      ? 'VERTEX'
+      : 'DISABLED'
+  );
+
   switch (selectedType) {
+    case 'VERTEX':
     case 'GEMINI':
-      return new GoogleGeminiReasoningProvider();
+      return new VertexAIReasoningProvider();
     case 'FUTURE':
       return new FutureReasoningProvider();
+    case 'LOCAL':
+      return new LocalReasoningProvider();
     case 'DISABLED':
     default:
       return new DisabledReasoningProvider();
   }
 }
 
-// Default export: Defaults to DisabledReasoningProvider unless GEMINI_REASONING_ENABLED=true
+// Default export
 export const defaultReasoningProvider: ReasoningProvider = createReasoningProvider();

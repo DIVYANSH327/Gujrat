@@ -10,6 +10,8 @@
  * 4. CREDIT PROTECTION: Protects available GCP free credits from unbounded cloud video transcoding or AI API billing.
  */
 
+import { TARGET_GCP_CONFIG } from './TargetProjectConfig.js';
+
 export type CloudMode = 'LOCAL_ONLY' | 'EVENT_ONLY' | 'HYBRID';
 export type CloudEnvironment = 'LOCAL' | 'GCP_DEV' | 'GCP_STAGING' | 'GCP_PRODUCTION';
 export type EventBusProviderType = 'LOCAL' | 'PUBSUB';
@@ -67,11 +69,11 @@ export class CloudConfigurationService {
     // CRITICAL BILLING CONSTRAINT: Gemini reasoning is STRICTLY OPTIONAL and disabled by default
     this.geminiReasoningEnabled = process.env.GEMINI_REASONING_ENABLED === 'true';
 
-    this.projectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT || 'gujarat-police-sentinel';
-    this.region = process.env.GOOGLE_CLOUD_REGION || 'asia-south1';
-    this.pubsubTopicEvents = process.env.GCP_PUBSUB_TOPIC_EVENTS || 'projects/gujarat-police-sentinel/topics/sentinel-vehicle-events';
-    this.gcsEvidenceBucket = process.env.GCP_GCS_EVIDENCE_BUCKET || 'gujarat-police-sentinel-evidence-asia-south1';
-    this.bigqueryDataset = process.env.GCP_BIGQUERY_DATASET || 'sentinel_surveillance_mesh';
+    this.projectId = process.env.GOOGLE_CLOUD_PROJECT || process.env.GCP_PROJECT_ID || process.env.GCP_PROJECT || TARGET_GCP_CONFIG.projectId;
+    this.region = process.env.GOOGLE_CLOUD_REGION || process.env.GCP_REGION || TARGET_GCP_CONFIG.region;
+    this.pubsubTopicEvents = process.env.GCP_PUBSUB_TOPIC_EVENTS || process.env.PUBSUB_TOPIC || `projects/${this.projectId}/topics/${TARGET_GCP_CONFIG.pubSubTopic}`;
+    this.gcsEvidenceBucket = process.env.GCP_GCS_EVIDENCE_BUCKET || process.env.GCS_BUCKET || TARGET_GCP_CONFIG.gcsBucket;
+    this.bigqueryDataset = process.env.GCP_BIGQUERY_DATASET || process.env.BIGQUERY_DATASET || TARGET_GCP_CONFIG.bigQueryDataset;
   }
 
   public static getInstance(): CloudConfigurationService {

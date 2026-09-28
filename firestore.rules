@@ -45,6 +45,14 @@ service cloud.firestore {
              data.timestamp is string && data.timestamp.size() <= 64;
     }
 
+    function isValidIncident(data) {
+      return data.incidentId is string && data.incidentId.size() <= 128 &&
+             data.title is string && data.title.size() <= 256 &&
+             data.type is string && data.type.size() <= 64 &&
+             data.severity is string && data.severity.size() <= 32 &&
+             data.status is string && data.status.size() <= 32;
+    }
+
     // User / Officer Profiles
     match /users/{userId} {
       allow get: if isSignedIn() && isValidId(userId);
@@ -79,6 +87,15 @@ service cloud.firestore {
       allow create: if isSignedIn() && isValidId(evidenceId) && isValidEvidence(request.resource.data);
       allow update: if isSignedIn() && isValidId(evidenceId) && isValidEvidence(request.resource.data);
       allow delete: if isSignedIn() && isValidId(evidenceId);
+    }
+
+    // Operational Incident Reports
+    match /incidents/{incidentId} {
+      allow get: if isSignedIn() && isValidId(incidentId);
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(incidentId) && isValidIncident(request.resource.data);
+      allow update: if isSignedIn() && isValidId(incidentId) && isValidIncident(request.resource.data);
+      allow delete: if isSignedIn() && isValidId(incidentId);
     }
   }
 }

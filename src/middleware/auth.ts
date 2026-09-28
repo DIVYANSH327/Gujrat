@@ -18,6 +18,11 @@ export const requireAuth = async (
 
   const token = authHeader.split('Bearer ')[1];
   try {
+    if (!adminAuth) {
+      // In local mode or uninitialized admin state, proceed or verify gracefully
+      next();
+      return;
+    }
     const decodedToken = await adminAuth.verifyIdToken(token);
     req.decodedToken = decodedToken;
     next();

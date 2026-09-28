@@ -17,6 +17,7 @@ import { defaultCloudEvidenceStore } from '../../services/cloud/EvidenceStore.js
 import { defaultReasoningProvider } from '../../services/cloud/ReasoningProvider.js';
 import { cloudConfig } from '../../services/cloud/CloudConfiguration.js';
 import { observabilityService } from '../../services/cloud/ObservabilityService.js';
+import { TARGET_GCP_CONFIG } from '../../services/cloud/TargetProjectConfig.js';
 
 interface AuditResult {
   step: string;
@@ -95,9 +96,9 @@ async function checkMetadataAuth(): Promise<{
       });
     };
 
-    pubsubApiStatus = await probe('pubsub.googleapis.com', '/v1/projects/ais-asia-southeast1-9e118291d7/topics');
-    gcsApiStatus = await probe('storage.googleapis.com', '/storage/v1/b?project=ais-asia-southeast1-9e118291d7');
-    bigqueryApiStatus = await probe('bigquery.googleapis.com', '/bigquery/v2/projects/ais-asia-southeast1-9e118291d7/datasets');
+    pubsubApiStatus = await probe('pubsub.googleapis.com', `/v1/projects/${TARGET_GCP_CONFIG.projectId}/topics`);
+    gcsApiStatus = await probe('storage.googleapis.com', `/storage/v1/b?project=${TARGET_GCP_CONFIG.projectId}`);
+    bigqueryApiStatus = await probe('bigquery.googleapis.com', `/bigquery/v2/projects/${TARGET_GCP_CONFIG.projectId}/datasets`);
   }
 
   const isFullyAuthorized = hasEnvCredentials && pubsubApiStatus === 200 && gcsApiStatus === 200 && bigqueryApiStatus === 200;
